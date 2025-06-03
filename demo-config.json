@@ -1,0 +1,86 @@
+{
+  "version": "1.0",
+  "timestamp": "2024-01-15T10:00:00.000Z",
+  "environments": [
+    {
+      "id": "dev",
+      "name": "开发环境",
+      "type": "development",
+      "network": "internal",
+      "url": "https://dev.example.com",
+      "status": "online",
+      "version": "v1.2.3-dev",
+      "lastDeployed": "2024-01-15 14:30:00",
+      "description": "开发环境，用于日常开发和调试",
+      "services": [
+        { "name": "Web应用", "url": "https://dev.example.com", "port": 3000 },
+        { "name": "API服务", "url": "https://api-dev.example.com", "port": 8080 },
+        { "name": "数据库", "url": "mysql://db-dev.example.com", "port": 3306 }
+      ]
+    },
+    {
+      "id": "test",
+      "name": "测试环境",
+      "type": "testing",
+      "network": "internal",
+      "url": "https://test.example.com",
+      "status": "online",
+      "version": "v1.2.2",
+      "lastDeployed": "2024-01-14 16:45:00",
+      "description": "测试环境，用于功能测试和集成测试",
+      "services": [
+        { "name": "Web应用", "url": "https://test.example.com", "port": 3000 },
+        { "name": "API服务", "url": "https://api-test.example.com", "port": 8080 },
+        { "name": "数据库", "url": "mysql://db-test.example.com", "port": 3306 }
+      ]
+    },
+    {
+      "id": "staging",
+      "name": "预生产环境",
+      "type": "staging",
+      "network": "external",
+      "url": "https://staging.example.com",
+      "status": "maintenance",
+      "version": "v1.2.1",
+      "lastDeployed": "2024-01-13 10:20:00",
+      "description": "预生产环境，用于生产前的最终验证",
+      "services": [
+        { "name": "Web应用", "url": "https://staging.example.com", "port": 443 },
+        { "name": "API服务", "url": "https://api-staging.example.com", "port": 443 },
+        { "name": "数据库", "url": "mysql://db-staging.example.com", "port": 3306 }
+      ]
+    },
+    {
+      "id": "prod",
+      "name": "生产环境",
+      "type": "production",
+      "network": "external",
+      "url": "https://www.example.com",
+      "status": "online",
+      "version": "v1.2.0",
+      "lastDeployed": "2024-01-12 09:00:00",
+      "description": "生产环境，对外提供正式服务",
+      "services": [
+        { "name": "Web应用", "url": "https://www.example.com", "port": 443 },
+        { "name": "API服务", "url": "https://api.example.com", "port": 443 },
+        { "name": "数据库", "url": "mysql://db.example.com", "port": 3306 },
+        { "name": "CDN", "url": "https://cdn.example.com", "port": 443 }
+      ]
+    },
+    {
+      "id": "demo",
+      "name": "演示环境",
+      "type": "demo",
+      "network": "external",
+      "url": "https://demo.example.com",
+      "status": "offline",
+      "version": "v1.1.5",
+      "lastDeployed": "2024-01-10 15:30:00",
+      "description": "演示环境，用于客户演示和展示",
+      "services": [
+        { "name": "Web应用", "url": "https://demo.example.com", "port": 443 },
+        { "name": "API服务", "url": "https://api-demo.example.com", "port": 443 }
+      ]
+    }
+  ]
+}
