@@ -27,16 +27,21 @@ const EnvironmentList = () => {
   }, []);
 
   const loadEnvironments = async () => {
-    const envs = getEnvironments();
-    setEnvironments(envs);
+    try {
+      const envs = await getEnvironments();
+      setEnvironments(envs);
 
-    // 预热环境状态检测（后台进行）
-    if (envs.length > 0) {
-      preWarmEnvironments(envs).then(statuses => {
-        setEnvironmentStatuses(statuses);
-      }).catch(error => {
-        console.error('预热环境状态失败:', error);
-      });
+      // 预热环境状态检测（后台进行）
+      if (envs.length > 0) {
+        preWarmEnvironments(envs).then(statuses => {
+          setEnvironmentStatuses(statuses);
+        }).catch(error => {
+          console.error('预热环境状态失败:', error);
+        });
+      }
+    } catch (error) {
+      console.error('加载环境配置失败:', error);
+      setEnvironments([]);
     }
   };
 

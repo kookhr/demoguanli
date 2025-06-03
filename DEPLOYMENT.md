@@ -23,7 +23,25 @@ git push -u origin main
 4. 选择 **Connect to Git**
 5. 授权并选择您的仓库
 
-### 3. 配置构建设置
+### 3. 创建 KV 命名空间
+
+在部署前，需要创建 KV 命名空间来存储配置：
+
+```bash
+# 安装 Wrangler CLI
+npm install -g wrangler
+
+# 登录 Cloudflare
+wrangler login
+
+# 创建 KV 命名空间
+wrangler kv:namespace create "ENV_CONFIG"
+wrangler kv:namespace create "ENV_CONFIG" --preview
+```
+
+记录返回的命名空间 ID，并更新 `wrangler.toml` 文件中的 `id` 和 `preview_id`。
+
+### 4. 配置构建设置
 
 在 Cloudflare Pages 中设置以下构建配置：
 
@@ -35,7 +53,16 @@ Root directory: (留空)
 Environment variables: NODE_VERSION = 18
 ```
 
-### 4. 部署
+### 5. 绑定 KV 命名空间
+
+在 Cloudflare Pages 项目设置中：
+1. 进入 **Functions** 标签页
+2. 点击 **KV namespace bindings**
+3. 添加绑定：
+   - Variable name: `ENV_CONFIG`
+   - KV namespace: 选择之前创建的命名空间
+
+### 6. 部署
 
 点击 **Save and Deploy**，Cloudflare 将自动：
 - 安装依赖 (`npm install`)
@@ -82,6 +109,31 @@ npm run build
 2. 点击 **Create a project**
 3. 选择 **Upload assets**
 4. 上传 `dist` 文件夹中的所有文件
+
+## 🗄️ Cloudflare KV 集成
+
+### KV 存储优势
+
+- **全球同步**: 配置存储在全球边缘网络中
+- **多用户共享**: 团队成员可以共享环境配置
+- **实时更新**: 配置变更立即生效
+- **高可用性**: 99.9% 的正常运行时间
+- **自动备份**: 数据自动备份到多个数据中心
+
+### 功能特性
+
+1. **智能降级**: KV 不可用时自动降级到 localStorage
+2. **数据迁移**: 支持从 localStorage 迁移到 KV
+3. **缓存机制**: 本地缓存提高访问速度
+4. **错误处理**: 完善的错误处理和重试机制
+
+### 使用 KV 存储
+
+部署到 Cloudflare Pages 后，系统会自动：
+- 检测 KV 可用性
+- 迁移本地配置到 KV
+- 在存储状态面板显示当前存储类型
+- 提供手动同步功能
 
 ## 🔧 部署后配置
 

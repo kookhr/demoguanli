@@ -11,6 +11,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import EnvironmentForm from './EnvironmentForm';
+import StorageStatus from './StorageStatus';
 import {
   getEnvironments,
   addEnvironment,
@@ -33,9 +34,14 @@ const ConfigPage = () => {
     loadEnvironments();
   }, []);
 
-  const loadEnvironments = () => {
-    const envs = getEnvironments();
-    setEnvironments(envs);
+  const loadEnvironments = async () => {
+    try {
+      const envs = await getEnvironments();
+      setEnvironments(envs);
+    } catch (error) {
+      console.error('加载环境配置失败:', error);
+      showMessage('error', '加载环境配置失败: ' + error.message);
+    }
   };
 
   // 显示消息
@@ -59,15 +65,15 @@ const ConfigPage = () => {
   // 保存环境
   const handleSaveEnvironment = async (environmentData) => {
     try {
-      let success;
+      let result;
       if (editingEnvironment) {
-        success = updateEnvironment(editingEnvironment.id, environmentData);
+        result = await updateEnvironment(editingEnvironment.id, environmentData);
       } else {
-        success = addEnvironment(environmentData);
+        result = await addEnvironment(environmentData);
       }
 
-      if (success) {
-        loadEnvironments();
+      if (result) {
+        await loadEnvironments();
         setShowForm(false);
         setEditingEnvironment(null);
         showMessage('success', editingEnvironment ? '环境更新成功' : '环境添加成功');
@@ -80,21 +86,25 @@ const ConfigPage = () => {
   };
 
   // 删除环境
-  const handleDeleteEnvironment = (id) => {
-    const success = deleteEnvironment(id);
-    if (success) {
-      loadEnvironments();
-      setShowDeleteConfirm(null);
-      showMessage('success', '环境删除成功');
-    } else {
-      showMessage('error', '删除失败');
+  const handleDeleteEnvironment = async (id) => {
+    try {
+      const result = await deleteEnvironment(id);
+      if (result) {
+        await loadEnvironments();
+        setShowDeleteConfirm(null);
+        showMessage('success', '环境删除成功');
+      } else {
+        throw new Error('删除失败');
+      }
+    } catch (error) {
+      showMessage('error', '删除失败: ' + error.message);
     }
   };
 
   // 导出配置
-  const handleExportConfig = () => {
+  const handleExportConfig = async () => {
     try {
-      const config = exportConfig();
+      const config = await exportConfig();
       const blob = new Blob([config], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -116,11 +126,11 @@ const ConfigPage = () => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const success = importConfig(e.target.result);
-        if (success) {
-          loadEnvironments();
+        const result = await importConfig(e.target.result);
+        if (result) {
+          await loadEnvironments();
           showMessage('success', '配置导入成功');
         } else {
           showMessage('error', '导入失败：配置文件格式不正确');
@@ -134,14 +144,18 @@ const ConfigPage = () => {
   };
 
   // 重置配置
-  const handleResetConfig = () => {
+  const handleResetConfig = async () => {
     if (window.confirm('确定要重置为默认配置吗？这将删除所有自定义配置！')) {
-      const success = resetToDefault();
-      if (success) {
-        loadEnvironments();
-        showMessage('success', '配置已重置为默认值');
-      } else {
-        showMessage('error', '重置失败');
+      try {
+        const success = await resetToDefault();
+        if (success) {
+          await loadEnvironments();
+          showMessage('success', '配置已重置为默认值');
+        } else {
+          throw new Error('重置失败');
+        }
+      } catch (error) {
+        showMessage('error', '重置失败: ' + error.message);
       }
     }
   };
@@ -252,6 +266,11 @@ const ConfigPage = () => {
             />
           </div>
         )}
+
+        {/* 存储状态 */}
+        <div className="mb-8">
+          <StorageStatus />
+        </div>
 
         {/* 环境列表 */}
         <div className="card animate-fade-in">

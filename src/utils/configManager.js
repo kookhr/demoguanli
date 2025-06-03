@@ -1,4 +1,6 @@
-// 配置管理工具
+// 配置管理工具 - 现在支持 Cloudflare KV
+import { kvStorage } from './kvStorage.js';
+
 const CONFIG_STORAGE_KEY = 'environment_config';
 
 // 默认环境配置
@@ -70,58 +72,85 @@ const defaultEnvironments = [
   }
 ];
 
-// 获取所有环境配置
-export const getEnvironments = () => {
+// 获取所有环境配置 - 优先从 KV，降级到 localStorage
+export const getEnvironments = async () => {
   try {
-    const stored = localStorage.getItem(CONFIG_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
+    // 尝试从 KV 获取
+    const environments = await kvStorage.getEnvironments();
+
+    // 如果 KV 中没有数据且 localStorage 中有数据，则迁移到 KV
+    if (environments.length === 0 && kvStorage.isKVAvailable()) {
+      const localData = localStorage.getItem(CONFIG_STORAGE_KEY);
+      if (localData) {
+        const localEnvironments = JSON.parse(localData);
+        await kvStorage.saveEnvironments(localEnvironments);
+        return localEnvironments;
+      }
     }
+
+    // 如果没有任何配置，返回默认配置
+    return environments.length > 0 ? environments : defaultEnvironments;
   } catch (error) {
-    console.error('读取配置失败:', error);
+    console.error('获取环境配置失败:', error);
+
+    // 降级到 localStorage
+    try {
+      const stored = localStorage.getItem(CONFIG_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : defaultEnvironments;
+    } catch (localError) {
+      console.error('localStorage 也失败了:', localError);
+      return defaultEnvironments;
+    }
   }
-  return defaultEnvironments;
 };
 
 // 保存环境配置
-export const saveEnvironments = (environments) => {
+export const saveEnvironments = async (environments) => {
   try {
-    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(environments));
-    return true;
+    const result = await kvStorage.saveEnvironments(environments);
+    return result.success;
   } catch (error) {
-    console.error('保存配置失败:', error);
+    console.error('保存环境配置失败:', error);
     return false;
   }
 };
 
 // 添加新环境
-export const addEnvironment = (environment) => {
-  const environments = getEnvironments();
-  const newEnvironment = {
-    ...environment,
-    id: environment.id || generateId(),
-    lastDeployed: new Date().toISOString().slice(0, 19).replace('T', ' ')
-  };
-  environments.push(newEnvironment);
-  return saveEnvironments(environments);
+export const addEnvironment = async (environment) => {
+  try {
+    const newEnvironment = {
+      ...environment,
+      id: environment.id || generateId(),
+      lastDeployed: new Date().toISOString().slice(0, 19).replace('T', ' ')
+    };
+    const result = await kvStorage.addEnvironment(newEnvironment);
+    return result.environment;
+  } catch (error) {
+    console.error('添加环境失败:', error);
+    return null;
+  }
 };
 
 // 更新环境
-export const updateEnvironment = (id, updatedEnvironment) => {
-  const environments = getEnvironments();
-  const index = environments.findIndex(env => env.id === id);
-  if (index !== -1) {
-    environments[index] = { ...environments[index], ...updatedEnvironment };
-    return saveEnvironments(environments);
+export const updateEnvironment = async (id, updatedEnvironment) => {
+  try {
+    const result = await kvStorage.updateEnvironment(id, updatedEnvironment);
+    return result.environment;
+  } catch (error) {
+    console.error('更新环境失败:', error);
+    return null;
   }
-  return false;
 };
 
 // 删除环境
-export const deleteEnvironment = (id) => {
-  const environments = getEnvironments();
-  const filtered = environments.filter(env => env.id !== id);
-  return saveEnvironments(filtered);
+export const deleteEnvironment = async (id) => {
+  try {
+    await kvStorage.deleteEnvironment(id);
+    return await getEnvironments(); // 返回更新后的列表
+  } catch (error) {
+    console.error('删除环境失败:', error);
+    return null;
+  }
 };
 
 // 生成唯一ID
@@ -130,33 +159,56 @@ const generateId = () => {
 };
 
 // 导出配置
-export const exportConfig = () => {
-  const environments = getEnvironments();
-  const config = {
-    version: '1.0',
-    timestamp: new Date().toISOString(),
-    environments
-  };
-  return JSON.stringify(config, null, 2);
+export const exportConfig = async () => {
+  try {
+    const config = await kvStorage.exportConfig();
+    return JSON.stringify(config, null, 2);
+  } catch (error) {
+    console.error('导出配置失败:', error);
+    throw error;
+  }
 };
 
 // 导入配置
-export const importConfig = (configString) => {
+export const importConfig = async (configString) => {
   try {
     const config = JSON.parse(configString);
-    if (config.environments && Array.isArray(config.environments)) {
-      return saveEnvironments(config.environments);
-    }
-    return false;
+    await kvStorage.importConfig(config);
+    return await getEnvironments(); // 返回导入后的环境列表
   } catch (error) {
     console.error('导入配置失败:', error);
-    return false;
+    throw error;
   }
 };
 
 // 重置为默认配置
-export const resetToDefault = () => {
-  return saveEnvironments(defaultEnvironments);
+export const resetToDefault = async () => {
+  return await saveEnvironments(defaultEnvironments);
+};
+
+// 获取存储信息
+export const getStorageInfo = async () => {
+  try {
+    return await kvStorage.getStorageInfo();
+  } catch (error) {
+    console.error('获取存储信息失败:', error);
+    return {
+      storage: 'localStorage',
+      environmentCount: 0,
+      isKVAvailable: false,
+      lastUpdate: null
+    };
+  }
+};
+
+// 手动同步到 KV（用于迁移）
+export const syncToKV = async () => {
+  try {
+    return await kvStorage.syncLocalStorageToKV();
+  } catch (error) {
+    console.error('同步到 KV 失败:', error);
+    throw error;
+  }
 };
 
 // 验证环境配置
