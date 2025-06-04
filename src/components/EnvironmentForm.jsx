@@ -85,8 +85,8 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
 
   return (
     <div className="card animate-slide-up">
-      <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-primary-100">
-        <h2 className="text-xl font-semibold text-gray-900">
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
           {isEdit ? '编辑环境' : '添加新环境'}
         </h2>
       </div>
@@ -94,14 +94,14 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         {/* 错误提示 */}
         {errors.length > 0 && (
-          <div className="bg-danger-50 border border-danger-200 rounded-xl p-4 animate-slide-up">
+          <div className="bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-700 rounded-xl p-4 animate-slide-up transition-colors">
             <div className="flex">
-              <AlertCircle className="w-5 h-5 text-danger-400 flex-shrink-0" />
+              <AlertCircle className="w-5 h-5 text-danger-400 dark:text-danger-400 flex-shrink-0" />
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-danger-800">
+                <h3 className="text-sm font-medium text-danger-800 dark:text-danger-300">
                   请修正以下错误：
                 </h3>
-                <ul className="mt-2 text-sm text-danger-700 list-disc list-inside">
+                <ul className="mt-2 text-sm text-danger-700 dark:text-danger-300 list-disc list-inside">
                   {errors.map((error, index) => (
                     <li key={index}>{error}</li>
                   ))}
@@ -115,7 +115,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* 环境ID */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               环境ID *
             </label>
             <input
@@ -124,16 +124,16 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
               onChange={(e) => handleChange('id', e.target.value)}
               placeholder="例如: dev, test, prod"
               disabled={isEdit}
-              className="input-field disabled:bg-gray-100"
+              className="input-field disabled:bg-gray-100 dark:disabled:bg-gray-700"
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {isEdit ? '环境ID不可修改' : '唯一标识符，只能包含字母、数字、下划线'}
             </p>
           </div>
 
           {/* 环境名称 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               环境名称 *
             </label>
             <input
@@ -147,7 +147,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
 
           {/* 环境类型 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               环境类型 *
             </label>
             <select
@@ -165,7 +165,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
 
           {/* 网络类型 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               网络类型 *
             </label>
             <select
@@ -183,7 +183,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
 
           {/* 主要URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               主要URL *
             </label>
             <input
@@ -199,7 +199,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
 
           {/* 版本号 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               版本号
             </label>
             <input
@@ -214,7 +214,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
 
         {/* 环境描述 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             环境描述
           </label>
           <textarea
@@ -228,7 +228,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
 
         {/* 标签管理 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             环境标签
           </label>
           <TagEditor
@@ -245,7 +245,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
             ]}
             placeholder="添加标签，用于分类和筛选..."
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             标签用于分类和快速筛选环境，支持自定义标签
           </p>
         </div>
@@ -257,7 +257,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
         />
 
         {/* 操作按钮 */}
-        <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-4 pt-6 border-t border-gray-200 dark:border-gray-700">
           <button
             type="button"
             onClick={onCancel}

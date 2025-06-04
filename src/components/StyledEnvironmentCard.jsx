@@ -140,12 +140,12 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-lg font-semibold text-gray-900">{environment.name}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{environment.name}</h3>
               <span className={`badge ${getTypeStyle(environment.type)}`}>
                 {environment.type}
               </span>
             </div>
-            <p className="text-sm text-gray-600 mb-3">{environment.description}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{environment.description}</p>
 
             {/* 标签 */}
             {environment.tags && environment.tags.length > 0 && (
@@ -162,9 +162,9 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
           {/* 网络类型标识 */}
           <div className="flex items-center gap-2">
             {environment.network === 'internal' ? (
-              <Shield className="w-4 h-4 text-blue-500" title="内网环境" />
+              <Shield className="w-4 h-4 text-blue-500 dark:text-blue-400" title="内网环境" />
             ) : (
-              <Globe className="w-4 h-4 text-green-500" title="外网环境" />
+              <Globe className="w-4 h-4 text-green-500 dark:text-green-400" title="外网环境" />
             )}
           </div>
         </div>
@@ -180,22 +180,22 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
                     {isChecking ? '检测中...' : statusInfo.text}
                   </span>
                   {!isChecking && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {statusInfo.description}
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="text-sm text-gray-500">
-                版本: <span className="font-mono font-medium">{environment.version}</span>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                版本: <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{environment.version}</span>
               </div>
             </div>
 
             <button
               onClick={() => onStatusCheck && onStatusCheck(environment)}
               disabled={isChecking}
-              className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-800 disabled:opacity-50 font-medium transition-colors px-2 py-1 rounded hover:bg-primary-50"
+              className="flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 disabled:opacity-50 font-medium transition-colors px-2 py-1 rounded hover:bg-primary-50 dark:hover:bg-primary-900/20"
               title="重新检测状态"
             >
               <RefreshCw className={`w-3 h-3 ${isChecking ? 'animate-spin' : ''}`} />
@@ -205,7 +205,7 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
 
           {/* 检测时间和错误信息 */}
           {(status?.lastChecked || status?.error) && (
-            <div className="flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
               {status?.lastChecked && (
                 <span>
                   最后检测: {formatLastChecked(status.lastChecked)}
@@ -217,7 +217,7 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
                 </span>
               )}
               {status?.error && (
-                <span className="text-danger-600 bg-danger-50 px-2 py-1 rounded">
+                <span className="text-danger-600 dark:text-danger-400 bg-danger-50 dark:bg-danger-900/20 px-2 py-1 rounded">
                   错误: {status.error}
                 </span>
               )}
@@ -247,7 +247,7 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
           {/* 展开/收起按钮 */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors font-medium"
+            className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-medium"
           >
             <Server className="w-4 h-4" />
             服务详情
@@ -257,21 +257,21 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
 
         {/* 服务详情（可展开） */}
         {isExpanded && (
-          <div className="mt-4 pt-4 border-t border-gray-200 animate-slide-up">
-            <h4 className="text-sm font-medium text-gray-900 mb-3">服务列表</h4>
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 animate-slide-up">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">服务列表</h4>
             <div className="space-y-2">
               {environment.services.map((service, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                   <div className="flex items-center gap-2">
-                    <Server className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm text-gray-700 font-medium">{service.name}</span>
-                    <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">:{service.port}</span>
+                    <Server className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{service.name}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">:{service.port}</span>
                   </div>
                   <a
                     href={service.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors"
+                    className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-medium transition-colors"
                   >
                     访问
                   </a>

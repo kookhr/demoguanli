@@ -179,14 +179,14 @@ const ConfigPage = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* 头部 */}
-      <div className="bg-gradient-to-r from-primary-50 to-primary-100 border-b border-primary-200">
+      <div className="bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 border-b border-primary-200 dark:border-primary-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">环境配置管理</h1>
-              <p className="text-gray-600">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">环境配置管理</h1>
+              <p className="text-gray-600 dark:text-gray-400">
                 管理和配置所有环境信息
               </p>
             </div>
@@ -238,10 +238,10 @@ const ConfigPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 消息提示 */}
         {message.text && (
-          <div className={`mb-6 p-4 rounded-xl animate-slide-up ${
+          <div className={`mb-6 p-4 rounded-xl animate-slide-up transition-colors ${
             message.type === 'success'
-              ? 'bg-success-50 border border-success-200 text-success-800'
-              : 'bg-danger-50 border border-danger-200 text-danger-800'
+              ? 'bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-700 text-success-800 dark:text-success-300'
+              : 'bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-700 text-danger-800 dark:text-danger-300'
           }`}>
             <div className="flex items-center">
               {message.type === 'success' ? (
@@ -276,51 +276,51 @@ const ConfigPage = () => {
 
         {/* 环境列表 */}
         <div className="card animate-fade-in">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               环境列表 ({environments.length})
             </h2>
           </div>
           
           {environments.length === 0 ? (
             <div className="text-center py-12">
-              <div className="text-gray-400 text-lg mb-2">暂无环境配置</div>
-              <p className="text-gray-500">点击"添加环境"开始配置</p>
+              <div className="text-gray-400 dark:text-gray-500 text-lg mb-2">暂无环境配置</div>
+              <p className="text-gray-500 dark:text-gray-400">点击"添加环境"开始配置</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       环境信息
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       类型/网络
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       URL
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       状态/版本
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       服务数量
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       操作
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {environments.map((env) => (
-                    <tr key={env.id} className="hover:bg-gray-50">
+                    <tr key={env.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {env.name}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
                             ID: {env.id}
                           </div>
                         </div>
@@ -330,13 +330,13 @@ const ConfigPage = () => {
                           <span className={`badge ${getTypeStyle(env.type)}`}>
                             {env.type}
                           </span>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {env.network === 'internal' ? '内网' : '外网'}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-primary-600 hover:text-primary-800">
+                        <div className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300">
                           <a href={env.url} target="_blank" rel="noopener noreferrer">
                             {env.url}
                           </a>
@@ -344,30 +344,30 @@ const ConfigPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
-                          <div className="text-sm text-gray-900">
-                            {env.status === 'online' ? '在线' : 
+                          <div className="text-sm text-gray-900 dark:text-gray-100">
+                            {env.status === 'online' ? '在线' :
                              env.status === 'offline' ? '离线' : '维护中'}
                           </div>
-                          <div className="text-sm text-gray-500 font-mono">
+                          <div className="text-sm text-gray-500 dark:text-gray-400 font-mono">
                             {env.version}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {env.services?.length || 0} 个服务
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleEditEnvironment(env)}
-                            className="text-primary-600 hover:text-primary-900 p-1 rounded transition-colors"
+                            className="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300 p-1 rounded transition-colors"
                             title="编辑"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setShowDeleteConfirm(env.id)}
-                            className="text-danger-600 hover:text-danger-900 p-1 rounded transition-colors"
+                            className="text-danger-600 dark:text-danger-400 hover:text-danger-900 dark:hover:text-danger-300 p-1 rounded transition-colors"
                             title="删除"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -385,15 +385,15 @@ const ConfigPage = () => {
 
       {/* 删除确认对话框 */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl animate-bounce-in">
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl animate-bounce-in transition-colors">
             <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-danger-100 rounded-full flex items-center justify-center mr-4">
-                <AlertTriangle className="w-6 h-6 text-danger-600" />
+              <div className="w-12 h-12 bg-danger-100 dark:bg-danger-900/20 rounded-full flex items-center justify-center mr-4">
+                <AlertTriangle className="w-6 h-6 text-danger-600 dark:text-danger-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">确认删除</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">确认删除</h3>
             </div>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
               确定要删除这个环境配置吗？此操作不可撤销。
             </p>
             <div className="flex justify-end gap-3">
