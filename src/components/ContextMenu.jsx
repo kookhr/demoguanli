@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  RefreshCw, 
-  Edit, 
-  Trash2, 
-  Copy, 
-  ExternalLink, 
-  Star, 
+import {
+  RefreshCw,
+  ExternalLink,
+  Star,
   StarOff,
-  BarChart3,
-  Download,
-  Settings
+  BarChart3
 } from 'lucide-react';
 
 const ContextMenu = ({ 
@@ -73,33 +68,6 @@ const ContextMenu = ({
       label: '查看历史',
       action: 'view_history',
       shortcut: 'Ctrl+Shift+H'
-    },
-    { type: 'divider' },
-    {
-      icon: Edit,
-      label: '编辑环境',
-      action: 'edit',
-      shortcut: null
-    },
-    {
-      icon: Copy,
-      label: '复制配置',
-      action: 'copy',
-      shortcut: 'Ctrl+C'
-    },
-    {
-      icon: Download,
-      label: '导出配置',
-      action: 'export',
-      shortcut: null
-    },
-    { type: 'divider' },
-    {
-      icon: Trash2,
-      label: '删除环境',
-      action: 'delete',
-      shortcut: 'Delete',
-      danger: true
     }
   ];
 

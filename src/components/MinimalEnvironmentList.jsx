@@ -237,29 +237,8 @@ const MinimalEnvironmentList = () => {
         setSelectedEnvironmentForHistory(environment);
         setShowHistory(true);
         break;
-      case 'edit':
-        // TODO: 实现编辑功能
-        console.log('编辑环境:', environment);
-        break;
-      case 'copy':
-        navigator.clipboard.writeText(JSON.stringify(environment, null, 2));
-        break;
-      case 'export':
-        const blob = new Blob([JSON.stringify(environment, null, 2)], {
-          type: 'application/json'
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${environment.name}-config.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-        break;
-      case 'delete':
-        if (confirm(`确定要删除环境 "${environment.name}" 吗？`)) {
-          // TODO: 实现删除功能
-          console.log('删除环境:', environment);
-        }
+      default:
+        console.log('未知操作:', action);
         break;
     }
   };
