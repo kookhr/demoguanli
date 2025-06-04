@@ -28,6 +28,40 @@ const MinimalEnvironmentList = () => {
     detectNetwork();
   }, []);
 
+  // 页面加载完成后自动检测状态
+  useEffect(() => {
+    if (environments.length > 0) {
+      console.log('🚀 页面加载完成，开始自动状态检测...');
+      // 延迟1秒后开始检测，确保页面渲染完成
+      const timer = setTimeout(() => {
+        handleCheckAll();
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [environments]);
+
+  // 监听页面可见性变化，当用户回到页面时重新检测
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && environments.length > 0) {
+        console.log('👀 页面重新可见，开始状态检测...');
+        // 延迟500ms后检测，避免频繁切换
+        setTimeout(() => {
+          if (!isChecking) {
+            handleCheckAll();
+          }
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [environments, isChecking]);
+
   // 检测当前网络环境
   const detectNetwork = async () => {
     try {

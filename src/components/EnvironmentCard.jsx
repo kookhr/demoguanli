@@ -138,6 +138,27 @@ const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }
     }
   };
 
+  // 获取状态边框颜色
+  const getStatusBorderColor = (status) => {
+    if (status?.isChecking) {
+      return 'border-blue-400'; // 检测中 - 蓝色动画
+    }
+
+    switch (status?.status) {
+      case 'online':
+        return 'border-success-500'; // 在线 - 绿色
+      case 'offline':
+      case 'error':
+        return 'border-danger-500'; // 离线/错误 - 红色
+      case 'timeout':
+        return 'border-warning-500'; // 超时 - 黄色
+      case 'reachable':
+        return 'border-primary-500'; // 可达 - 蓝色
+      default:
+        return 'border-gray-300'; // 未知 - 灰色
+    }
+  };
+
   // 检查网络可访问性
   const isAccessible = environment.network === currentNetwork || environment.network === 'external';
 
@@ -145,11 +166,8 @@ const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className={`card card-hover animate-fade-in border-l-4 ${
-      environment.type === 'production' ? 'border-primary-500' : // 蓝色 - 生产环境
-      environment.type === 'staging' ? 'border-warning-500' : // 黄色 - 预生产环境
-      environment.type === 'testing' ? 'border-cyan-500' : // 青色 - 测试环境
-      'border-success-500' // 绿色 - 开发环境
+    <div className={`card card-hover animate-fade-in border-l-4 ${getStatusBorderColor(status)} ${
+      isChecking ? 'animate-pulse' : ''
     }`}>
       <div className="p-6">
         {/* 头部信息 */}
