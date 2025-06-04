@@ -164,9 +164,41 @@ const checkInternalNetwork = async (environment, startTime) => {
       console.log(`⚠️ 方法3失败: ${noCorsError.message}`);
     }
 
-    // 所有方法都失败
+    // 方法4: Mixed Content 检测（使用Image对象绕过HTTPS限制）
+    console.log(`🔍 方法4: Mixed Content绕过检测 ${baseUrl}`);
+    try {
+      const imageTestResult = await checkWithImagePing(baseUrl);
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      console.log(`✅ 方法4成功: ${environment.name} Image ping检测成功 (${responseTime}ms)`);
+      return {
+        id: environment.id,
+        status: 'online',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: null
+      };
+    } catch (imageError) {
+      console.log(`⚠️ 方法4失败: ${imageError.message}`);
+    }
+
+    // 所有方法都失败，检查是否是Mixed Content问题
     clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
+
+    // 检查是否是Mixed Content问题
+    const isMixedContentIssue = window.location.protocol === 'https:' && baseUrl.startsWith('http:');
+
+    if (isMixedContentIssue) {
+      return {
+        id: environment.id,
+        status: 'blocked',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: `Mixed Content阻止: HTTPS页面无法访问HTTP服务 (${baseUrl})。解决方案：1) 在浏览器中允许不安全内容 2) 使用HTTPS访问服务 3) 使用HTTP访问本页面`
+      };
+    }
 
     return {
       id: environment.id,
@@ -258,6 +290,35 @@ const getBaseUrl = (url) => {
     // 如果URL解析失败，返回原URL
     return url.split('#')[0].split('?')[0];
   }
+};
+
+// 使用Image对象进行Mixed Content绕过检测
+const checkWithImagePing = (baseUrl) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const timeout = setTimeout(() => {
+      reject(new Error('Image ping timeout'));
+    }, 3000);
+
+    img.onload = () => {
+      clearTimeout(timeout);
+      resolve('online');
+    };
+
+    img.onerror = () => {
+      clearTimeout(timeout);
+      // 即使图片加载失败，也可能表示服务器可达
+      resolve('reachable');
+    };
+
+    // 尝试加载favicon或根路径
+    try {
+      const testUrl = new URL(baseUrl);
+      img.src = `${testUrl.origin}/favicon.ico?_t=${Date.now()}`;
+    } catch (error) {
+      reject(error);
+    }
+  });
 };
 
 // 判断是否为内网地址
@@ -357,6 +418,7 @@ export const getStatusText = (status) => {
     'timeout': '超时',
     'error': '错误',
     'network_error': '网络错误',
+    'blocked': '被阻止',
     'unknown': '未知'
   };
   return statusMap[status] || status;
@@ -370,6 +432,7 @@ export const getStatusColor = (status) => {
     'timeout': 'text-yellow-600 bg-yellow-100',
     'error': 'text-red-600 bg-red-100',
     'network_error': 'text-orange-600 bg-orange-100',
+    'blocked': 'text-purple-600 bg-purple-100',
     'unknown': 'text-gray-600 bg-gray-100'
   };
   return colorMap[status] || 'text-gray-600 bg-gray-100';
