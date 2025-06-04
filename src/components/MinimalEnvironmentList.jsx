@@ -381,7 +381,7 @@ const MinimalEnvironmentList = () => {
 
             <div className="flex items-center gap-3">
               {lastCheckTime && (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   最后检测: {formatLastChecked(lastCheckTime)}
                 </span>
               )}
@@ -400,13 +400,13 @@ const MinimalEnvironmentList = () => {
           {/* 进度条 */}
           {isChecking && checkProgress && (
             <div className="mb-4">
-              <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
                 <span>检测进度: {checkProgress.current || '准备中...'}</span>
                 <span>{checkProgress.completed}/{checkProgress.total}</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${checkProgress.percentage || 0}%` }}
                 ></div>
               </div>
@@ -420,28 +420,28 @@ const MinimalEnvironmentList = () => {
               return (
                 <>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">{summary.total}</div>
-                    <div className="text-sm text-gray-500">总计</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.total}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">总计</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{summary.online}</div>
-                    <div className="text-sm text-gray-500">在线</div>
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.online}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">在线</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">{summary.offline + summary.error}</div>
-                    <div className="text-sm text-gray-500">离线</div>
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{summary.offline + summary.error}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">离线</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">{summary.timeout}</div>
-                    <div className="text-sm text-gray-500">超时</div>
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{summary.timeout}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">超时</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{summary.checking}</div>
-                    <div className="text-sm text-gray-500">检测中</div>
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{summary.checking}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">检测中</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-600">{summary.unknown}</div>
-                    <div className="text-sm text-gray-500">未知</div>
+                    <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{summary.unknown}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">未知</div>
                   </div>
                 </>
               );
@@ -501,15 +501,15 @@ const MinimalEnvironmentList = () => {
 
         {filteredEnvironments.length === 0 && environments.length > 0 && (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-lg mb-2">没有找到匹配的环境</div>
-            <p className="text-gray-500">请尝试调整搜索条件或过滤器</p>
+            <div className="text-gray-400 dark:text-gray-500 text-lg mb-2">没有找到匹配的环境</div>
+            <p className="text-gray-500 dark:text-gray-400">请尝试调整搜索条件或过滤器</p>
           </div>
         )}
 
         {environments.length === 0 && (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-lg mb-2">暂无环境配置</div>
-            <p className="text-gray-500">请先添加环境配置</p>
+            <div className="text-gray-400 dark:text-gray-500 text-lg mb-2">暂无环境配置</div>
+            <p className="text-gray-500 dark:text-gray-400">请先添加环境配置</p>
           </div>
         )}
 

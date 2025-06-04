@@ -30,56 +30,56 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
       case 'online':
         return {
           icon: CheckCircle,
-          color: 'text-success-600',
-          bg: 'bg-success-50 border-success-200',
+          color: 'text-success-600 dark:text-success-400',
+          bg: 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-700',
           text: '在线',
           description: '服务正常运行'
         };
       case 'offline':
         return {
           icon: XCircle,
-          color: 'text-danger-600',
-          bg: 'bg-danger-50 border-danger-200',
+          color: 'text-danger-600 dark:text-danger-400',
+          bg: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-700',
           text: '离线',
           description: '服务无法访问'
         };
       case 'timeout':
         return {
           icon: AlertTriangle,
-          color: 'text-warning-600',
-          bg: 'bg-warning-50 border-warning-200',
+          color: 'text-warning-600 dark:text-warning-400',
+          bg: 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-700',
           text: '超时',
           description: '响应超时'
         };
       case 'error':
         return {
           icon: XCircle,
-          color: 'text-danger-600',
-          bg: 'bg-danger-50 border-danger-200',
+          color: 'text-danger-600 dark:text-danger-400',
+          bg: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-700',
           text: '错误',
           description: '检测出错'
         };
       case 'reachable':
         return {
           icon: Wifi,
-          color: 'text-primary-600',
-          bg: 'bg-primary-50 border-primary-200',
+          color: 'text-primary-600 dark:text-primary-400',
+          bg: 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-700',
           text: '可达',
           description: '服务器可达，但状态未知'
         };
       case 'unknown':
         return {
           icon: AlertCircle,
-          color: 'text-gray-500',
-          bg: 'bg-gray-50 border-gray-200',
+          color: 'text-gray-500 dark:text-gray-400',
+          bg: 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600',
           text: '未检测',
           description: '尚未检测状态'
         };
       default:
         return {
           icon: AlertCircle,
-          color: 'text-gray-500',
-          bg: 'bg-gray-50 border-gray-200',
+          color: 'text-gray-500 dark:text-gray-400',
+          bg: 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600',
           text: '未知',
           description: '状态未知'
         };
@@ -107,21 +107,21 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
   // 获取状态边框颜色
   const getStatusBorderColor = (status) => {
     if (status?.isChecking) {
-      return 'border-blue-400'; // 检测中 - 蓝色动画
+      return 'border-blue-400 dark:border-blue-500'; // 检测中 - 蓝色动画
     }
 
     switch (status?.status) {
       case 'online':
-        return 'border-success-500'; // 在线 - 绿色
+        return 'border-success-500 dark:border-success-400'; // 在线 - 绿色
       case 'offline':
       case 'error':
-        return 'border-danger-500'; // 离线/错误 - 红色
+        return 'border-danger-500 dark:border-danger-400'; // 离线/错误 - 红色
       case 'timeout':
-        return 'border-warning-500'; // 超时 - 黄色
+        return 'border-warning-500 dark:border-warning-400'; // 超时 - 黄色
       case 'reachable':
-        return 'border-primary-500'; // 可达 - 蓝色
+        return 'border-primary-500 dark:border-primary-400'; // 可达 - 蓝色
       default:
-        return 'border-gray-300'; // 未知 - 灰色
+        return 'border-gray-300 dark:border-gray-600'; // 未知 - 灰色
     }
   };
 
@@ -283,7 +283,7 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
 
         {/* 网络不可达提示 */}
         {!isAccessible && (
-          <div className="mt-3 p-3 bg-warning-50 border border-warning-200 rounded-lg text-sm text-warning-800 animate-slide-up">
+          <div className="mt-3 p-3 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-700 rounded-lg text-sm text-warning-800 dark:text-warning-300 animate-slide-up transition-colors">
             <div className="flex items-center">
               <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
               <span>当前网络环境无法访问此{environment.network === 'internal' ? '内网' : '外网'}环境</span>
