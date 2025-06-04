@@ -12,7 +12,7 @@ class UserManager {
   // 初始化用户数据
   async init() {
     if (this.initialized) return;
-    
+
     try {
       // 获取所有用户数据
       await this.loadAllUsers();
@@ -22,6 +22,14 @@ class UserManager {
       console.error('❌ 用户管理器初始化失败:', error);
       this.initialized = true;
     }
+  }
+
+  // 强制重新初始化
+  async forceReinit() {
+    this.initialized = false;
+    this.users.clear();
+    await this.init();
+    console.log('🔄 用户管理器已强制重新初始化');
   }
 
   // 加载所有用户数据
@@ -41,11 +49,38 @@ class UserManager {
             console.warn(`⚠️ 无法加载用户 ${username} 的数据:`, error);
           }
         }
+      } else {
+        // 如果没有用户列表，尝试扫描已知用户
+        console.log('📋 用户列表为空，尝试扫描已知用户...');
+        await this.scanExistingUsers();
       }
     } catch (error) {
       // KV存储不可用时，从本地存储加载
       console.warn('⚠️ KV存储不可用，从本地存储加载用户数据');
       this.loadUsersFromLocalStorage();
+    }
+  }
+
+  // 扫描已知用户（当用户列表丢失时）
+  async scanExistingUsers() {
+    const knownUsers = ['admin']; // 已知的用户名列表
+
+    for (const username of knownUsers) {
+      try {
+        const userData = await authManager.getUserFromKV(username);
+        if (userData) {
+          this.users.set(username, userData);
+          console.log(`✅ 发现用户: ${username}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ 无法加载用户 ${username}:`, error);
+      }
+    }
+
+    // 重建用户列表
+    if (this.users.size > 0) {
+      await this.saveUserList();
+      console.log(`📝 重建用户列表，包含 ${this.users.size} 个用户`);
     }
   }
 
@@ -78,11 +113,19 @@ class UserManager {
   // 添加用户到管理器
   async addUser(username, userData) {
     await this.init();
-    
-    this.users.set(username, userData);
-    await this.saveUserList();
-    
-    console.log('👤 用户已添加到管理器:', username);
+
+    // 检查用户是否已存在，避免重复添加
+    const existingUser = this.users.get(username);
+    if (existingUser) {
+      // 更新用户数据
+      this.users.set(username, userData);
+      console.log('📝 用户数据已更新:', username);
+    } else {
+      // 添加新用户
+      this.users.set(username, userData);
+      await this.saveUserList();
+      console.log('👤 用户已添加到管理器:', username);
+    }
   }
 
   // 获取所有用户
@@ -298,5 +341,7 @@ export const searchUsers = (query) => userManager.searchUsers(query);
 export const getUserStatistics = () => userManager.getUserStatistics();
 
 export const recordUserLogin = (username) => userManager.recordUserLogin(username);
+
+export const forceReinitUserManager = () => userManager.forceReinit();
 
 export const getUserLoginHistory = (username) => userManager.getUserLoginHistory(username);

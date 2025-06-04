@@ -102,12 +102,31 @@ class AuthManager {
           password: hashedPassword,
           createdAt: new Date().toISOString(),
           lastLogin: null,
-          role: 'admin'
+          role: 'admin',
+          enabled: true,
+          loginCount: 0
         };
 
         await this.saveUserToKV(adminUsername, adminData);
+
+        // 添加到用户管理器
+        try {
+          const { userManager } = await import('./userManagement');
+          await userManager.addUser(adminUsername, adminData);
+        } catch (error) {
+          console.warn('⚠️ 无法将管理员添加到用户管理器:', error);
+        }
+
         console.log('✅ 默认管理员账户创建成功');
         console.log('📝 默认登录信息: admin / admin123');
+      } else {
+        // 确保现有管理员账户在用户管理器中
+        try {
+          const { userManager } = await import('./userManagement');
+          await userManager.addUser(adminUsername, existingAdmin);
+        } catch (error) {
+          console.warn('⚠️ 无法将现有管理员添加到用户管理器:', error);
+        }
       }
     } catch (error) {
       console.warn('⚠️ 无法创建默认管理员账户:', error.message);

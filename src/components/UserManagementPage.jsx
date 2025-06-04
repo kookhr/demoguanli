@@ -25,7 +25,8 @@ import {
   deleteUser,
   batchUpdateUsers,
   batchDeleteUsers,
-  getUserStatistics
+  getUserStatistics,
+  forceReinitUserManager
 } from '../utils/userManagement';
 import {
   getSystemSettings,
@@ -56,10 +57,15 @@ const UserManagementPage = () => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const loadData = async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError('');
+
+      // 如果需要强制刷新，重新初始化用户管理器
+      if (forceRefresh) {
+        await forceReinitUserManager();
+      }
 
       const [usersData, userStatsData, settingsData] = await Promise.all([
         getAllUsers(),
@@ -70,6 +76,12 @@ const UserManagementPage = () => {
       setUsers(usersData);
       setUserStats(userStatsData);
       setSystemSettings(settingsData);
+
+      console.log('📊 用户管理数据加载完成:', {
+        用户数量: usersData.length,
+        统计数据: userStatsData,
+        系统设置: settingsData
+      });
     } catch (error) {
       console.error('❌ 加载用户管理数据失败:', error);
       setError('加载数据失败: ' + error.message);
@@ -309,11 +321,12 @@ const UserManagementPage = () => {
                 </button>
 
                 <button
-                  onClick={loadData}
+                  onClick={() => loadData(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-300"
+                  title="强制刷新用户数据"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  刷新
+                  强制刷新
                 </button>
               </div>
             </div>
