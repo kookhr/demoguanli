@@ -235,9 +235,6 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
             tags={formData.tags || []}
             onChange={(tags) => handleChange('tags', tags)}
             suggestions={[
-              '生产环境', '预生产环境', '开发环境', '测试环境', '演示环境',
-              '前端', '后端', '数据库', '接口', '网站',
-              '内网', '外网', '公开', '私有',
               '稳定版', '测试版', '内测版', '实验版',
               '关键', '重要', '可选',
               '容器', '集群', '云服务', '微服务', '分布式',
