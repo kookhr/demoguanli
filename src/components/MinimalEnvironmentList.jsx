@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Activity, Star, BarChart3, Keyboard, SortAsc } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
 import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
-import OptimizedEnvironmentCard from './OptimizedEnvironmentCard';
+import StyledEnvironmentCard from './StyledEnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
 import DarkModeToggle from './DarkModeToggle';
@@ -460,10 +460,19 @@ const MinimalEnvironmentList = () => {
               onContextMenu={(e) => openContextMenu(e, env)}
               className="relative"
             >
-              <OptimizedEnvironmentCard
+              <StyledEnvironmentCard
                 environment={env}
                 status={getEnvironmentStatus(env.id)}
                 onStatusCheck={handleCheckSingle}
+                isFavorite={isFavorite(env.id)}
+                onToggleFavorite={() => {
+                  const newFavorites = toggleFavorite(env.id);
+                  setFavorites(newFavorites);
+                }}
+                onViewHistory={() => {
+                  setSelectedEnvironmentForHistory(env);
+                  setShowHistory(true);
+                }}
               />
 
               {/* 收藏标识 */}

@@ -135,30 +135,30 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
     <div className={`card card-hover animate-fade-in border-l-4 ${getStatusBorderColor(status)} ${
       isChecking ? 'animate-pulse' : ''
     }`}>
-      <div className="p-6">
+      <div className="p-4">
         {/* 头部信息 */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{environment.name}</h3>
+            <div className="flex items-center gap-2 mb-1.5">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{environment.name}</h3>
               <span className={`badge ${getTypeStyle(environment.type)}`}>
                 {environment.type}
               </span>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{environment.description}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{environment.description}</p>
 
             {/* 标签 */}
             {environment.tags && environment.tags.length > 0 && (
-              <div className="mb-3">
-                <SimpleTagList 
-                  tags={environment.tags} 
+              <div className="mb-2">
+                <SimpleTagList
+                  tags={environment.tags}
                   maxVisible={4}
                   size="xs"
                 />
               </div>
             )}
           </div>
-          
+
           {/* 网络类型标识 */}
           <div className="flex items-center gap-2">
             {environment.network === 'internal' ? (
@@ -170,10 +170,10 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
         </div>
 
         {/* 状态和版本信息 */}
-        <div className="space-y-3 mb-4">
+        <div className="space-y-2 mb-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${statusInfo.bg}`}>
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${statusInfo.bg}`}>
                 <StatusIcon className={`w-4 h-4 ${statusInfo.color} ${isChecking ? 'animate-spin' : ''}`} />
                 <div className="flex flex-col">
                   <span className={`text-sm font-medium ${statusInfo.color}`}>
@@ -217,7 +217,7 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
                 </span>
               )}
               {status?.error && (
-                <span className="text-danger-600 dark:text-danger-400 bg-danger-50 dark:bg-danger-900/20 px-2 py-1 rounded">
+                <span className="text-danger-600 dark:text-danger-400 bg-danger-50 dark:bg-danger-900/20 px-1.5 py-0.5 rounded">
                   错误: {status.error}
                 </span>
               )}
@@ -233,9 +233,9 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
             href={environment.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primary"
+            className="btn btn-primary text-sm px-3 py-2"
           >
-            <ExternalLink className="w-4 h-4 mr-2" />
+            <ExternalLink className="w-4 h-4 mr-1.5" />
             快速访问
           </a>
 
@@ -252,15 +252,15 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
 
         {/* 服务详情（可展开） */}
         {isExpanded && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 animate-slide-up">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">服务列表</h4>
-            <div className="space-y-2">
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 animate-slide-up">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">服务列表</h4>
+            <div className="space-y-1.5">
               {environment.services.map((service, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
                   <div className="flex items-center gap-2">
-                    <Server className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <Server className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                     <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{service.name}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded">:{service.port}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded">:{service.port}</span>
                   </div>
                   <a
                     href={service.url}
