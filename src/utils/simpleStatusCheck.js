@@ -9,44 +9,166 @@ export const checkEnvironmentStatus = async (environment) => {
 
     // 判断是否为内网地址
     const isInternalUrl = isInternalNetwork(environment.url);
-
-    // 使用 AbortController 设置超时
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
-
-    let response;
+    console.log(`🌐 网络类型判断: ${isInternalUrl ? '内网' : '外网'}`);
 
     if (isInternalUrl) {
-      // 内网地址：先尝试正常请求，失败后再用 no-cors
-      try {
-        response = await fetch(environment.url, {
-          method: 'HEAD',
-          signal: controller.signal,
-          cache: 'no-cache'
-        });
-      } catch (corsError) {
-        // 如果正常请求失败，尝试 no-cors 模式
-        response = await fetch(environment.url, {
-          method: 'HEAD',
-          mode: 'no-cors',
-          signal: controller.signal,
-          cache: 'no-cache'
-        });
-      }
+      // 内网地址：使用多层检测策略
+      return await checkInternalNetwork(environment, startTime);
     } else {
-      // 外网地址：直接使用 no-cors 模式
-      response = await fetch(environment.url, {
+      // 外网地址：使用标准检测
+      return await checkExternalNetwork(environment, startTime);
+    }
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    console.log(`❌ ${environment.name} 检测异常: ${error.message} (${responseTime}ms)`);
+
+    return {
+      id: environment.id,
+      status: 'error',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: `检测异常: ${error.message}`
+    };
+  }
+};
+
+// 内网环境检测策略
+const checkInternalNetwork = async (environment, startTime) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 内网延长到10秒
+
+  try {
+    // 方法1: 尝试GET请求根路径（去掉hash部分）
+    const baseUrl = getBaseUrl(environment.url);
+    console.log(`🔍 方法1: GET请求根路径 ${baseUrl}`);
+
+    try {
+      const response = await fetch(baseUrl, {
+        method: 'GET',
+        signal: controller.signal,
+        cache: 'no-cache',
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      if (response.ok || response.status < 500) {
+        console.log(`✅ 方法1成功: ${environment.name} 状态码 ${response.status} (${responseTime}ms)`);
+        return {
+          id: environment.id,
+          status: 'online',
+          responseTime,
+          lastChecked: new Date().toISOString(),
+          error: null
+        };
+      }
+    } catch (getError) {
+      console.log(`⚠️ 方法1失败: ${getError.message}`);
+    }
+
+    // 方法2: 尝试HEAD请求
+    console.log(`🔍 方法2: HEAD请求 ${baseUrl}`);
+    try {
+      const response = await fetch(baseUrl, {
         method: 'HEAD',
+        signal: controller.signal,
+        cache: 'no-cache'
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      console.log(`✅ 方法2成功: ${environment.name} HEAD请求成功 (${responseTime}ms)`);
+      return {
+        id: environment.id,
+        status: 'online',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: null
+      };
+    } catch (headError) {
+      console.log(`⚠️ 方法2失败: ${headError.message}`);
+    }
+
+    // 方法3: no-cors模式检测
+    console.log(`🔍 方法3: no-cors模式 ${baseUrl}`);
+    try {
+      await fetch(baseUrl, {
+        method: 'GET',
         mode: 'no-cors',
         signal: controller.signal,
         cache: 'no-cache'
       });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      console.log(`✅ 方法3成功: ${environment.name} no-cors检测成功 (${responseTime}ms)`);
+      return {
+        id: environment.id,
+        status: 'online',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: null
+      };
+    } catch (noCorsError) {
+      console.log(`⚠️ 方法3失败: ${noCorsError.message}`);
     }
+
+    // 所有方法都失败
+    clearTimeout(timeoutId);
+    const responseTime = Date.now() - startTime;
+
+    return {
+      id: environment.id,
+      status: 'offline',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: `内网服务不可达 (${baseUrl})，请检查：1) 服务是否启动 2) 端口是否正确 3) 防火墙设置 4) 网络连接`
+    };
+
+  } catch (error) {
+    clearTimeout(timeoutId);
+    const responseTime = Date.now() - startTime;
+
+    let status = 'offline';
+    let errorMessage = error.message;
+
+    if (error.name === 'AbortError') {
+      status = 'timeout';
+      errorMessage = '内网服务响应超时，可能服务负载过高或网络延迟';
+    }
+
+    return {
+      id: environment.id,
+      status,
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: errorMessage
+    };
+  }
+};
+
+// 外网环境检测策略
+const checkExternalNetwork = async (environment, startTime) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(environment.url, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      signal: controller.signal,
+      cache: 'no-cache'
+    });
 
     clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
 
-    console.log(`✅ ${environment.name} 检测完成: 响应时间 ${responseTime}ms`);
+    console.log(`✅ ${environment.name} 外网检测完成: 响应时间 ${responseTime}ms`);
 
     return {
       id: environment.id,
@@ -56,6 +178,7 @@ export const checkEnvironmentStatus = async (environment) => {
       error: null
     };
   } catch (error) {
+    clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
 
     let status = 'offline';
@@ -63,20 +186,12 @@ export const checkEnvironmentStatus = async (environment) => {
 
     if (error.name === 'AbortError') {
       status = 'timeout';
-      errorMessage = '请求超时';
-    } else if (error.message.includes('network')) {
-      status = 'network_error';
-      errorMessage = '网络错误';
+      errorMessage = '外网服务响应超时';
     } else if (error.message.includes('Failed to fetch')) {
-      // 对于 Failed to fetch 错误，尝试更详细的判断
-      if (isInternalNetwork(environment.url)) {
-        errorMessage = '内网服务不可达，请检查服务是否启动或网络连接';
-      } else {
-        errorMessage = '外网服务不可达或存在网络问题';
-      }
+      errorMessage = '外网服务不可达或存在网络问题';
     }
 
-    console.log(`❌ ${environment.name} 检测失败: ${errorMessage} (${responseTime}ms)`);
+    console.log(`❌ ${environment.name} 外网检测失败: ${errorMessage} (${responseTime}ms)`);
 
     return {
       id: environment.id,
@@ -85,6 +200,17 @@ export const checkEnvironmentStatus = async (environment) => {
       lastChecked: new Date().toISOString(),
       error: errorMessage
     };
+  }
+};
+
+// 获取基础URL（去掉hash和query参数）
+const getBaseUrl = (url) => {
+  try {
+    const urlObj = new URL(url);
+    return `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+  } catch (error) {
+    // 如果URL解析失败，返回原URL
+    return url.split('#')[0].split('?')[0];
   }
 };
 
