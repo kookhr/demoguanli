@@ -1,46 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 
-const SimpleEnvironmentFilter = ({ 
-  environments, 
-  onFilterChange, 
-  className = '' 
+const SimpleEnvironmentFilter = ({
+  environments,
+  onFilterChange,
+  className = ''
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedNetwork, setSelectedNetwork] = useState('');
 
   // 获取所有可用的选项
   const types = [...new Set(environments.map(env => env.type))];
-  const statuses = [...new Set(environments.map(env => env.status))];
+  const networks = [...new Set(environments.map(env => env.network))];
 
   // 过滤逻辑 - 移除 onFilterChange 依赖避免无限循环
   useEffect(() => {
     console.log('🔍 执行过滤逻辑...');
-    
+
     const filtered = environments.filter(env => {
-      const matchesSearch = !searchTerm || 
+      const matchesSearch = !searchTerm ||
         env.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         env.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         env.url.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesType = !selectedType || env.type === selectedType;
-      const matchesStatus = !selectedStatus || env.status === selectedStatus;
+      const matchesNetwork = !selectedNetwork || env.network === selectedNetwork;
 
-      return matchesSearch && matchesType && matchesStatus;
+      return matchesSearch && matchesType && matchesNetwork;
     });
 
     console.log('🔍 过滤结果:', filtered.length, '个环境');
     onFilterChange(filtered);
-  }, [searchTerm, selectedType, selectedStatus, environments]);
+  }, [searchTerm, selectedType, selectedNetwork, environments]);
 
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedType('');
-    setSelectedStatus('');
+    setSelectedNetwork('');
   };
 
-  const hasActiveFilters = searchTerm || selectedType || selectedStatus;
+  const hasActiveFilters = searchTerm || selectedType || selectedNetwork;
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
@@ -93,24 +93,21 @@ const SimpleEnvironmentFilter = ({
           </select>
         </div>
 
-        {/* 状态筛选 */}
+        {/* 网络筛选 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            运行状态
+            网络类型
           </label>
           <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            value={selectedNetwork}
+            onChange={(e) => setSelectedNetwork(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
-            <option value="">所有状态</option>
-            {statuses.map(status => (
-              <option key={status} value={status}>
-                {status === 'online' ? '在线' :
-                 status === 'offline' ? '离线' :
-                 status === 'maintenance' ? '维护中' :
-                 status === 'error' ? '错误' :
-                 status === 'timeout' ? '超时' : status}
+            <option value="">所有网络</option>
+            {networks.map(network => (
+              <option key={network} value={network}>
+                {network === 'internal' ? '内网' :
+                 network === 'external' ? '外网' : network}
               </option>
             ))}
           </select>
@@ -125,13 +122,13 @@ const SimpleEnvironmentFilter = ({
             <span>
               ，筛选后 <span className="font-medium text-primary-600">
                 {environments.filter(env => {
-                  const matchesSearch = !searchTerm || 
+                  const matchesSearch = !searchTerm ||
                     env.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     env.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     env.url.toLowerCase().includes(searchTerm.toLowerCase());
                   const matchesType = !selectedType || env.type === selectedType;
-                  const matchesStatus = !selectedStatus || env.status === selectedStatus;
-                  return matchesSearch && matchesType && matchesStatus;
+                  const matchesNetwork = !selectedNetwork || env.network === selectedNetwork;
+                  return matchesSearch && matchesType && matchesNetwork;
                 }).length}
               </span> 个
             </span>

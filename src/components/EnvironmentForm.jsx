@@ -11,7 +11,6 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
     type: 'development',
     network: 'internal',
     url: '',
-    status: 'online',
     version: '',
     description: '',
     tags: [],
@@ -82,11 +81,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
     { value: 'external', label: '外网环境' }
   ];
 
-  const statusTypes = [
-    { value: 'online', label: '在线' },
-    { value: 'offline', label: '离线' },
-    { value: 'maintenance', label: '维护中' }
-  ];
+
 
   return (
     <div className="card animate-slide-up">
@@ -200,23 +195,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
             />
           </div>
 
-          {/* 环境状态 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              环境状态
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) => handleChange('status', e.target.value)}
-              className="input-field"
-            >
-              {statusTypes.map(status => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-          </div>
+
 
           {/* 版本号 */}
           <div>

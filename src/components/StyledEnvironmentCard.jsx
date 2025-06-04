@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Globe, 
-  Shield, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Globe,
+  Shield,
+  CheckCircle,
+  XCircle,
   AlertTriangle,
   RefreshCw,
   ExternalLink,
@@ -103,29 +102,7 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
     }
   };
 
-  // 格式化最后部署时间
-  const formatLastDeployed = (dateString) => {
-    if (!dateString) return '未知';
-    
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffTime = Math.abs(now - date);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 1) return '今天';
-      if (diffDays <= 7) return `${diffDays}天前`;
-      
-      return date.toLocaleDateString('zh-CN', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (error) {
-      return dateString;
-    }
-  };
+
 
   // 检查网络可访问性
   const isAccessible = environment.network === currentNetwork || environment.network === 'external';
@@ -230,11 +207,7 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
           )}
         </div>
 
-        {/* 部署时间 */}
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-          <Clock className="w-4 h-4" />
-          <span>最后部署: {formatLastDeployed(environment.lastDeployed)}</span>
-        </div>
+
 
         {/* 快速访问按钮 */}
         <div className="flex items-center justify-between">
