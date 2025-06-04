@@ -4,6 +4,8 @@ import { environments as defaultEnvironments } from '../data/environments.js';
 
 const CONFIG_STORAGE_KEY = 'environment_config';
 const KV_KEY = 'environments';
+const GROUPS_KV_KEY = 'environment_groups';
+const GROUP_STATES_KEY = 'group_states';
 
 // 获取所有环境配置
 export const getEnvironments = async () => {
@@ -149,4 +151,164 @@ export const validateEnvironment = (environment) => {
   }
   
   return errors;
+};
+
+// ==================== 分组管理功能 ====================
+
+// 获取所有分组
+export const getGroups = async () => {
+  try {
+    const groups = await kvApi.get(GROUPS_KV_KEY);
+    if (groups && Array.isArray(groups)) {
+      return groups;
+    }
+    return [];
+  } catch (error) {
+    console.error('获取分组失败:', error);
+    return [];
+  }
+};
+
+// 保存分组
+export const saveGroups = async (groups) => {
+  try {
+    await kvApi.put(GROUPS_KV_KEY, groups);
+    return true;
+  } catch (error) {
+    console.error('保存分组失败:', error);
+    return false;
+  }
+};
+
+// 添加新分组
+export const addGroup = async (groupName) => {
+  try {
+    const groups = await getGroups();
+    const newGroup = {
+      id: generateId(),
+      name: groupName,
+      createdAt: new Date().toISOString(),
+      environmentIds: []
+    };
+    groups.push(newGroup);
+    await saveGroups(groups);
+    return newGroup;
+  } catch (error) {
+    console.error('添加分组失败:', error);
+    return null;
+  }
+};
+
+// 更新分组
+export const updateGroup = async (groupId, updates) => {
+  try {
+    const groups = await getGroups();
+    const index = groups.findIndex(group => group.id === groupId);
+    if (index !== -1) {
+      groups[index] = { ...groups[index], ...updates };
+      await saveGroups(groups);
+      return groups[index];
+    }
+    return null;
+  } catch (error) {
+    console.error('更新分组失败:', error);
+    return null;
+  }
+};
+
+// 删除分组
+export const deleteGroup = async (groupId) => {
+  try {
+    const groups = await getGroups();
+    const environments = await getEnvironments();
+
+    // 将分组中的环境移到未分组
+    const updatedEnvironments = environments.map(env =>
+      env.groupId === groupId ? { ...env, groupId: null } : env
+    );
+
+    const filteredGroups = groups.filter(group => group.id !== groupId);
+
+    await saveGroups(filteredGroups);
+    await saveEnvironments(updatedEnvironments);
+
+    return { groups: filteredGroups, environments: updatedEnvironments };
+  } catch (error) {
+    console.error('删除分组失败:', error);
+    return null;
+  }
+};
+
+// 将环境分配到分组
+export const assignEnvironmentToGroup = async (environmentId, groupId) => {
+  try {
+    const environments = await getEnvironments();
+    const index = environments.findIndex(env => env.id === environmentId);
+    if (index !== -1) {
+      environments[index].groupId = groupId;
+      await saveEnvironments(environments);
+      return environments[index];
+    }
+    return null;
+  } catch (error) {
+    console.error('分配环境到分组失败:', error);
+    return null;
+  }
+};
+
+// 获取分组状态（展开/折叠）
+export const getGroupStates = () => {
+  try {
+    const states = localStorage.getItem(GROUP_STATES_KEY);
+    return states ? JSON.parse(states) : {};
+  } catch (error) {
+    console.error('获取分组状态失败:', error);
+    return {};
+  }
+};
+
+// 保存分组状态
+export const saveGroupStates = (states) => {
+  try {
+    localStorage.setItem(GROUP_STATES_KEY, JSON.stringify(states));
+    return true;
+  } catch (error) {
+    console.error('保存分组状态失败:', error);
+    return false;
+  }
+};
+
+// 获取分组化的环境数据
+export const getGroupedEnvironments = async () => {
+  try {
+    const [environments, groups] = await Promise.all([
+      getEnvironments(),
+      getGroups()
+    ]);
+
+    const groupedData = {
+      groups: [],
+      ungrouped: []
+    };
+
+    // 创建分组映射
+    const groupMap = new Map(groups.map(group => [group.id, { ...group, environments: [] }]));
+
+    // 分配环境到分组
+    environments.forEach(env => {
+      if (env.groupId && groupMap.has(env.groupId)) {
+        groupMap.get(env.groupId).environments.push(env);
+      } else {
+        groupedData.ungrouped.push(env);
+      }
+    });
+
+    // 转换为数组
+    groupedData.groups = Array.from(groupMap.values());
+
+    return groupedData;
+  } catch (error) {
+    console.error('获取分组化环境数据失败:', error);
+    return { groups: [], ungrouped: [] };
+  }
 };

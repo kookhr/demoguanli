@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Activity, Star, BarChart3, Keyboard, SortAsc } from 'lucide-react';
-import { getEnvironments } from '../utils/configManager';
+import { RefreshCw, Activity, Star, BarChart3, Keyboard, SortAsc, Folder } from 'lucide-react';
+import {
+  getEnvironments,
+  getGroupedEnvironments,
+  getGroupStates,
+  saveGroupStates,
+  addGroup,
+  updateGroup,
+  deleteGroup,
+  assignEnvironmentToGroup
+} from '../utils/configManager';
 import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
-import OptimizedEnvironmentCard from './OptimizedEnvironmentCard';
+import StyledEnvironmentCard from './StyledEnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
 import DarkModeToggle from './DarkModeToggle';
+import EnvironmentGroup from './EnvironmentGroup';
+import GroupManagementModal from './GroupManagementModal';
 import { useShortcuts, ShortcutHelp } from '../hooks/useShortcuts';
 import {
   checkMultipleEnvironments,
@@ -38,6 +49,11 @@ const MinimalEnvironmentList = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [selectedEnvironmentForHistory, setSelectedEnvironmentForHistory] = useState(null);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+
+  // 分组相关状态
+  const [groupedData, setGroupedData] = useState({ groups: [], ungrouped: [] });
+  const [groupStates, setGroupStates] = useState({});
+  const [showGroupManagement, setShowGroupManagement] = useState(false);
 
   // 右键菜单
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
@@ -114,17 +130,34 @@ const MinimalEnvironmentList = () => {
       console.log('🔄 开始加载环境配置...');
       setLoading(true);
       setError(null);
-      
+
       const envs = await getEnvironments();
       console.log('✅ 环境配置加载成功:', envs);
 
       setEnvironments(envs);
       setFilteredEnvironments(envs);
+
+      // 加载分组数据
+      await loadGroupedData();
     } catch (err) {
       console.error('❌ 加载环境配置失败:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 加载分组数据
+  const loadGroupedData = async () => {
+    try {
+      const grouped = await getGroupedEnvironments();
+      setGroupedData(grouped);
+
+      // 加载分组状态
+      const states = getGroupStates();
+      setGroupStates(states);
+    } catch (error) {
+      console.error('加载分组数据失败:', error);
     }
   };
 
@@ -264,9 +297,81 @@ const MinimalEnvironmentList = () => {
     }
   };
 
+  // 分组管理函数
+  const handleToggleGroup = (groupId) => {
+    const newStates = {
+      ...groupStates,
+      [groupId]: !groupStates[groupId]
+    };
+    setGroupStates(newStates);
+    saveGroupStates(newStates);
+  };
+
+  const handleCreateGroup = async (groupName) => {
+    const newGroup = await addGroup(groupName);
+    if (newGroup) {
+      await loadGroupedData();
+    }
+  };
+
+  const handleRenameGroup = async (groupId, newName) => {
+    const updated = await updateGroup(groupId, { name: newName });
+    if (updated) {
+      await loadGroupedData();
+    }
+  };
+
+  const handleDeleteGroup = async (groupId) => {
+    if (confirm('确定要删除这个分组吗？分组中的环境将移到未分组。')) {
+      const result = await deleteGroup(groupId);
+      if (result) {
+        setEnvironments(result.environments);
+        await loadGroupedData();
+      }
+    }
+  };
+
+  const handleAssignEnvironment = async (environmentId, groupId) => {
+    const updated = await assignEnvironmentToGroup(environmentId, groupId);
+    if (updated) {
+      await loadGroupedData();
+      // 更新环境列表
+      const updatedEnvs = environments.map(env =>
+        env.id === environmentId ? { ...env, groupId } : env
+      );
+      setEnvironments(updatedEnvs);
+    }
+  };
+
   // 应用排序和收藏
   const getSortedEnvironments = () => {
     return sortEnvironments(filteredEnvironments, sortBy);
+  };
+
+  // 获取分组化的过滤环境
+  const getGroupedFilteredEnvironments = () => {
+    const sorted = getSortedEnvironments();
+    const grouped = { groups: [], ungrouped: [] };
+
+    // 创建分组映射
+    const groupMap = new Map();
+    groupedData.groups.forEach(group => {
+      groupMap.set(group.id, { ...group, environments: [] });
+    });
+
+    // 分配过滤后的环境到分组
+    sorted.forEach(env => {
+      if (env.groupId && groupMap.has(env.groupId)) {
+        groupMap.get(env.groupId).environments.push(env);
+      } else {
+        grouped.ungrouped.push(env);
+      }
+    });
+
+    // 只包含有环境的分组
+    grouped.groups = Array.from(groupMap.values()).filter(group => group.environments.length > 0);
+
+    return grouped;
   };
 
   if (loading) {
@@ -328,6 +433,14 @@ const MinimalEnvironmentList = () => {
                   <option value="type">按类型</option>
                   <option value="network">按网络</option>
                 </select>
+
+                <button
+                  onClick={() => setShowGroupManagement(true)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  title="分组管理"
+                >
+                  <Folder className="w-4 h-4" />
+                </button>
 
                 <button
                   onClick={() => setShowHistory(!showHistory)}
@@ -453,28 +566,101 @@ const MinimalEnvironmentList = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {getSortedEnvironments().map(env => (
-            <div
-              key={env.id}
-              onContextMenu={(e) => openContextMenu(e, env)}
-              className="relative"
-            >
-              <OptimizedEnvironmentCard
-                environment={env}
-                status={getEnvironmentStatus(env.id)}
-                onStatusCheck={handleCheckSingle}
-              />
+        {/* 分组化环境列表 */}
+        {(() => {
+          const groupedFiltered = getGroupedFilteredEnvironments();
 
-              {/* 收藏标识 */}
-              {isFavorite(env.id) && (
-                <div className="absolute top-2 right-2">
-                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                </div>
+          return (
+            <div>
+              {/* 分组列表 */}
+              {groupedFiltered.groups.map(group => (
+                <EnvironmentGroup
+                  key={group.id}
+                  group={group}
+                  isExpanded={groupStates[group.id] !== false} // 默认展开
+                  onToggle={() => handleToggleGroup(group.id)}
+                  onRename={handleRenameGroup}
+                  onDelete={handleDeleteGroup}
+                  environmentCount={group.environments.length}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {group.environments.map(env => (
+                      <div
+                        key={env.id}
+                        onContextMenu={(e) => openContextMenu(e, env)}
+                        className="relative"
+                      >
+                        <StyledEnvironmentCard
+                          environment={env}
+                          status={getEnvironmentStatus(env.id)}
+                          onStatusCheck={handleCheckSingle}
+                          isFavorite={isFavorite(env.id)}
+                          onToggleFavorite={() => {
+                            const newFavorites = toggleFavorite(env.id);
+                            setFavorites(newFavorites);
+                          }}
+                          onViewHistory={() => {
+                            setSelectedEnvironmentForHistory(env);
+                            setShowHistory(true);
+                          }}
+                        />
+
+                        {/* 收藏标识 */}
+                        {isFavorite(env.id) && (
+                          <div className="absolute top-2 right-2">
+                            <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </EnvironmentGroup>
+              ))}
+
+              {/* 未分组环境 */}
+              {groupedFiltered.ungrouped.length > 0 && (
+                <EnvironmentGroup
+                  group={null}
+                  isExpanded={groupStates['ungrouped'] !== false} // 默认展开
+                  onToggle={() => handleToggleGroup('ungrouped')}
+                  environmentCount={groupedFiltered.ungrouped.length}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {groupedFiltered.ungrouped.map(env => (
+                      <div
+                        key={env.id}
+                        onContextMenu={(e) => openContextMenu(e, env)}
+                        className="relative"
+                      >
+                        <StyledEnvironmentCard
+                          environment={env}
+                          status={getEnvironmentStatus(env.id)}
+                          onStatusCheck={handleCheckSingle}
+                          isFavorite={isFavorite(env.id)}
+                          onToggleFavorite={() => {
+                            const newFavorites = toggleFavorite(env.id);
+                            setFavorites(newFavorites);
+                          }}
+                          onViewHistory={() => {
+                            setSelectedEnvironmentForHistory(env);
+                            setShowHistory(true);
+                          }}
+                        />
+
+                        {/* 收藏标识 */}
+                        {isFavorite(env.id) && (
+                          <div className="absolute top-2 right-2">
+                            <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </EnvironmentGroup>
               )}
             </div>
-          ))}
-        </div>
+          );
+        })()}
 
         {filteredEnvironments.length === 0 && environments.length > 0 && (
           <div className="text-center py-12">
@@ -504,6 +690,18 @@ const MinimalEnvironmentList = () => {
         <ShortcutHelp
           isOpen={showShortcutHelp}
           onClose={() => setShowShortcutHelp(false)}
+        />
+
+        {/* 分组管理对话框 */}
+        <GroupManagementModal
+          isOpen={showGroupManagement}
+          onClose={() => setShowGroupManagement(false)}
+          groups={groupedData.groups}
+          environments={environments}
+          onCreateGroup={handleCreateGroup}
+          onUpdateGroup={handleRenameGroup}
+          onDeleteGroup={handleDeleteGroup}
+          onAssignEnvironment={handleAssignEnvironment}
         />
       </div>
     </div>
