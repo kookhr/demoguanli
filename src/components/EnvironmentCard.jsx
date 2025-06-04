@@ -16,6 +16,7 @@ import {
   WifiOff
 } from 'lucide-react';
 import { checkEnvironmentStatus, formatLastDeployed, getCachedStatus } from '../utils/networkCheck';
+import { TagList } from './TagManager';
 
 const EnvironmentCard = ({ environment, currentNetwork, onStatusUpdate }) => {
   const [status, setStatus] = useState('unknown');
@@ -166,6 +167,17 @@ const EnvironmentCard = ({ environment, currentNetwork, onStatusUpdate }) => {
               </span>
             </div>
             <p className="text-sm text-gray-600 mb-3">{environment.description}</p>
+
+            {/* 标签 */}
+            {environment.tags && environment.tags.length > 0 && (
+              <div className="mb-3">
+                <TagList
+                  tags={environment.tags}
+                  maxVisible={4}
+                  size="xs"
+                />
+              </div>
+            )}
           </div>
           
           {/* 网络类型标识 */}

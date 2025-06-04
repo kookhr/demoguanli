@@ -9,6 +9,7 @@ export const environments = [
     version: 'v1.0.0',
     lastDeployed: '2024-01-15 14:30:00',
     description: '谷歌搜索引擎 - 用于测试在线状态',
+    tags: ['search', 'external', 'stable', 'production'],
     services: [
       { name: 'Web应用', url: 'https://www.google.com', port: 443 },
       { name: 'API服务', url: 'https://www.googleapis.com', port: 443 }
@@ -24,6 +25,7 @@ export const environments = [
     version: 'v2.0.0',
     lastDeployed: '2024-01-14 16:45:00',
     description: 'GitHub 代码托管平台 - 用于测试在线状态',
+    tags: ['git', 'code', 'external', 'stable', 'production'],
     services: [
       { name: 'Web应用', url: 'https://github.com', port: 443 },
       { name: 'API服务', url: 'https://api.github.com', port: 443 }
@@ -39,6 +41,7 @@ export const environments = [
     version: 'v1.0.0-dev',
     lastDeployed: '2024-01-15 17:00:00',
     description: '本地Vite开发服务器 - 用于测试内网环境',
+    tags: ['development', 'local', 'frontend', 'vite'],
     services: [
       { name: 'Web应用', url: 'http://localhost:5173', port: 5173 },
       { name: 'HMR', url: 'ws://localhost:5173', port: 5173 }
@@ -54,6 +57,7 @@ export const environments = [
     version: 'v0.0.1',
     lastDeployed: '2024-01-13 10:20:00',
     description: '不存在的域名 - 用于测试离线状态',
+    tags: ['testing', 'offline', 'demo'],
     services: [
       { name: 'Web应用', url: 'https://this-domain-does-not-exist-12345.com', port: 443 }
     ]
@@ -68,6 +72,7 @@ export const environments = [
     version: 'v1.1.0',
     lastDeployed: '2024-01-12 09:00:00',
     description: '模拟超时的服务 - 用于测试超时状态',
+    tags: ['testing', 'timeout', 'staging', 'demo'],
     services: [
       { name: 'Web应用', url: 'https://httpstat.us/200?sleep=15000', port: 443 }
     ]
@@ -82,6 +87,7 @@ export const environments = [
     version: 'v0.5.0',
     lastDeployed: '2024-01-10 15:30:00',
     description: '返回500错误的服务 - 用于测试错误状态',
+    tags: ['testing', 'error', 'demo'],
     services: [
       { name: 'Web应用', url: 'https://httpstat.us/500', port: 443 }
     ]

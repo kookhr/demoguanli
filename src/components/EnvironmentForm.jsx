@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X, AlertCircle } from 'lucide-react';
+import { TagEditor } from './TagManager';
 import ServiceForm from './ServiceForm';
 import { validateEnvironment } from '../utils/configManager';
 
@@ -13,6 +14,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
     status: 'online',
     version: '',
     description: '',
+    tags: [],
     services: []
   });
   const [errors, setErrors] = useState([]);
@@ -243,6 +245,30 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
             rows={3}
             className="input-field resize-none"
           />
+        </div>
+
+        {/* 标签管理 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            环境标签
+          </label>
+          <TagEditor
+            tags={formData.tags || []}
+            onChange={(tags) => handleChange('tags', tags)}
+            suggestions={[
+              'production', 'staging', 'development', 'testing', 'demo',
+              'frontend', 'backend', 'database', 'api', 'web',
+              'internal', 'external', 'public', 'private',
+              'stable', 'beta', 'alpha', 'experimental',
+              'critical', 'important', 'optional',
+              'docker', 'kubernetes', 'aws', 'azure', 'gcp',
+              'nodejs', 'react', 'vue', 'angular', 'python', 'java'
+            ]}
+            placeholder="添加标签，用于分类和筛选..."
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            标签用于分类和快速筛选环境，支持自定义标签
+          </p>
         </div>
 
         {/* 服务配置 */}

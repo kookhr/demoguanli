@@ -1,19 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, RefreshCw, Globe, Shield, Activity } from 'lucide-react';
+import { RefreshCw, Globe, Shield, Activity } from 'lucide-react';
 import EnvironmentCard from './EnvironmentCard';
+import EnvironmentFilter from './EnvironmentFilter';
 import { getEnvironments } from '../utils/configManager';
-import { getNetworkType, checkMultipleEnvironments, preWarmEnvironments, clearStatusCache } from '../utils/networkCheck';
+import { getNetworkType } from '../utils/networkCheck';
+import { useEnvironmentMonitor } from '../hooks/useEnvironmentMonitor';
 
 const EnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterNetwork, setFilterNetwork] = useState('all'); // all | internal | external
-  const [filterStatus, setFilterStatus] = useState('all'); // all | online | offline | maintenance
+  const [filteredEnvironments, setFilteredEnvironments] = useState([]);
   const [currentNetwork, setCurrentNetwork] = useState('external');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [environmentStatuses, setEnvironmentStatuses] = useState({});
-  const [refreshProgress, setRefreshProgress] = useState({ completed: 0, total: 0 });
-  const [lastRefreshTime, setLastRefreshTime] = useState(null);
+
+  // 使用环境监控 Hook
+  const {
+    statuses: environmentStatuses,
+    isChecking: isRefreshing,
+    progress: refreshProgress,
+    lastUpdate: lastRefreshTime,
+    checkAll: handleRefreshAll,
+    getStatusSummary
+  } = useEnvironmentMonitor(environments, {
+    autoCheck: true,
+    interval: 60000, // 1分钟自动检测
+    enableRealtime: true
+  });
 
   // 加载环境配置
   useEffect(() => {
@@ -30,78 +40,28 @@ const EnvironmentList = () => {
     try {
       const envs = await getEnvironments();
       setEnvironments(envs);
-
-      // 预热环境状态检测（后台进行）
-      if (envs.length > 0) {
-        preWarmEnvironments(envs).then(statuses => {
-          setEnvironmentStatuses(statuses);
-        }).catch(error => {
-          console.error('预热环境状态失败:', error);
-        });
-      }
+      setFilteredEnvironments(envs);
     } catch (error) {
       console.error('加载环境配置失败:', error);
       setEnvironments([]);
+      setFilteredEnvironments([]);
     }
   };
 
-  // 处理单个环境状态更新
-  const handleStatusUpdate = (envId, status) => {
-    setEnvironmentStatuses(prev => ({
-      ...prev,
-      [envId]: status
-    }));
+  // 处理过滤变化
+  const handleFilterChange = (filtered) => {
+    setFilteredEnvironments(filtered);
   };
 
-  // 过滤环境列表
-  const filteredEnvironments = environments.filter(env => {
-    const matchesSearch = env.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         env.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         env.type.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesNetwork = filterNetwork === 'all' || env.network === filterNetwork;
-
-    // 使用实时状态进行过滤
-    const currentStatus = environmentStatuses[env.id] || 'unknown';
-    const matchesStatus = filterStatus === 'all' || currentStatus === filterStatus;
-
-    return matchesSearch && matchesNetwork && matchesStatus;
-  });
-
-  // 批量刷新环境状态
-  const handleRefreshAll = async () => {
-    setIsRefreshing(true);
-    setRefreshProgress({ completed: 0, total: environments.length });
-    clearStatusCache(); // 清除缓存，强制重新检测
-
-    try {
-      const statuses = await checkMultipleEnvironments(environments, {
-        maxConcurrent: 3,
-        useCache: false,
-        timeout: 10000,
-        onProgress: (progress) => {
-          setRefreshProgress(progress);
-        }
-      });
-
-      setEnvironmentStatuses(statuses);
-      setLastRefreshTime(new Date());
-    } catch (error) {
-      console.error('刷新环境状态失败:', error);
-    } finally {
-      setIsRefreshing(false);
-      setRefreshProgress({ completed: 0, total: 0 });
-    }
-  };
-
-  // 统计信息（基于实时状态）
+  // 获取统计信息
+  const statusSummary = getStatusSummary();
   const stats = {
     total: environments.length,
-    online: Object.values(environmentStatuses).filter(status => status === 'online').length,
+    online: statusSummary.online,
     internal: environments.filter(env => env.network === 'internal').length,
     external: environments.filter(env => env.network === 'external').length,
-    offline: Object.values(environmentStatuses).filter(status => status === 'offline').length,
-    checking: Object.values(environmentStatuses).filter(status => status === 'unknown').length
+    offline: statusSummary.offline + statusSummary.timeout + statusSummary.error,
+    checking: statusSummary.checking
   };
 
   return (
@@ -220,7 +180,14 @@ const EnvironmentList = () => {
         </div>
 
         {/* 搜索和过滤 */}
-        <div className="card p-6 mb-8 animate-fade-in">
+        <EnvironmentFilter
+          environments={environments}
+          onFilterChange={handleFilterChange}
+          className="mb-8"
+        />
+
+        {/* 旧的搜索和过滤 - 暂时保留 */}
+        <div className="card p-6 mb-8 animate-fade-in" style={{display: 'none'}}>
           <div className="flex flex-col sm:flex-row gap-4">
             {/* 搜索框 */}
             <div className="flex-1 relative">
@@ -268,14 +235,14 @@ const EnvironmentList = () => {
         </div>
 
         {/* 环境列表 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredEnvironments.length > 0 ? (
             filteredEnvironments.map(env => (
               <EnvironmentCard
                 key={env.id}
                 environment={env}
                 currentNetwork={currentNetwork}
-                onStatusUpdate={handleStatusUpdate}
+                status={environmentStatuses[env.id]}
               />
             ))
           ) : (
