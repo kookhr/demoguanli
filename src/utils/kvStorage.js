@@ -1,64 +1,77 @@
 // Cloudflare KV 存储管理器
+import { kvDetector } from './kvDetector.js';
 
 class KVStorageManager {
   constructor() {
     this.fallbackKey = 'environment-configs';
     this.kvBinding = null;
     this.kvAvailable = null; // 缓存检测结果
+    this.detectionPromise = null; // 检测 Promise
     this.initKV();
   }
 
   // 初始化 KV 连接
   initKV() {
-    try {
-      // 方法1: 直接访问全局绑定
-      if (typeof ENV_CONFIG !== 'undefined' && ENV_CONFIG) {
-        this.kvBinding = ENV_CONFIG;
-        this.kvAvailable = true;
-        console.log('✅ KV 绑定检测成功 (全局变量)');
-        return;
-      }
-
-      // 方法2: 通过 globalThis 访问
-      if (typeof globalThis !== 'undefined' && globalThis.ENV_CONFIG) {
-        this.kvBinding = globalThis.ENV_CONFIG;
-        this.kvAvailable = true;
-        console.log('✅ KV 绑定检测成功 (globalThis)');
-        return;
-      }
-
-      // 方法3: 通过 window 访问 (浏览器环境)
-      if (typeof window !== 'undefined' && window.ENV_CONFIG) {
-        this.kvBinding = window.ENV_CONFIG;
-        this.kvAvailable = true;
-        console.log('✅ KV 绑定检测成功 (window)');
-        return;
-      }
-
-      // 方法4: 检查是否在 Cloudflare Workers/Pages 环境中
-      if (typeof navigator !== 'undefined' && navigator.userAgent &&
-          (navigator.userAgent.includes('Cloudflare') ||
-           typeof caches !== 'undefined' && typeof Request !== 'undefined')) {
-        console.log('🌐 检测到 Cloudflare 环境，但 KV 绑定不可用');
-        console.log('请检查 KV 命名空间绑定配置');
-      }
-
-      this.kvAvailable = false;
-      console.log('❌ KV 绑定不可用，将使用 localStorage');
-    } catch (error) {
-      console.error('KV 初始化失败:', error);
-      this.kvAvailable = false;
+    // 避免重复检测
+    if (this.detectionPromise) {
+      return this.detectionPromise;
     }
+
+    this.detectionPromise = this.runKVDetection();
+    return this.detectionPromise;
+  }
+
+  // 运行 KV 检测
+  async runKVDetection() {
+    try {
+      console.log('🔍 启动增强型 KV 检测...');
+
+      // 使用专门的检测器
+      const result = await kvDetector.runFullDetection();
+
+      if (result.success && result.binding) {
+        this.kvBinding = result.binding;
+        this.kvAvailable = true;
+        console.log('✅ KV 检测成功，绑定已建立');
+      } else {
+        this.kvAvailable = false;
+        console.log('❌ KV 检测失败，将使用 localStorage');
+
+        // 显示诊断建议
+        const suggestions = kvDetector.getDiagnosticSuggestions();
+        if (suggestions.length > 0) {
+          console.log('💡 诊断建议:');
+          suggestions.forEach(suggestion => {
+            console.log(`- ${suggestion.title}: ${suggestion.description}`);
+          });
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('KV 检测过程失败:', error);
+      this.kvAvailable = false;
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 手动重试 KV 检测
+  async retryKVDetection() {
+    console.log('🔄 手动重试 KV 检测...');
+    this.detectionPromise = null; // 清除缓存
+    this.kvAvailable = null;
+    this.kvBinding = null;
+
+    return await this.initKV();
   }
 
   // 检查是否在 Cloudflare 环境中运行
   isKVAvailable() {
-    if (this.kvAvailable !== null) {
-      return this.kvAvailable;
+    // 如果还在检测中，返回 false（降级到 localStorage）
+    if (this.kvAvailable === null) {
+      return false;
     }
 
-    // 重新检测
-    this.initKV();
     return this.kvAvailable;
   }
 

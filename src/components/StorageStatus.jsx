@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Cloud, 
-  HardDrive, 
-  Wifi, 
-  WifiOff, 
-  RefreshCw, 
+import {
+  Cloud,
+  HardDrive,
+  Wifi,
+  WifiOff,
+  RefreshCw,
   Database,
   CheckCircle,
   AlertCircle,
-  Upload
+  Upload,
+  Search
 } from 'lucide-react';
 import { getStorageInfo, syncToKV } from '../utils/configManager';
+import { kvStorage } from '../utils/kvStorage';
 
 const StorageStatus = () => {
   const [storageInfo, setStorageInfo] = useState(null);
@@ -33,14 +35,14 @@ const StorageStatus = () => {
   const handleSyncToKV = async () => {
     setIsSyncing(true);
     setSyncResult(null);
-    
+
     try {
       const result = await syncToKV();
       setSyncResult({
         success: true,
         message: `成功同步 ${result.synced} 个环境配置到 KV 存储`
       });
-      
+
       // 重新加载存储信息
       await loadStorageInfo();
     } catch (error) {
@@ -50,6 +52,29 @@ const StorageStatus = () => {
       });
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleRetryKVDetection = async () => {
+    setIsLoading(true);
+    setSyncResult(null);
+
+    try {
+      console.log('🔄 用户触发 KV 重新检测...');
+      await kvStorage.retryKVDetection();
+      await loadStorageInfo();
+
+      setSyncResult({
+        success: true,
+        message: 'KV 检测已重新运行，请查看控制台了解详细信息'
+      });
+    } catch (error) {
+      setSyncResult({
+        success: false,
+        message: `重新检测失败: ${error.message}`
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -147,9 +172,22 @@ const StorageStatus = () => {
           </div>
         )}
 
-        {/* 同步到 KV 按钮 */}
-        {storageInfo.isKVAvailable && storageInfo.storage !== 'cloudflare-kv' && (
-          <div className="pt-3 border-t border-gray-200">
+        {/* 操作按钮 */}
+        <div className="pt-3 border-t border-gray-200 space-y-2">
+          {/* KV 重新检测按钮 */}
+          {!storageInfo.isKVAvailable && (
+            <button
+              onClick={handleRetryKVDetection}
+              disabled={isLoading}
+              className="w-full btn btn-secondary text-sm"
+            >
+              <Search className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? '检测中...' : '重新检测 KV'}
+            </button>
+          )}
+
+          {/* 同步到 KV 按钮 */}
+          {storageInfo.isKVAvailable && storageInfo.storage !== 'cloudflare-kv' && (
             <button
               onClick={handleSyncToKV}
               disabled={isSyncing}
@@ -158,8 +196,8 @@ const StorageStatus = () => {
               <Upload className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-pulse' : ''}`} />
               {isSyncing ? '同步中...' : '同步到 KV 存储'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* 同步结果 */}
         {syncResult && (

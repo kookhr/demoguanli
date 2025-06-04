@@ -16,5 +16,5 @@ pages_build_output_dir = "dist"
 # KV 命名空间绑定
 [[kv_namespaces]]
 binding = "ENV_CONFIG"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-kv-namespace-id"
+id = "ENV_CONFIG"
+preview_id = "ENV_CONFIG"
