@@ -129,14 +129,28 @@ class AuthManager {
   }
 
   // 用户注册
-  async register(username, password, email = '') {
+  async register(username, password, email = '', activationCode = '') {
     try {
       console.log('📝 用户注册:', username);
-      
+
       // 检查用户是否已存在
       const existingUser = await this.getUserFromKV(username);
       if (existingUser) {
         throw new Error('用户名已存在');
+      }
+
+      // 验证激活码（如果提供）
+      if (activationCode) {
+        const { validateActivationCode, useActivationCode } = await import('./activationCodes');
+
+        const validation = await validateActivationCode(activationCode);
+        if (!validation.valid) {
+          throw new Error(`激活码无效: ${validation.reason}`);
+        }
+
+        // 使用激活码
+        await useActivationCode(activationCode, username);
+        console.log('🎫 激活码验证成功:', activationCode);
       }
 
       // 创建用户数据
@@ -147,12 +161,19 @@ class AuthManager {
         password: hashedPassword,
         createdAt: new Date().toISOString(),
         lastLogin: null,
-        role: 'user'
+        role: 'user',
+        enabled: true,
+        activationCode: activationCode || null,
+        loginCount: 0
       };
 
       // 保存到KV存储
       await this.saveUserToKV(username, userData);
-      
+
+      // 添加到用户管理器
+      const { userManager } = await import('./userManagement');
+      await userManager.addUser(username, userData);
+
       console.log('✅ 用户注册成功:', username);
       return { success: true, message: '注册成功' };
     } catch (error) {
@@ -165,11 +186,16 @@ class AuthManager {
   async login(username, password, rememberMe = false) {
     try {
       console.log('🔐 用户登录:', username);
-      
+
       // 从KV存储获取用户数据
       const userData = await this.getUserFromKV(username);
       if (!userData) {
         throw new Error('用户不存在');
+      }
+
+      // 检查用户是否被禁用
+      if (userData.enabled === false) {
+        throw new Error('账户已被禁用，请联系管理员');
       }
 
       // 验证密码
@@ -178,9 +204,18 @@ class AuthManager {
         throw new Error('密码错误');
       }
 
-      // 更新最后登录时间
+      // 更新最后登录时间和登录次数
       userData.lastLogin = new Date().toISOString();
+      userData.loginCount = (userData.loginCount || 0) + 1;
       await this.saveUserToKV(username, userData);
+
+      // 记录用户登录到用户管理器
+      try {
+        const { recordUserLogin } = await import('./userManagement');
+        await recordUserLogin(username);
+      } catch (error) {
+        console.warn('⚠️ 无法记录用户登录:', error);
+      }
 
       // 创建用户会话
       const userSession = {
@@ -327,12 +362,39 @@ class AuthManager {
 // 创建全局认证管理器实例
 export const authManager = new AuthManager();
 
+// 用户角色定义
+export const USER_ROLES = {
+  ADMIN: 'admin',
+  USER: 'user'
+};
+
+// 权限检查函数
+export const hasPermission = (user, permission) => {
+  if (!user) return false;
+
+  switch (permission) {
+    case 'user_management':
+    case 'activation_codes':
+      return user.role === USER_ROLES.ADMIN;
+    case 'environment_access':
+      return user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.USER;
+    default:
+      return false;
+  }
+};
+
+// 检查是否为管理员
+export const isAdmin = (user = null) => {
+  const currentUser = user || authManager.getCurrentUser();
+  return currentUser?.role === USER_ROLES.ADMIN;
+};
+
 // 导出便捷函数
-export const login = (username, password, rememberMe) => 
+export const login = (username, password, rememberMe) =>
   authManager.login(username, password, rememberMe);
 
-export const register = (username, password, email) => 
-  authManager.register(username, password, email);
+export const register = (username, password, email, activationCode) =>
+  authManager.register(username, password, email, activationCode);
 
 export const logout = () => authManager.logout();
 

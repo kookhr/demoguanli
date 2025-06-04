@@ -1,13 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Settings, Monitor, Sparkles } from 'lucide-react';
-import { UserInfo } from './AuthProvider';
+import { Home, Settings, Monitor, Sparkles, Users } from 'lucide-react';
+import { UserInfo, useAuth } from './AuthProvider';
+import { isAdmin } from '../utils/auth';
 import DarkModeToggle from './DarkModeToggle';
 
 const Navigation = () => {
   const location = useLocation();
+  const { user } = useAuth();
 
-  const navItems = [
+  // 基础导航项
+  const baseNavItems = [
     {
       path: '/',
       label: '环境管理',
@@ -21,6 +24,19 @@ const Navigation = () => {
       description: '编辑环境配置'
     }
   ];
+
+  // 管理员专用导航项
+  const adminNavItems = [
+    {
+      path: '/user-management',
+      label: '用户管理',
+      icon: Users,
+      description: '管理用户账户和权限'
+    }
+  ];
+
+  // 根据用户权限组合导航项
+  const navItems = isAdmin(user) ? [...baseNavItems, ...adminNavItems] : baseNavItems;
 
   return (
     <nav className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-50 transition-colors duration-300">

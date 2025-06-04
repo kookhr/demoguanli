@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Monitor, Sparkles, Eye, EyeOff, User, Lock, Mail, LogIn, UserPlus } from 'lucide-react';
+import { Monitor, Sparkles, Eye, EyeOff, User, Lock, Mail, LogIn, UserPlus, Ticket } from 'lucide-react';
 import { login, register } from '../utils/auth';
 
 const LoginPage = ({ onLoginSuccess }) => {
@@ -8,6 +8,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     username: '',
     password: '',
     email: '',
+    activationCode: '',
     rememberMe: false
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -100,13 +101,13 @@ const LoginPage = ({ onLoginSuccess }) => {
         }, 500);
       } else {
         // 注册
-        await register(formData.username, formData.password, formData.email);
+        await register(formData.username, formData.password, formData.email, formData.activationCode);
         setSuccess('注册成功！请登录');
-        
+
         // 自动切换到登录模式
         setTimeout(() => {
           setIsLogin(true);
-          setFormData(prev => ({ ...prev, password: '', email: '' }));
+          setFormData(prev => ({ ...prev, password: '', email: '', activationCode: '' }));
         }, 1500);
       }
     } catch (error) {
@@ -124,7 +125,8 @@ const LoginPage = ({ onLoginSuccess }) => {
     setFormData(prev => ({
       ...prev,
       password: '',
-      email: ''
+      email: '',
+      activationCode: ''
     }));
   };
 
@@ -226,6 +228,42 @@ const LoginPage = ({ onLoginSuccess }) => {
                     placeholder="请输入邮箱地址"
                   />
                 </div>
+              </div>
+            )}
+
+            {/* 激活码输入（仅注册时显示） */}
+            {!isLogin && (
+              <div>
+                <label htmlFor="activationCode" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  激活码 (可选)
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Ticket className={`h-5 w-5 transition-colors duration-300 ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                    }`} />
+                  </div>
+                  <input
+                    id="activationCode"
+                    name="activationCode"
+                    type="text"
+                    value={formData.activationCode}
+                    onChange={handleInputChange}
+                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    }`}
+                    placeholder="请输入激活码（如有）"
+                  />
+                </div>
+                <p className={`mt-1 text-xs transition-colors duration-300 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  如果您有激活码，请输入以完成注册
+                </p>
               </div>
             )}
 
