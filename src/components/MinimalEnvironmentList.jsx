@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Activity, Clock, Wifi, WifiOff } from 'lucide-react';
+import { RefreshCw, Activity } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
+import { getNetworkType } from '../utils/networkCheck';
 import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
-import SimpleTagList from './SimpleTagList';
+import StyledEnvironmentCard from './StyledEnvironmentCard';
 import {
   checkMultipleEnvironments,
   checkEnvironmentStatus,
-  getStatusText,
-  getStatusColor,
-  formatResponseTime,
   formatLastChecked
 } from '../utils/simpleStatusCheck';
 
@@ -23,10 +21,24 @@ const MinimalEnvironmentList = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [checkProgress, setCheckProgress] = useState(null);
   const [lastCheckTime, setLastCheckTime] = useState(null);
+  const [currentNetwork, setCurrentNetwork] = useState('external');
 
   useEffect(() => {
     loadEnvironments();
+    detectNetwork();
   }, []);
+
+  // 检测当前网络环境
+  const detectNetwork = async () => {
+    try {
+      const network = await getNetworkType();
+      setCurrentNetwork(network);
+      console.log('🌐 当前网络环境:', network);
+    } catch (error) {
+      console.error('网络检测失败:', error);
+      setCurrentNetwork('external'); // 默认外网
+    }
+  };
 
   const loadEnvironments = async () => {
     try {
@@ -168,13 +180,26 @@ const MinimalEnvironmentList = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">环境管理中心</h1>
-          <p className="text-gray-600">
-            共找到 {environments.length} 个环境配置
-          </p>
+      {/* 头部 */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">环境管理中心</h1>
+              <p className="text-gray-600 mt-2">
+                管理和访问多套环境配置 • 当前网络: {currentNetwork === 'internal' ? '内网' : '外网'}
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500">
+                共 {environments.length} 个环境
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* 状态监控面板 */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -262,120 +287,15 @@ const MinimalEnvironmentList = () => {
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredEnvironments.map(env => {
-            const envStatus = getEnvironmentStatus(env.id);
-            return (
-              <div key={env.id} className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900">{env.name}</h3>
-                      {/* 状态指示器 */}
-                      <div className="flex items-center gap-1">
-                        {envStatus.isChecking ? (
-                          <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />
-                        ) : envStatus.status === 'online' ? (
-                          <Wifi className="w-4 h-4 text-green-600" />
-                        ) : envStatus.status === 'unknown' ? (
-                          <Clock className="w-4 h-4 text-gray-400" />
-                        ) : (
-                          <WifiOff className="w-4 h-4 text-red-600" />
-                        )}
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(envStatus.status)}`}>
-                          {getStatusText(envStatus.status)}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600">{env.description}</p>
-                  </div>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    env.type === 'production' ? 'bg-red-100 text-red-800' :
-                    env.type === 'staging' ? 'bg-yellow-100 text-yellow-800' :
-                    env.type === 'development' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {env.type}
-                  </span>
-                </div>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">URL:</span>
-                  <a 
-                    href={env.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 truncate ml-2"
-                  >
-                    {env.url}
-                  </a>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">版本:</span>
-                  <span className="font-mono">{env.version}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">网络:</span>
-                  <span>{env.network === 'internal' ? '内网' : '外网'}</span>
-                </div>
-                {/* 状态详情 */}
-                {envStatus.responseTime && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">响应时间:</span>
-                    <span className="font-mono">{formatResponseTime(envStatus.responseTime)}</span>
-                  </div>
-                )}
-                {envStatus.lastChecked && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">最后检测:</span>
-                    <span>{formatLastChecked(envStatus.lastChecked)}</span>
-                  </div>
-                )}
-                {envStatus.error && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">错误:</span>
-                    <span className="text-red-600 text-xs">{envStatus.error}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* 标签显示 */}
-              {env.tags && env.tags.length > 0 && (
-                <div className="mb-4">
-                  <SimpleTagList
-                    tags={env.tags}
-                    maxVisible={4}
-                    size="xs"
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">
-                  最后部署: {env.lastDeployed}
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleCheckSingle(env)}
-                    disabled={envStatus.isChecking}
-                    className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-200 disabled:opacity-50 flex items-center gap-1"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${envStatus.isChecking ? 'animate-spin' : ''}`} />
-                    检测
-                  </button>
-                  <a
-                    href={env.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
-                  >
-                    访问
-                  </a>
-                </div>
-              </div>
-              </div>
-            );
-          })}
+          {filteredEnvironments.map(env => (
+            <StyledEnvironmentCard
+              key={env.id}
+              environment={env}
+              currentNetwork={currentNetwork}
+              status={getEnvironmentStatus(env.id)}
+              onStatusCheck={handleCheckSingle}
+            />
+          ))}
         </div>
 
         {filteredEnvironments.length === 0 && environments.length > 0 && (
