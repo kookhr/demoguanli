@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import EnvironmentForm from './EnvironmentForm';
 import StorageStatus from './StorageStatus';
+import ErrorBoundary from './ErrorBoundary';
 import {
   getEnvironments,
   addEnvironment,
@@ -177,7 +178,8 @@ const ConfigPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50">
       {/* 头部 */}
       <div className="bg-gradient-to-r from-primary-50 to-primary-100 border-b border-primary-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -411,7 +413,8 @@ const ConfigPage = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };
 

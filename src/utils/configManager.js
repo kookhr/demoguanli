@@ -10,9 +10,15 @@ export const getEnvironments = async () => {
   try {
     // 尝试从 KV 获取
     const environments = await kvApi.get(KV_KEY);
-    return environments && environments.length > 0 ? environments : defaultEnvironments;
+    if (environments && Array.isArray(environments) && environments.length > 0) {
+      console.log('✅ 从 KV 获取到环境配置:', environments.length, '个');
+      return environments;
+    } else {
+      console.log('📋 KV 中无数据，使用默认配置');
+      return defaultEnvironments;
+    }
   } catch (error) {
-    console.error('从 KV 获取环境配置失败，使用默认配置:', error);
+    console.error('❌ 从 KV 获取环境配置失败，使用默认配置:', error);
     return defaultEnvironments;
   }
 };
