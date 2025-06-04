@@ -8,11 +8,12 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
-    type: 'development',
+    type: '开发环境',
     network: 'internal',
     url: '',
     version: '',
     description: '',
+    status: 'online',
     tags: [],
     services: []
   });
