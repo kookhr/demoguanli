@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Navigation from './components/Navigation'
 import MinimalEnvironmentList from './components/MinimalEnvironmentList'
+import ConfigPage from './components/ConfigPage'
 import './App.css'
 
 // 最小化测试组件
@@ -22,6 +23,7 @@ function App() {
         <Routes>
           <Route path="/test" element={<TestComponent />} />
           <Route path="/" element={<MinimalEnvironmentList />} />
+          <Route path="/config" element={<ConfigPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

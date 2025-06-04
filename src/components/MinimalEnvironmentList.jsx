@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getEnvironments } from '../utils/configManager';
+import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
 
 const MinimalEnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
+  const [filteredEnvironments, setFilteredEnvironments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -18,8 +20,9 @@ const MinimalEnvironmentList = () => {
       
       const envs = await getEnvironments();
       console.log('✅ 环境配置加载成功:', envs);
-      
+
       setEnvironments(envs);
+      setFilteredEnvironments(envs);
     } catch (err) {
       console.error('❌ 加载环境配置失败:', err);
       setError(err.message);
@@ -27,6 +30,12 @@ const MinimalEnvironmentList = () => {
       setLoading(false);
     }
   };
+
+  // 处理过滤变化 - 使用 useCallback 避免无限循环
+  const handleFilterChange = useCallback((filtered) => {
+    console.log('🔍 过滤结果更新:', filtered.length, '个环境');
+    setFilteredEnvironments(filtered);
+  }, []);
 
   if (loading) {
     return (
@@ -68,8 +77,15 @@ const MinimalEnvironmentList = () => {
           </p>
         </div>
 
+        {/* 搜索和过滤 */}
+        <SimpleEnvironmentFilter
+          environments={environments}
+          onFilterChange={handleFilterChange}
+          className="mb-8"
+        />
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {environments.map(env => (
+          {filteredEnvironments.map(env => (
             <div key={env.id} className="bg-white rounded-lg shadow p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -145,6 +161,13 @@ const MinimalEnvironmentList = () => {
             </div>
           ))}
         </div>
+
+        {filteredEnvironments.length === 0 && environments.length > 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-lg mb-2">没有找到匹配的环境</div>
+            <p className="text-gray-500">请尝试调整搜索条件或过滤器</p>
+          </div>
+        )}
 
         {environments.length === 0 && (
           <div className="text-center py-12">
