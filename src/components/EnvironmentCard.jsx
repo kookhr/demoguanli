@@ -125,14 +125,16 @@ const EnvironmentCard = ({ environment, status: externalStatus }) => {
   // 获取环境类型样式
   const getTypeStyle = (type) => {
     switch (type) {
-      case 'production':
+      case '生产环境':
         return 'badge-primary'; // 蓝色 - 表示重要性和稳定性
-      case 'staging':
+      case '预生产环境':
         return 'badge-warning'; // 黄色 - 保持不变
-      case 'testing':
+      case '测试环境':
         return 'badge-info'; // 青色 - 区分于生产环境的蓝色
-      case 'development':
+      case '开发环境':
         return 'badge-success'; // 绿色 - 保持不变
+      case '演示环境':
+        return 'badge-gray'; // 灰色 - 演示环境
       default:
         return 'badge-gray';
     }

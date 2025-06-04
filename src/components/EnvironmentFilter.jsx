@@ -118,11 +118,7 @@ const EnvironmentFilter = ({
                 <option value="">所有类型</option>
                 {types.map(type => (
                   <option key={type} value={type}>
-                    {type === 'production' ? '生产环境' :
-                     type === 'staging' ? '预生产' :
-                     type === 'development' ? '开发环境' :
-                     type === 'testing' ? '测试环境' :
-                     type === 'demo' ? '演示环境' : type}
+                    {type}
                   </option>
                 ))}
               </select>

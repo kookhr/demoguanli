@@ -69,11 +69,11 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
   };
 
   const environmentTypes = [
-    { value: 'development', label: '开发环境', color: 'text-green-600' },
-    { value: 'testing', label: '测试环境', color: 'text-blue-600' },
-    { value: 'staging', label: '预生产环境', color: 'text-orange-600' },
-    { value: 'production', label: '生产环境', color: 'text-red-600' },
-    { value: 'demo', label: '演示环境', color: 'text-gray-600' }
+    { value: '开发环境', label: '开发环境', color: 'text-green-600' },
+    { value: '测试环境', label: '测试环境', color: 'text-blue-600' },
+    { value: '预生产环境', label: '预生产环境', color: 'text-orange-600' },
+    { value: '生产环境', label: '生产环境', color: 'text-red-600' },
+    { value: '演示环境', label: '演示环境', color: 'text-gray-600' }
   ];
 
   const networkTypes = [
@@ -235,13 +235,13 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
             tags={formData.tags || []}
             onChange={(tags) => handleChange('tags', tags)}
             suggestions={[
-              'production', 'staging', 'development', 'testing', 'demo',
-              'frontend', 'backend', 'database', 'api', 'web',
-              'internal', 'external', 'public', 'private',
-              'stable', 'beta', 'alpha', 'experimental',
-              'critical', 'important', 'optional',
-              'docker', 'kubernetes', 'aws', 'azure', 'gcp',
-              'nodejs', 'react', 'vue', 'angular', 'python', 'java'
+              '生产环境', '预生产环境', '开发环境', '测试环境', '演示环境',
+              '前端', '后端', '数据库', '接口', '网站',
+              '内网', '外网', '公开', '私有',
+              '稳定版', '测试版', '内测版', '实验版',
+              '关键', '重要', '可选',
+              '容器', '集群', '云服务', '微服务', '分布式',
+              '框架', '组件', '工具', '平台', '系统'
             ]}
             placeholder="添加标签，用于分类和筛选..."
           />

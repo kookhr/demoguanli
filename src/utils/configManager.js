@@ -136,7 +136,7 @@ export const validateEnvironment = (environment) => {
     errors.push('环境URL不能为空');
   }
   
-  if (!['development', 'testing', 'staging', 'production', 'demo'].includes(environment.type)) {
+  if (!['开发环境', '测试环境', '预生产环境', '生产环境', '演示环境'].includes(environment.type)) {
     errors.push('环境类型无效');
   }
   
