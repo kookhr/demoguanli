@@ -3,12 +3,10 @@ import { RefreshCw, Globe, Shield, Activity } from 'lucide-react';
 import EnvironmentCard from './EnvironmentCard';
 import EnvironmentFilter from './EnvironmentFilter';
 import { getEnvironments } from '../utils/configManager';
-import { getNetworkType } from '../utils/networkCheck';
 
 const EnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
   const [filteredEnvironments, setFilteredEnvironments] = useState([]);
-  const [currentNetwork, setCurrentNetwork] = useState('external');
 
   // 暂时禁用实时监控，使用简单状态管理
   const [environmentStatuses, setEnvironmentStatuses] = useState({});
@@ -69,11 +67,7 @@ const EnvironmentList = () => {
     loadEnvironments();
   }, []);
 
-  // 检测当前网络环境
-  useEffect(() => {
-    const networkType = getNetworkType();
-    setCurrentNetwork(networkType);
-  }, []);
+
 
   const loadEnvironments = async () => {
     try {
@@ -112,14 +106,7 @@ const EnvironmentList = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">环境管理中心</h1>
               <p className="text-gray-600">
-                快速访问和管理多套环境，当前网络:
-                <span className={`ml-1 font-semibold px-2 py-1 rounded-full text-xs ${
-                  currentNetwork === 'internal'
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'bg-success-100 text-success-700'
-                }`}>
-                  {currentNetwork === 'internal' ? '内网环境' : '外网环境'}
-                </span>
+                快速访问和管理多套环境
               </p>
             </div>
 
@@ -280,7 +267,6 @@ const EnvironmentList = () => {
               <EnvironmentCard
                 key={env.id}
                 environment={env}
-                currentNetwork={currentNetwork}
                 status={environmentStatuses[env.id]}
               />
             ))

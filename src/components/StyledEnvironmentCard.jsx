@@ -21,7 +21,7 @@ import {
   formatLastChecked 
 } from '../utils/simpleStatusCheck';
 
-const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCheck }) => {
+const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // 获取状态信息
@@ -125,8 +125,6 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
     }
   };
 
-  // 检查网络可访问性
-  const isAccessible = environment.network === currentNetwork || environment.network === 'external';
   const isChecking = status?.isChecking || false;
   const statusInfo = getStatusInfo(status);
   const StatusIcon = statusInfo.icon;
@@ -233,15 +231,10 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
             href={environment.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`btn ${
-              isAccessible
-                ? 'btn-primary'
-                : 'btn-secondary cursor-not-allowed opacity-50'
-            }`}
-            onClick={(e) => !isAccessible && e.preventDefault()}
+            className="btn btn-primary"
           >
             <ExternalLink className="w-4 h-4 mr-2" />
-            {isAccessible ? '快速访问' : '网络不可达'}
+            快速访问
           </a>
 
           {/* 展开/收起按钮 */}
@@ -281,15 +274,7 @@ const StyledEnvironmentCard = ({ environment, currentNetwork, status, onStatusCh
           </div>
         )}
 
-        {/* 网络不可达提示 */}
-        {!isAccessible && (
-          <div className="mt-3 p-3 bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-700 rounded-lg text-sm text-warning-800 dark:text-warning-300 animate-slide-up transition-colors">
-            <div className="flex items-center">
-              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span>当前网络环境无法访问此{environment.network === 'internal' ? '内网' : '外网'}环境</span>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );

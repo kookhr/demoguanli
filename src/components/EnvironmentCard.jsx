@@ -18,7 +18,7 @@ import {
 import { checkEnvironmentStatus, formatLastDeployed, getCachedStatus } from '../utils/networkCheck';
 import { TagList } from './TagManager';
 
-const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }) => {
+const EnvironmentCard = ({ environment, status: externalStatus }) => {
   const [status, setStatus] = useState(externalStatus?.status || 'unknown');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -159,8 +159,7 @@ const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }
     }
   };
 
-  // 检查网络可访问性
-  const isAccessible = environment.network === currentNetwork || environment.network === 'external';
+
 
   const statusInfo = getStatusInfo(status);
   const StatusIcon = statusInfo.icon;
@@ -266,15 +265,10 @@ const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }
             href={environment.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`btn ${
-              isAccessible
-                ? 'btn-primary'
-                : 'btn-secondary cursor-not-allowed opacity-50'
-            }`}
-            onClick={(e) => !isAccessible && e.preventDefault()}
+            className="btn btn-primary"
           >
             <ExternalLink className="w-4 h-4 mr-2" />
-            {isAccessible ? '快速访问' : '网络不可达'}
+            快速访问
           </a>
 
           {/* 展开/收起按钮 */}
@@ -310,16 +304,6 @@ const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }
                   </a>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* 网络不可达提示 */}
-        {!isAccessible && (
-          <div className="mt-3 p-3 bg-warning-50 border border-warning-200 rounded-lg text-sm text-warning-800 animate-slide-up">
-            <div className="flex items-center">
-              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-              <span>当前网络环境无法访问此{environment.network === 'internal' ? '内网' : '外网'}环境</span>
             </div>
           </div>
         )}

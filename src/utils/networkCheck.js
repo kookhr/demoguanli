@@ -130,29 +130,7 @@ const checkWithImagePing = (url) => {
   });
 };
 
-// 检测是否在内网环境
-export const isInternalNetwork = () => {
-  // 简单的内网检测逻辑，可以根据实际情况调整
-  const hostname = window.location.hostname;
-  
-  // 检测常见的内网IP段
-  const internalPatterns = [
-    /^192\.168\./,
-    /^10\./,
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-    /^localhost$/,
-    /^127\./,
-    /\.local$/,
-    /\.internal$/
-  ];
-  
-  return internalPatterns.some(pattern => pattern.test(hostname));
-};
 
-// 获取网络类型标识
-export const getNetworkType = () => {
-  return isInternalNetwork() ? 'internal' : 'external';
-};
 
 // 批量检测环境状态
 export const checkMultipleEnvironments = async (environments, options = {}) => {

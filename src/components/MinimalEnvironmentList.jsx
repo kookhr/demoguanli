@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Activity, Star, BarChart3, Keyboard, SortAsc } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
-import { getNetworkType } from '../utils/networkCheck';
 import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
 import StyledEnvironmentCard from './StyledEnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
@@ -32,7 +31,6 @@ const MinimalEnvironmentList = () => {
   const [isChecking, setIsChecking] = useState(false);
   const [checkProgress, setCheckProgress] = useState(null);
   const [lastCheckTime, setLastCheckTime] = useState(null);
-  const [currentNetwork, setCurrentNetwork] = useState('external');
 
   // 新功能状态
   const [favorites, setFavorites] = useState([]);
@@ -46,7 +44,6 @@ const MinimalEnvironmentList = () => {
 
   useEffect(() => {
     loadEnvironments();
-    detectNetwork();
     setFavorites(getFavorites());
   }, []);
 
@@ -110,17 +107,7 @@ const MinimalEnvironmentList = () => {
     };
   }, [environments, isChecking]);
 
-  // 检测当前网络环境
-  const detectNetwork = async () => {
-    try {
-      const network = await getNetworkType();
-      setCurrentNetwork(network);
-      console.log('🌐 当前网络环境:', network);
-    } catch (error) {
-      console.error('网络检测失败:', error);
-      setCurrentNetwork('external'); // 默认外网
-    }
-  };
+
 
   const loadEnvironments = async () => {
     try {
@@ -321,7 +308,7 @@ const MinimalEnvironmentList = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">环境管理中心</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-2">
-                管理和访问多套环境配置 • 当前网络: {currentNetwork === 'internal' ? '内网' : '外网'}
+                管理和访问多套环境配置
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -475,7 +462,6 @@ const MinimalEnvironmentList = () => {
             >
               <StyledEnvironmentCard
                 environment={env}
-                currentNetwork={currentNetwork}
                 status={getEnvironmentStatus(env.id)}
                 onStatusCheck={handleCheckSingle}
                 isFavorite={isFavorite(env.id)}
