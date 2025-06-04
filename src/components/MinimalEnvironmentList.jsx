@@ -5,7 +5,6 @@ import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
 import OptimizedEnvironmentCard from './OptimizedEnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
-import DarkModeToggle from './DarkModeToggle';
 import { useShortcuts, ShortcutHelp } from '../hooks/useShortcuts';
 import {
   checkMultipleEnvironments,
@@ -319,8 +318,6 @@ const MinimalEnvironmentList = () => {
                 >
                   <BarChart3 className="w-4 h-4" />
                 </button>
-
-                <DarkModeToggle className="text-gray-600 dark:text-gray-400" />
 
                 <button
                   onClick={() => setShowShortcutHelp(true)}
