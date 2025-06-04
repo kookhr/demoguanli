@@ -1,207 +1,414 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Globe, Shield, Activity } from 'lucide-react';
-import EnvironmentCard from './EnvironmentCard';
-import EnvironmentFilter from './EnvironmentFilter';
+import { RefreshCw, Activity, Star, BarChart3, Keyboard, SortAsc } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
+import EnvironmentFilter from './EnvironmentFilter';
+import EnvironmentCard from './EnvironmentCard';
+import StatusHistoryChart from './StatusHistoryChart';
+import ContextMenu, { useContextMenu } from './ContextMenu';
+import { useShortcuts, ShortcutHelp } from '../hooks/useShortcuts';
+import {
+  checkMultipleEnvironments,
+  checkEnvironmentStatus,
+  formatLastChecked
+} from '../utils/simpleStatusCheck';
+import { addStatusRecord } from '../utils/statusHistory';
+import {
+  getFavorites,
+  toggleFavorite,
+  isFavorite,
+  sortEnvironments
+} from '../utils/favorites';
 
 const EnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
   const [filteredEnvironments, setFilteredEnvironments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // 暂时禁用实时监控，使用简单状态管理
+  // 状态检测相关状态
   const [environmentStatuses, setEnvironmentStatuses] = useState({});
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshProgress, setRefreshProgress] = useState(null);
-  const [lastRefreshTime, setLastRefreshTime] = useState(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkProgress, setCheckProgress] = useState(null);
+  const [lastCheckTime, setLastCheckTime] = useState(null);
 
-  // 简单的状态检测函数
-  const handleRefreshAll = async () => {
-    setIsRefreshing(true);
-    setRefreshProgress({ completed: 0, total: environments.length, percentage: 0 });
+  // 新功能状态
+  const [favorites, setFavorites] = useState([]);
+  const [sortBy, setSortBy] = useState('custom');
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedEnvironmentForHistory, setSelectedEnvironmentForHistory] = useState(null);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
-    try {
-      // 模拟检测过程
-      for (let i = 0; i < environments.length; i++) {
-        const env = environments[i];
-        setEnvironmentStatuses(prev => ({
-          ...prev,
-          [env.id]: { status: 'online', lastChecked: new Date().toISOString() }
-        }));
+  // 右键菜单
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
 
-        setRefreshProgress({
-          completed: i + 1,
-          total: environments.length,
-          percentage: Math.round(((i + 1) / environments.length) * 100),
-          current: env.name
-        });
+  useEffect(() => {
+    loadEnvironments();
+    setFavorites(getFavorites());
+  }, []);
 
-        // 模拟延迟
-        await new Promise(resolve => setTimeout(resolve, 200));
+  // 快捷键处理
+  const shortcutHandlers = {
+    refresh_status: () => {
+      if (selectedEnvironmentForHistory) {
+        handleCheckSingle(selectedEnvironmentForHistory);
       }
-
-      setLastRefreshTime(new Date().toISOString());
-    } catch (error) {
-      console.error('检测失败:', error);
-    } finally {
-      setIsRefreshing(false);
-      setRefreshProgress(null);
+    },
+    refresh_all: () => handleCheckAll(),
+    focus_search: () => {
+      const searchInput = document.querySelector('input[type="text"]');
+      if (searchInput) searchInput.focus();
+    },
+    close_modal: () => {
+      if (showHistory) setShowHistory(false);
+      if (showShortcutHelp) setShowShortcutHelp(false);
+      closeContextMenu();
+    },
+    toggle_history: () => setShowHistory(!showHistory),
+    refresh_page: (e) => {
+      e.preventDefault();
+      window.location.reload();
     }
   };
 
-  // 简单的状态统计
-  const getStatusSummary = () => {
-    const summary = {
-      total: environments.length,
-      online: Object.values(environmentStatuses).filter(s => s.status === 'online').length,
-      offline: Object.values(environmentStatuses).filter(s => s.status === 'offline').length,
-      timeout: 0,
-      error: 0,
-      unknown: environments.length - Object.keys(environmentStatuses).length,
-      checking: 0
-    };
-    return summary;
-  };
+  useShortcuts(shortcutHandlers);
 
-  // 加载环境配置
+  // 页面加载完成后自动检测状态
   useEffect(() => {
-    loadEnvironments();
-  }, []);
+    if (environments.length > 0) {
+      console.log('🚀 页面加载完成，开始自动状态检测...');
+      // 延迟1秒后开始检测，确保页面渲染完成
+      const timer = setTimeout(() => {
+        handleCheckAll();
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [environments]);
+
+  // 监听页面可见性变化，当用户回到页面时重新检测
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && environments.length > 0) {
+        console.log('👀 页面重新可见，开始状态检测...');
+        // 延迟500ms后检测，避免频繁切换
+        setTimeout(() => {
+          if (!isChecking) {
+            handleCheckAll();
+          }
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [environments, isChecking]);
 
 
 
   const loadEnvironments = async () => {
     try {
+      console.log('🔄 开始加载环境配置...');
+      setLoading(true);
+      setError(null);
+      
       const envs = await getEnvironments();
+      console.log('✅ 环境配置加载成功:', envs);
+
       setEnvironments(envs);
       setFilteredEnvironments(envs);
-    } catch (error) {
-      console.error('加载环境配置失败:', error);
-      setEnvironments([]);
-      setFilteredEnvironments([]);
+    } catch (err) {
+      console.error('❌ 加载环境配置失败:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   // 处理过滤变化 - 使用 useCallback 避免无限循环
   const handleFilterChange = useCallback((filtered) => {
+    console.log('🔍 过滤结果更新:', filtered.length, '个环境');
     setFilteredEnvironments(filtered);
   }, []);
 
-  // 获取统计信息
-  const statusSummary = getStatusSummary();
-  const stats = {
-    total: environments.length,
-    online: statusSummary.online,
-    internal: environments.filter(env => env.network === 'internal').length,
-    external: environments.filter(env => env.network === 'external').length,
-    offline: statusSummary.offline + statusSummary.timeout + statusSummary.error,
-    checking: statusSummary.checking
+  // 检测单个环境状态
+  const handleCheckSingle = async (environment) => {
+    console.log(`🔍 检测单个环境: ${environment.name}`);
+
+    setEnvironmentStatuses(prev => ({
+      ...prev,
+      [environment.id]: { ...prev[environment.id], isChecking: true }
+    }));
+
+    try {
+      const result = await checkEnvironmentStatus(environment);
+      setEnvironmentStatuses(prev => ({
+        ...prev,
+        [environment.id]: { ...result, isChecking: false }
+      }));
+
+      // 记录状态历史
+      addStatusRecord(environment.id, result);
+    } catch (error) {
+      console.error(`检测环境 ${environment.name} 失败:`, error);
+      setEnvironmentStatuses(prev => ({
+        ...prev,
+        [environment.id]: {
+          id: environment.id,
+          status: 'error',
+          error: error.message,
+          lastChecked: new Date().toISOString(),
+          isChecking: false
+        }
+      }));
+    }
   };
 
+  // 批量检测所有环境状态
+  const handleCheckAll = async () => {
+    if (isChecking || environments.length === 0) return;
+
+    console.log('🚀 开始批量检测所有环境');
+    setIsChecking(true);
+    setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
+
+    try {
+      const results = await checkMultipleEnvironments(environments, (progress) => {
+        setCheckProgress(progress);
+      });
+
+      setEnvironmentStatuses(results);
+      setLastCheckTime(new Date().toISOString());
+      console.log('✅ 批量检测完成');
+    } catch (error) {
+      console.error('❌ 批量检测失败:', error);
+    } finally {
+      setIsChecking(false);
+      setCheckProgress(null);
+    }
+  };
+
+  // 获取环境状态
+  const getEnvironmentStatus = (envId) => {
+    return environmentStatuses[envId] || { status: 'unknown', isChecking: false };
+  };
+
+  // 获取状态统计
+  const getStatusSummary = () => {
+    const summary = {
+      total: environments.length,
+      online: 0,
+      offline: 0,
+      timeout: 0,
+      error: 0,
+      unknown: 0,
+      checking: 0
+    };
+
+    environments.forEach(env => {
+      const status = getEnvironmentStatus(env.id);
+      if (status.isChecking) {
+        summary.checking++;
+      } else {
+        summary[status.status] = (summary[status.status] || 0) + 1;
+      }
+    });
+
+    return summary;
+  };
+
+  // 右键菜单操作处理
+  const handleContextMenuAction = (action, environment) => {
+    switch (action) {
+      case 'check_status':
+        handleCheckSingle(environment);
+        break;
+      case 'visit':
+        window.open(environment.url, '_blank');
+        break;
+      case 'toggle_favorite':
+        const newFavorites = toggleFavorite(environment.id);
+        setFavorites(newFavorites);
+        break;
+      case 'view_history':
+        setSelectedEnvironmentForHistory(environment);
+        setShowHistory(true);
+        break;
+      default:
+        console.log('未知操作:', action);
+        break;
+    }
+  };
+
+  // 应用排序和收藏
+  const getSortedEnvironments = () => {
+    return sortEnvironments(filteredEnvironments, sortBy);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载环境配置中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-red-800 mb-2">加载失败</h2>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={loadEnvironments}
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+            >
+              重试
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* 头部 */}
-      <div className="bg-gradient-to-r from-primary-50 to-primary-100 border-b border-primary-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">环境管理中心</h1>
-              <p className="text-gray-600">
-                快速访问和管理多套环境
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">环境管理中心</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                管理和访问多套环境配置
               </p>
             </div>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                共 {environments.length} 个环境 • {favorites.length} 个收藏
+              </div>
 
-            <div className="flex items-center gap-3">
-              {isRefreshing && refreshProgress.total > 0 && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Activity className="w-4 h-4 animate-pulse" />
-                  <span>
-                    {refreshProgress.completed}/{refreshProgress.total}
-                  </span>
-                  <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary-500 transition-all duration-300"
-                      style={{ width: `${(refreshProgress.completed / refreshProgress.total) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="custom">自定义排序</option>
+                  <option value="favorites">收藏优先</option>
+                  <option value="name">按名称</option>
+                  <option value="type">按类型</option>
+                  <option value="network">按网络</option>
+                </select>
 
-              <button
-                onClick={handleRefreshAll}
-                disabled={isRefreshing}
-                className="btn btn-primary"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? '检测中...' : '检测所有'}
-              </button>
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className={`p-2 rounded transition-colors ${
+                    showHistory
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  title="切换历史面板 (Ctrl+Shift+H)"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                </button>
 
-              {lastRefreshTime && !isRefreshing && (
-                <span className="text-xs text-gray-500">
-                  上次检测: {lastRefreshTime.toLocaleTimeString()}
-                </span>
-              )}
+                <button
+                  onClick={() => setShowShortcutHelp(true)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                  title="快捷键帮助"
+                >
+                  <Keyboard className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="card card-hover p-6 animate-fade-in">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-lg">{stats.total}</span>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">总环境数</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              </div>
+
+        {/* 状态监控面板 */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6 transition-colors duration-300">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <Activity className="w-5 h-5" />
+              环境状态监控
+            </h3>
+
+            <div className="flex items-center gap-3">
+              {lastCheckTime && (
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  最后检测: {formatLastChecked(lastCheckTime)}
+                </span>
+              )}
+
+              <button
+                onClick={handleCheckAll}
+                disabled={isChecking || environments.length === 0}
+                className="btn btn-primary flex items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
+                {isChecking ? '检测中...' : '检测所有'}
+              </button>
             </div>
           </div>
 
-          <div className="card card-hover p-6 animate-fade-in" style={{animationDelay: '0.1s'}}>
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-success-500 to-success-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-lg">{stats.online}</span>
-                </div>
+          {/* 进度条 */}
+          {isChecking && checkProgress && (
+            <div className="mb-4">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+                <span>检测进度: {checkProgress.current || '准备中...'}</span>
+                <span>{checkProgress.completed}/{checkProgress.total}</span>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">在线环境</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.online}</p>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${checkProgress.percentage || 0}%` }}
+                ></div>
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="card card-hover p-6 animate-fade-in" style={{animationDelay: '0.2s'}}>
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">内网环境</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.internal}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="card card-hover p-6 animate-fade-in" style={{animationDelay: '0.3s'}}>
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gradient-to-br from-success-400 to-success-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <Globe className="w-6 h-6 text-white" />
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">外网环境</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.external}</p>
-              </div>
-            </div>
+          {/* 状态统计 */}
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+            {(() => {
+              const summary = getStatusSummary();
+              return (
+                <>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.total}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">总计</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.online}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">在线</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{summary.offline + summary.error}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">离线</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{summary.timeout}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">超时</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{summary.checking}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">检测中</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{summary.unknown}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">未知</div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -212,71 +419,68 @@ const EnvironmentList = () => {
           className="mb-8"
         />
 
-        {/* 旧的搜索和过滤 - 暂时保留 */}
-        <div className="card p-6 mb-8 animate-fade-in" style={{display: 'none'}}>
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* 搜索框 */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="搜索环境名称、描述或类型..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pl-10"
-              />
-            </div>
-
-            {/* 网络过滤 */}
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-400" />
-              <select
-                value={filterNetwork}
-                onChange={(e) => setFilterNetwork(e.target.value)}
-                className="input-field w-auto min-w-[120px]"
-              >
-                <option value="all">所有网络</option>
-                <option value="internal">内网</option>
-                <option value="external">外网</option>
-              </select>
-            </div>
-
-            {/* 状态过滤 */}
-            <div>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="input-field w-auto min-w-[120px]"
-              >
-                <option value="all">所有状态</option>
-                <option value="online">在线</option>
-                <option value="offline">离线</option>
-                <option value="timeout">超时</option>
-                <option value="error">错误</option>
-                <option value="reachable">可达</option>
-                <option value="unknown">未检测</option>
-              </select>
-            </div>
+        {/* 历史面板 */}
+        {showHistory && selectedEnvironmentForHistory && (
+          <div className="mb-6">
+            <StatusHistoryChart
+              environmentId={selectedEnvironmentForHistory.id}
+              environment={selectedEnvironmentForHistory}
+            />
           </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {getSortedEnvironments().map(env => (
+            <div
+              key={env.id}
+              onContextMenu={(e) => openContextMenu(e, env)}
+              className="relative"
+            >
+              <EnvironmentCard
+                environment={env}
+                status={getEnvironmentStatus(env.id)}
+                onStatusCheck={handleCheckSingle}
+              />
+
+              {/* 收藏标识 */}
+              {isFavorite(env.id) && (
+                <div className="absolute top-2 right-2">
+                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* 环境列表 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredEnvironments.length > 0 ? (
-            filteredEnvironments.map(env => (
-              <EnvironmentCard
-                key={env.id}
-                environment={env}
-                status={environmentStatuses[env.id]}
-              />
-            ))
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <div className="text-gray-400 text-lg mb-2">没有找到匹配的环境</div>
-              <p className="text-gray-500">请尝试调整搜索条件或过滤器</p>
-            </div>
-          )}
-        </div>
+        {filteredEnvironments.length === 0 && environments.length > 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 dark:text-gray-500 text-lg mb-2">没有找到匹配的环境</div>
+            <p className="text-gray-500 dark:text-gray-400">请尝试调整搜索条件或过滤器</p>
+          </div>
+        )}
+
+        {environments.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-400 dark:text-gray-500 text-lg mb-2">暂无环境配置</div>
+            <p className="text-gray-500 dark:text-gray-400">请先添加环境配置</p>
+          </div>
+        )}
+
+        {/* 右键菜单 */}
+        <ContextMenu
+          isOpen={contextMenu.isOpen}
+          position={contextMenu.position}
+          environment={contextMenu.environment}
+          onClose={closeContextMenu}
+          onAction={handleContextMenuAction}
+          isFavorite={contextMenu.environment ? isFavorite(contextMenu.environment.id) : false}
+        />
+
+        {/* 快捷键帮助 */}
+        <ShortcutHelp
+          isOpen={showShortcutHelp}
+          onClose={() => setShowShortcutHelp(false)}
+        />
       </div>
     </div>
   );

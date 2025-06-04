@@ -194,8 +194,9 @@ npm run preview
 src/
 ├── components/           # React组件
 │   ├── AuthProvider.jsx        # 认证上下文
-│   ├── MinimalEnvironmentList.jsx  # 环境列表主页
-│   ├── OptimizedEnvironmentCard.jsx # 环境卡片
+│   ├── EnvironmentList.jsx     # 环境列表主页
+│   ├── EnvironmentCard.jsx     # 环境卡片组件
+│   ├── EnvironmentFilter.jsx   # 环境过滤器
 │   ├── ConfigPage.jsx          # 配置管理页面
 │   ├── UserManagementPage.jsx  # 用户管理页面
 │   ├── Navigation.jsx          # 导航栏
