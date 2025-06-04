@@ -135,21 +135,21 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
     <div className={`card card-hover animate-fade-in border-l-4 ${getStatusBorderColor(status)} ${
       isChecking ? 'animate-pulse' : ''
     }`}>
-      <div className="p-4">
+      <div className="p-3">
         {/* 头部信息 */}
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex items-center gap-2 mb-1">
               <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{environment.name}</h3>
               <span className={`badge ${getTypeStyle(environment.type)}`}>
                 {environment.type}
               </span>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{environment.description}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1.5">{environment.description}</p>
 
             {/* 标签 */}
             {environment.tags && environment.tags.length > 0 && (
-              <div className="mb-2">
+              <div className="mb-1.5">
                 <SimpleTagList
                   tags={environment.tags}
                   maxVisible={4}
@@ -170,13 +170,13 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
         </div>
 
         {/* 状态和版本信息 */}
-        <div className="space-y-2 mb-3">
+        <div className="space-y-1.5 mb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${statusInfo.bg}`}>
-                <StatusIcon className={`w-4 h-4 ${statusInfo.color} ${isChecking ? 'animate-spin' : ''}`} />
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded border ${statusInfo.bg}`}>
+                <StatusIcon className={`w-3.5 h-3.5 ${statusInfo.color} ${isChecking ? 'animate-spin' : ''}`} />
                 <div className="flex flex-col">
-                  <span className={`text-sm font-medium ${statusInfo.color}`}>
+                  <span className={`text-xs font-medium ${statusInfo.color}`}>
                     {isChecking ? '检测中...' : statusInfo.text}
                   </span>
                   {!isChecking && (
@@ -187,7 +187,7 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
                 </div>
               </div>
 
-              <div className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
                 版本: <span className="font-mono font-medium text-gray-700 dark:text-gray-300">{environment.version}</span>
               </div>
             </div>
@@ -195,7 +195,7 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
             <button
               onClick={() => onStatusCheck && onStatusCheck(environment)}
               disabled={isChecking}
-              className="flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 disabled:opacity-50 font-medium transition-colors px-2 py-1 rounded hover:bg-primary-50 dark:hover:bg-primary-900/20"
+              className="flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 disabled:opacity-50 font-medium transition-colors px-1.5 py-0.5 rounded hover:bg-primary-50 dark:hover:bg-primary-900/20"
               title="重新检测状态"
             >
               <RefreshCw className={`w-3 h-3 ${isChecking ? 'animate-spin' : ''}`} />
@@ -233,34 +233,34 @@ const StyledEnvironmentCard = ({ environment, status, onStatusCheck }) => {
             href={environment.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primary"
+            className="btn btn-primary text-sm px-3 py-1.5"
           >
-            <ExternalLink className="w-4 h-4 mr-2" />
+            <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
             快速访问
           </a>
 
           {/* 展开/收起按钮 */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-medium"
+            className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-medium"
           >
-            <Server className="w-4 h-4" />
+            <Server className="w-3.5 h-3.5" />
             服务详情
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
         </div>
 
         {/* 服务详情（可展开） */}
         {isExpanded && (
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 animate-slide-up">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">服务列表</h4>
-            <div className="space-y-1.5">
+          <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 animate-slide-up">
+            <h4 className="text-xs font-medium text-gray-900 dark:text-gray-100 mb-1.5">服务列表</h4>
+            <div className="space-y-1">
               {environment.services.map((service, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Server className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{service.name}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded">:{service.port}</span>
+                <div key={index} className="flex items-center justify-between p-1.5 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                  <div className="flex items-center gap-1.5">
+                    <Server className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+                    <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">{service.name}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded">:{service.port}</span>
                   </div>
                   <a
                     href={service.url}

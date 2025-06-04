@@ -10,12 +10,11 @@ import {
   BarChart3,
   Download
 } from 'lucide-react';
-import {
-  generateTrendData,
-  calculateAvailabilityStats,
+import { 
+  generateTrendData, 
+  calculateAvailabilityStats, 
   getStatusChangeEvents,
-  exportHistory,
-  generateTestHistory
+  exportHistory 
 } from '../utils/statusHistory';
 
 const StatusHistoryChart = ({ environmentId, environment }) => {
@@ -35,17 +34,10 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
     const trend = generateTrendData(environmentId, timeRange);
     const statistics = calculateAvailabilityStats(environmentId, timeRange);
     const statusEvents = getStatusChangeEvents(environmentId, timeRange);
-
+    
     setTrendData(trend);
     setStats(statistics);
     setEvents(statusEvents);
-  };
-
-  const handleGenerateTestData = () => {
-    if (environmentId) {
-      generateTestHistory(environmentId, timeRange);
-      updateData();
-    }
   };
 
   const formatTime = (hourKey) => {
@@ -122,15 +114,6 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
               <option value={6}>最近6小时</option>
               <option value={24}>最近24小时</option>
             </select>
-
-            <button
-              onClick={handleGenerateTestData}
-              className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200 flex items-center gap-1 transition-colors"
-              title="生成测试数据"
-            >
-              <Activity className="w-4 h-4" />
-              测试数据
-            </button>
 
             <button
               onClick={() => exportHistory(environmentId)}

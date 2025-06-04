@@ -206,11 +206,11 @@ export const clearAllHistory = () => {
 export const exportHistory = (environmentId = null) => {
   const history = getStatusHistory();
   const data = environmentId ? { [environmentId]: history[environmentId] } : history;
-
+  
   const blob = new Blob([JSON.stringify(data, null, 2)], {
     type: 'application/json'
   });
-
+  
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -219,64 +219,4 @@ export const exportHistory = (environmentId = null) => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-};
-
-// 生成测试历史数据（仅用于开发测试）
-export const generateTestHistory = (environmentId, hours = 24) => {
-  console.log(`🧪 为环境 ${environmentId} 生成 ${hours} 小时的测试历史数据`);
-
-  const history = getStatusHistory();
-  if (!history[environmentId]) {
-    history[environmentId] = [];
-  }
-
-  const now = new Date();
-  const statuses = ['online', 'offline', 'timeout', 'error'];
-  const weights = [0.7, 0.15, 0.1, 0.05]; // 70%在线，15%离线，10%超时，5%错误
-
-  // 生成过去24小时的数据，每5分钟一条记录
-  const intervalMinutes = 5;
-  const totalRecords = (hours * 60) / intervalMinutes;
-
-  for (let i = totalRecords - 1; i >= 0; i--) {
-    const timestamp = new Date(now.getTime() - i * intervalMinutes * 60 * 1000);
-
-    // 根据权重随机选择状态
-    const random = Math.random();
-    let cumulativeWeight = 0;
-    let selectedStatus = 'online';
-
-    for (let j = 0; j < statuses.length; j++) {
-      cumulativeWeight += weights[j];
-      if (random <= cumulativeWeight) {
-        selectedStatus = statuses[j];
-        break;
-      }
-    }
-
-    // 生成响应时间（在线状态时）
-    let responseTime = null;
-    if (selectedStatus === 'online') {
-      responseTime = Math.floor(Math.random() * 500) + 50; // 50-550ms
-    } else if (selectedStatus === 'timeout') {
-      responseTime = Math.floor(Math.random() * 2000) + 8000; // 8-10秒
-    }
-
-    const record = {
-      timestamp: timestamp.toISOString(),
-      status: selectedStatus,
-      responseTime,
-      error: selectedStatus === 'error' ? '模拟错误信息' : null
-    };
-
-    history[environmentId].push(record);
-  }
-
-  // 按时间排序
-  history[environmentId].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-  saveStatusHistory(history);
-  console.log(`✅ 已生成 ${history[environmentId].length} 条测试记录`);
-
-  return history[environmentId];
 };
