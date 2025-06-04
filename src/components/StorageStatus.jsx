@@ -71,7 +71,7 @@ const StorageStatus = () => {
       {/* 说明文字 */}
       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
         <p className="text-xs text-gray-600">
-          <strong>Cloudflare KV:</strong> 配置存储在全球边缘网络中，通过 Pages Functions API 访问，确保安全性和稳定性。
+          <strong>Cloudflare KV:</strong> 云端配置存储服务，支持实时同步和多设备共享。
         </p>
       </div>
     </div>
