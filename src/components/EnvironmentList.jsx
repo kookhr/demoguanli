@@ -261,7 +261,7 @@ const EnvironmentList = () => {
         </div>
 
         {/* 环境列表 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredEnvironments.length > 0 ? (
             filteredEnvironments.map(env => (
               <EnvironmentCard
