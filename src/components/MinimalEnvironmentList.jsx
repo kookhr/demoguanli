@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getEnvironments } from '../utils/configManager';
 import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
+import SimpleTagList from './SimpleTagList';
 
 const MinimalEnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
@@ -124,24 +125,14 @@ const MinimalEnvironmentList = () => {
                 </div>
               </div>
 
-              {/* 简化的标签显示 */}
+              {/* 标签显示 */}
               {env.tags && env.tags.length > 0 && (
                 <div className="mb-4">
-                  <div className="flex flex-wrap gap-1">
-                    {env.tags.slice(0, 3).map((tag, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                    {env.tags.length > 3 && (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded">
-                        +{env.tags.length - 3}
-                      </span>
-                    )}
-                  </div>
+                  <SimpleTagList
+                    tags={env.tags}
+                    maxVisible={4}
+                    size="xs"
+                  />
                 </div>
               )}
 
