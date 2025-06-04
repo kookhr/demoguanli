@@ -118,10 +118,7 @@ export const importConfig = async (configString) => {
   }
 };
 
-// 重置为默认配置
-export const resetToDefault = async () => {
-  return await saveEnvironments(defaultEnvironments);
-};
+
 
 // 验证环境配置
 export const validateEnvironment = (environment) => {

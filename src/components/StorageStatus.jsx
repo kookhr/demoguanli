@@ -67,13 +67,6 @@ const StorageStatus = () => {
           </span>
         </div>
       </div>
-
-      {/* 说明文字 */}
-      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-        <p className="text-xs text-gray-600">
-          <strong>Cloudflare KV:</strong> 云端配置存储服务，支持实时同步和多设备共享。
-        </p>
-      </div>
     </div>
   );
 };

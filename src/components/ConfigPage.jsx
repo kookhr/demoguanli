@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Download, 
-  Upload, 
-  RotateCcw, 
-  Save,
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Download,
+  Upload,
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
@@ -19,8 +17,7 @@ import {
   updateEnvironment,
   deleteEnvironment,
   exportConfig,
-  importConfig,
-  resetToDefault
+  importConfig
 } from '../utils/configManager';
 
 const ConfigPage = () => {
@@ -144,22 +141,7 @@ const ConfigPage = () => {
     event.target.value = ''; // 清空文件输入
   };
 
-  // 重置配置
-  const handleResetConfig = async () => {
-    if (window.confirm('确定要重置为默认配置吗？这将删除所有自定义配置！')) {
-      try {
-        const success = await resetToDefault();
-        if (success) {
-          await loadEnvironments();
-          showMessage('success', '配置已重置为默认值');
-        } else {
-          throw new Error('重置失败');
-        }
-      } catch (error) {
-        showMessage('error', '重置失败: ' + error.message);
-      }
-    }
-  };
+
 
   // 获取环境类型样式
   const getTypeStyle = (type) => {
@@ -211,15 +193,6 @@ const ConfigPage = () => {
               >
                 <Download className="w-4 h-4 mr-2" />
                 导出配置
-              </button>
-
-              {/* 重置配置 */}
-              <button
-                onClick={handleResetConfig}
-                className="btn btn-warning"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                重置
               </button>
 
               {/* 添加环境 */}
