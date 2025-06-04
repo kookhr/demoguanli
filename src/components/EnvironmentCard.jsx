@@ -51,11 +51,6 @@ const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }
       setStatus(newStatus);
       setLastChecked(new Date());
 
-      // 通知父组件状态更新
-      if (onStatusUpdate) {
-        onStatusUpdate(environment.id, newStatus);
-      }
-
     } catch (error) {
       console.error(`检测环境 ${environment.name} 失败:`, error);
       setStatus('error');

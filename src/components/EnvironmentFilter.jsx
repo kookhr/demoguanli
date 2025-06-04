@@ -22,7 +22,7 @@ const EnvironmentFilter = ({
   // 过滤逻辑
   useEffect(() => {
     const filtered = environments.filter(env => {
-      const matchesSearch = !searchTerm || 
+      const matchesSearch = !searchTerm ||
         env.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         env.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         env.url.toLowerCase().includes(searchTerm.toLowerCase());
@@ -30,15 +30,15 @@ const EnvironmentFilter = ({
       const matchesType = !selectedType || env.type === selectedType;
       const matchesStatus = !selectedStatus || env.status === selectedStatus;
       const matchesNetwork = !selectedNetwork || env.network === selectedNetwork;
-      
-      const matchesTags = selectedTags.length === 0 || 
+
+      const matchesTags = selectedTags.length === 0 ||
         selectedTags.every(tag => env.tags?.includes(tag));
 
       return matchesSearch && matchesType && matchesStatus && matchesNetwork && matchesTags;
     });
 
     onFilterChange(filtered);
-  }, [searchTerm, selectedType, selectedStatus, selectedNetwork, selectedTags, environments, onFilterChange]);
+  }, [searchTerm, selectedType, selectedStatus, selectedNetwork, selectedTags, environments]);
 
   const clearFilters = () => {
     setSearchTerm('');

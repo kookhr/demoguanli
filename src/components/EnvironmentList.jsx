@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Globe, Shield, Activity } from 'lucide-react';
 import EnvironmentCard from './EnvironmentCard';
 import EnvironmentFilter from './EnvironmentFilter';
@@ -87,10 +87,10 @@ const EnvironmentList = () => {
     }
   };
 
-  // 处理过滤变化
-  const handleFilterChange = (filtered) => {
+  // 处理过滤变化 - 使用 useCallback 避免无限循环
+  const handleFilterChange = useCallback((filtered) => {
     setFilteredEnvironments(filtered);
-  };
+  }, []);
 
   // 获取统计信息
   const statusSummary = getStatusSummary();
