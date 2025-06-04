@@ -1,5 +1,6 @@
 // Cloudflare KV 存储管理器
 import { kvDetector } from './kvDetector.js';
+import { kvApi, kvWrapper } from './kvApi.js';
 
 class KVStorageManager {
   constructor() {
@@ -7,6 +8,7 @@ class KVStorageManager {
     this.kvBinding = null;
     this.kvAvailable = null; // 缓存检测结果
     this.detectionPromise = null; // 检测 Promise
+    this.useApi = false; // 是否使用 API 方式
     this.initKV();
   }
 
@@ -24,33 +26,59 @@ class KVStorageManager {
   // 运行 KV 检测
   async runKVDetection() {
     try {
-      console.log('🔍 启动增强型 KV 检测...');
+      console.log('🔍 启动混合型 KV 检测...');
 
-      // 使用专门的检测器
-      const result = await kvDetector.runFullDetection();
+      // 方法1: 尝试直接绑定检测
+      console.log('📡 尝试直接 KV 绑定...');
+      const directResult = await kvDetector.runFullDetection();
 
-      if (result.success && result.binding) {
-        this.kvBinding = result.binding;
+      if (directResult.success && directResult.binding) {
+        this.kvBinding = directResult.binding;
         this.kvAvailable = true;
-        console.log('✅ KV 检测成功，绑定已建立');
-      } else {
-        this.kvAvailable = false;
-        console.log('❌ KV 检测失败，将使用 localStorage');
-
-        // 显示诊断建议
-        const suggestions = kvDetector.getDiagnosticSuggestions();
-        if (suggestions.length > 0) {
-          console.log('💡 诊断建议:');
-          suggestions.forEach(suggestion => {
-            console.log(`- ${suggestion.title}: ${suggestion.description}`);
-          });
-        }
+        this.useApi = false;
+        console.log('✅ 直接 KV 绑定成功');
+        return directResult;
       }
 
-      return result;
+      // 方法2: 尝试 Pages Function API
+      console.log('🌐 尝试 Pages Function API...');
+      const apiAvailable = await kvApi.testAvailability();
+
+      if (apiAvailable) {
+        this.kvBinding = kvWrapper;
+        this.kvAvailable = true;
+        this.useApi = true;
+        console.log('✅ KV API 连接成功');
+        return {
+          success: true,
+          binding: kvWrapper,
+          method: 'pages-function-api'
+        };
+      }
+
+      // 两种方法都失败
+      this.kvAvailable = false;
+      this.useApi = false;
+      console.log('❌ 所有 KV 检测方法都失败，将使用 localStorage');
+
+      // 显示诊断建议
+      const suggestions = kvDetector.getDiagnosticSuggestions();
+      if (suggestions.length > 0) {
+        console.log('💡 诊断建议:');
+        suggestions.forEach(suggestion => {
+          console.log(`- ${suggestion.title}: ${suggestion.description}`);
+        });
+      }
+
+      return {
+        success: false,
+        directBinding: directResult,
+        apiAvailable: false
+      };
     } catch (error) {
       console.error('KV 检测过程失败:', error);
       this.kvAvailable = false;
+      this.useApi = false;
       return { success: false, error: error.message };
     }
   }
@@ -61,6 +89,10 @@ class KVStorageManager {
     this.detectionPromise = null; // 清除缓存
     this.kvAvailable = null;
     this.kvBinding = null;
+    this.useApi = false;
+
+    // 重置 API 状态
+    kvApi.resetAvailability();
 
     return await this.initKV();
   }
@@ -243,12 +275,14 @@ class KVStorageManager {
   // 获取存储信息
   async getStorageInfo() {
     const environments = await this.getEnvironments();
-    
+
     return {
-      storage: this.isKVAvailable() ? 'cloudflare-kv' : 'localStorage',
+      storage: this.isKVAvailable() ? (this.useApi ? 'cloudflare-kv-api' : 'cloudflare-kv') : 'localStorage',
       environmentCount: environments.length,
       isKVAvailable: this.isKVAvailable(),
-      lastUpdate: environments.length > 0 
+      useApi: this.useApi,
+      method: this.useApi ? 'Pages Function API' : (this.isKVAvailable() ? 'Direct Binding' : 'localStorage'),
+      lastUpdate: environments.length > 0
         ? Math.max(...environments.map(env => new Date(env.updatedAt || env.createdAt || 0).getTime()))
         : null
     };

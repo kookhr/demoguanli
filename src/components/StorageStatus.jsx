@@ -129,13 +129,15 @@ const StorageStatus = () => {
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-sm font-medium ${
-              storageInfo.storage === 'cloudflare-kv' 
-                ? 'text-primary-600' 
+              storageInfo.storage.includes('cloudflare-kv')
+                ? 'text-primary-600'
                 : 'text-gray-600'
             }`}>
-              {storageInfo.storage === 'cloudflare-kv' ? 'Cloudflare KV' : 'Local Storage'}
+              {storageInfo.storage.includes('cloudflare-kv')
+                ? `Cloudflare KV${storageInfo.useApi ? ' (API)' : ''}`
+                : 'Local Storage'}
             </span>
-            {storageInfo.storage === 'cloudflare-kv' && (
+            {storageInfo.storage.includes('cloudflare-kv') && (
               <CheckCircle className="w-4 h-4 text-success-500" />
             )}
           </div>
@@ -153,6 +155,16 @@ const StorageStatus = () => {
             {storageInfo.isKVAvailable ? '可用' : '不可用'}
           </span>
         </div>
+
+        {/* 连接方法 */}
+        {storageInfo.method && (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">连接方法</span>
+            <span className="text-sm font-medium text-gray-900">
+              {storageInfo.method}
+            </span>
+          </div>
+        )}
 
         {/* 环境数量 */}
         <div className="flex items-center justify-between">
@@ -187,7 +199,7 @@ const StorageStatus = () => {
           )}
 
           {/* 同步到 KV 按钮 */}
-          {storageInfo.isKVAvailable && storageInfo.storage !== 'cloudflare-kv' && (
+          {storageInfo.isKVAvailable && !storageInfo.storage.includes('cloudflare-kv') && (
             <button
               onClick={handleSyncToKV}
               disabled={isSyncing}
@@ -221,9 +233,14 @@ const StorageStatus = () => {
       {/* 说明文字 */}
       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
         <p className="text-xs text-gray-600">
-          {storageInfo.storage === 'cloudflare-kv' ? (
+          {storageInfo.storage.includes('cloudflare-kv') ? (
             <>
               <strong>Cloudflare KV:</strong> 配置存储在全球边缘网络中，支持多用户共享和实时同步。
+              {storageInfo.useApi && (
+                <span className="block mt-1">
+                  <strong>API 模式:</strong> 通过 Pages Functions 访问 KV 存储，确保安全性和稳定性。
+                </span>
+              )}
             </>
           ) : (
             <>

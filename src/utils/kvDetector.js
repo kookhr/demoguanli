@@ -72,11 +72,14 @@ export class KVDetector {
     console.log('🌍 环境检测完成:', env);
   }
 
-  // 检测全局变量
+  // 检测全局变量和 Cloudflare Pages 特定绑定
   detectGlobalVariables() {
+    const results = {};
+
+    // 1. 检查传统的全局变量方式
     const globalVars = [
       'ENV_CONFIG',
-      'ASSETS', 
+      'ASSETS',
       '__STATIC_CONTENT_MANIFEST',
       'CF_PAGES',
       'CF_PAGES_BRANCH',
@@ -84,8 +87,6 @@ export class KVDetector {
       'CF_PAGES_URL'
     ];
 
-    const results = {};
-    
     globalVars.forEach(varName => {
       try {
         // 检查多个作用域
@@ -97,7 +98,7 @@ export class KVDetector {
         ];
 
         const available = checks.filter(check => check.value !== undefined);
-        
+
         results[varName] = {
           available: available.length > 0,
           scopes: available.map(check => check.scope),
@@ -117,6 +118,9 @@ export class KVDetector {
       }
     });
 
+    // 2. 检查 Cloudflare Pages 特定的绑定方式
+    this.detectCloudflarePageBindings(results);
+
     this.detectionResults.push({
       category: '全局变量检测',
       status: results.ENV_CONFIG?.available ? 'success' : 'error',
@@ -125,6 +129,108 @@ export class KVDetector {
     });
 
     console.log('🔍 全局变量检测完成:', results);
+  }
+
+  // 检测 Cloudflare Pages 特定的绑定方式
+  detectCloudflarePageBindings(results) {
+    try {
+      console.log('🔍 检测 Cloudflare Pages 特定绑定...');
+
+      // 方法1: 检查是否在 Pages Functions 环境中
+      if (typeof Response !== 'undefined' && typeof Request !== 'undefined') {
+        console.log('✅ 检测到 Web API 环境');
+
+        // 在 Pages Functions 中，绑定通过 env 参数传递
+        // 但在客户端，我们需要通过其他方式访问
+
+        // 方法2: 检查是否有 __CF_ENV__ 或类似的注入变量
+        const cfEnvChecks = [
+          '__CF_ENV__',
+          '__CLOUDFLARE_ENV__',
+          'CF_ENV',
+          'CLOUDFLARE_ENV'
+        ];
+
+        cfEnvChecks.forEach(envVar => {
+          try {
+            const envValue = window[envVar] || globalThis[envVar];
+            if (envValue && envValue.ENV_CONFIG) {
+              console.log(`✅ 找到 CF 环境变量 ${envVar}.ENV_CONFIG`);
+              this.kvBinding = envValue.ENV_CONFIG;
+              results.ENV_CONFIG = {
+                available: true,
+                scopes: ['cf_env'],
+                type: typeof envValue.ENV_CONFIG,
+                source: envVar
+              };
+            }
+          } catch (error) {
+            console.log(`❌ 检查 ${envVar} 失败:`, error.message);
+          }
+        });
+      }
+
+      // 方法3: 检查是否有延迟注入的绑定
+      if (!this.kvBinding) {
+        console.log('⏳ 尝试延迟绑定检测...');
+        this.scheduleDelayedDetection();
+      }
+
+    } catch (error) {
+      console.error('❌ Cloudflare Pages 绑定检测失败:', error);
+    }
+  }
+
+  // 安排延迟检测
+  scheduleDelayedDetection() {
+    const delays = [500, 1000, 2000, 5000]; // 多次重试，间隔递增
+
+    delays.forEach((delay, index) => {
+      setTimeout(() => {
+        console.log(`🔄 延迟检测 #${index + 1} (${delay}ms)...`);
+        this.retryBindingDetection();
+      }, delay);
+    });
+  }
+
+  // 重试绑定检测
+  retryBindingDetection() {
+    if (this.kvBinding) {
+      return; // 已经找到了
+    }
+
+    try {
+      // 重新检查所有可能的绑定位置
+      const possibleLocations = [
+        () => window.ENV_CONFIG,
+        () => globalThis.ENV_CONFIG,
+        () => self.ENV_CONFIG,
+        () => window.__CF_ENV__?.ENV_CONFIG,
+        () => globalThis.__CF_ENV__?.ENV_CONFIG,
+        () => window.cloudflare?.env?.ENV_CONFIG,
+        () => globalThis.cloudflare?.env?.ENV_CONFIG
+      ];
+
+      for (let i = 0; i < possibleLocations.length; i++) {
+        try {
+          const binding = possibleLocations[i]();
+          if (binding && typeof binding.get === 'function' && typeof binding.put === 'function') {
+            console.log(`✅ 延迟检测成功 - 位置 ${i + 1}`);
+            this.kvBinding = binding;
+
+            // 触发功能测试
+            this.testKVFunctionality();
+            return;
+          }
+        } catch (error) {
+          // 忽略单个检测失败
+        }
+      }
+
+      console.log('❌ 延迟检测未找到 KV 绑定');
+    } catch (error) {
+      console.error('❌ 重试检测失败:', error);
+    }
   }
 
   // 检测绑定访问
