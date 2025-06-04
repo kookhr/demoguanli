@@ -1,14 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Activity } from 'lucide-react';
+import { RefreshCw, Activity, Star, BarChart3, Keyboard, SortAsc } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
 import { getNetworkType } from '../utils/networkCheck';
 import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
 import StyledEnvironmentCard from './StyledEnvironmentCard';
+import StatusHistoryChart from './StatusHistoryChart';
+import ContextMenu, { useContextMenu } from './ContextMenu';
+import { useShortcuts, ShortcutHelp } from '../hooks/useShortcuts';
 import {
   checkMultipleEnvironments,
   checkEnvironmentStatus,
   formatLastChecked
 } from '../utils/simpleStatusCheck';
+import { addStatusRecord } from '../utils/statusHistory';
+import {
+  getFavorites,
+  toggleFavorite,
+  isFavorite,
+  sortEnvironments
+} from '../utils/favorites';
 
 const MinimalEnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
@@ -23,10 +33,47 @@ const MinimalEnvironmentList = () => {
   const [lastCheckTime, setLastCheckTime] = useState(null);
   const [currentNetwork, setCurrentNetwork] = useState('external');
 
+  // 新功能状态
+  const [favorites, setFavorites] = useState([]);
+  const [sortBy, setSortBy] = useState('custom');
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedEnvironmentForHistory, setSelectedEnvironmentForHistory] = useState(null);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+
+  // 右键菜单
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+
   useEffect(() => {
     loadEnvironments();
     detectNetwork();
+    setFavorites(getFavorites());
   }, []);
+
+  // 快捷键处理
+  const shortcutHandlers = {
+    refresh_status: () => {
+      if (selectedEnvironmentForHistory) {
+        handleCheckSingle(selectedEnvironmentForHistory);
+      }
+    },
+    refresh_all: () => handleCheckAll(),
+    focus_search: () => {
+      const searchInput = document.querySelector('input[type="text"]');
+      if (searchInput) searchInput.focus();
+    },
+    close_modal: () => {
+      if (showHistory) setShowHistory(false);
+      if (showShortcutHelp) setShowShortcutHelp(false);
+      closeContextMenu();
+    },
+    toggle_history: () => setShowHistory(!showHistory),
+    refresh_page: (e) => {
+      e.preventDefault();
+      window.location.reload();
+    }
+  };
+
+  useShortcuts(shortcutHandlers);
 
   // 页面加载完成后自动检测状态
   useEffect(() => {
@@ -114,6 +161,9 @@ const MinimalEnvironmentList = () => {
         ...prev,
         [environment.id]: { ...result, isChecking: false }
       }));
+
+      // 记录状态历史
+      addStatusRecord(environment.id, result);
     } catch (error) {
       console.error(`检测环境 ${environment.name} 失败:`, error);
       setEnvironmentStatuses(prev => ({
@@ -182,6 +232,55 @@ const MinimalEnvironmentList = () => {
     return summary;
   };
 
+  // 右键菜单操作处理
+  const handleContextMenuAction = (action, environment) => {
+    switch (action) {
+      case 'check_status':
+        handleCheckSingle(environment);
+        break;
+      case 'visit':
+        window.open(environment.url, '_blank');
+        break;
+      case 'toggle_favorite':
+        const newFavorites = toggleFavorite(environment.id);
+        setFavorites(newFavorites);
+        break;
+      case 'view_history':
+        setSelectedEnvironmentForHistory(environment);
+        setShowHistory(true);
+        break;
+      case 'edit':
+        // TODO: 实现编辑功能
+        console.log('编辑环境:', environment);
+        break;
+      case 'copy':
+        navigator.clipboard.writeText(JSON.stringify(environment, null, 2));
+        break;
+      case 'export':
+        const blob = new Blob([JSON.stringify(environment, null, 2)], {
+          type: 'application/json'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${environment.name}-config.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        break;
+      case 'delete':
+        if (confirm(`确定要删除环境 "${environment.name}" 吗？`)) {
+          // TODO: 实现删除功能
+          console.log('删除环境:', environment);
+        }
+        break;
+    }
+  };
+
+  // 应用排序和收藏
+  const getSortedEnvironments = () => {
+    return sortEnvironments(filteredEnvironments, sortBy);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -226,7 +325,39 @@ const MinimalEnvironmentList = () => {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-gray-500">
-                共 {environments.length} 个环境
+                共 {environments.length} 个环境 • {favorites.length} 个收藏
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="text-sm border border-gray-300 rounded px-2 py-1"
+                >
+                  <option value="custom">自定义排序</option>
+                  <option value="favorites">收藏优先</option>
+                  <option value="name">按名称</option>
+                  <option value="type">按类型</option>
+                  <option value="network">按网络</option>
+                </select>
+
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className={`p-2 rounded ${
+                    showHistory ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="切换历史面板 (Ctrl+Shift+H)"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => setShowShortcutHelp(true)}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                  title="快捷键帮助"
+                >
+                  <Keyboard className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>
@@ -320,15 +451,46 @@ const MinimalEnvironmentList = () => {
           className="mb-8"
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredEnvironments.map(env => (
-            <StyledEnvironmentCard
-              key={env.id}
-              environment={env}
-              currentNetwork={currentNetwork}
-              status={getEnvironmentStatus(env.id)}
-              onStatusCheck={handleCheckSingle}
+        {/* 历史面板 */}
+        {showHistory && selectedEnvironmentForHistory && (
+          <div className="mb-6">
+            <StatusHistoryChart
+              environmentId={selectedEnvironmentForHistory.id}
+              environment={selectedEnvironmentForHistory}
             />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {getSortedEnvironments().map(env => (
+            <div
+              key={env.id}
+              onContextMenu={(e) => openContextMenu(e, env)}
+              className="relative"
+            >
+              <StyledEnvironmentCard
+                environment={env}
+                currentNetwork={currentNetwork}
+                status={getEnvironmentStatus(env.id)}
+                onStatusCheck={handleCheckSingle}
+                isFavorite={isFavorite(env.id)}
+                onToggleFavorite={() => {
+                  const newFavorites = toggleFavorite(env.id);
+                  setFavorites(newFavorites);
+                }}
+                onViewHistory={() => {
+                  setSelectedEnvironmentForHistory(env);
+                  setShowHistory(true);
+                }}
+              />
+
+              {/* 收藏标识 */}
+              {isFavorite(env.id) && (
+                <div className="absolute top-2 right-2">
+                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                </div>
+              )}
+            </div>
           ))}
         </div>
 
@@ -345,6 +507,22 @@ const MinimalEnvironmentList = () => {
             <p className="text-gray-500">请先添加环境配置</p>
           </div>
         )}
+
+        {/* 右键菜单 */}
+        <ContextMenu
+          isOpen={contextMenu.isOpen}
+          position={contextMenu.position}
+          environment={contextMenu.environment}
+          onClose={closeContextMenu}
+          onAction={handleContextMenuAction}
+          isFavorite={contextMenu.environment ? isFavorite(contextMenu.environment.id) : false}
+        />
+
+        {/* 快捷键帮助 */}
+        <ShortcutHelp
+          isOpen={showShortcutHelp}
+          onClose={() => setShowShortcutHelp(false)}
+        />
       </div>
     </div>
   );
