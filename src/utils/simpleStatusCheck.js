@@ -167,7 +167,7 @@ const checkInternalNetwork = async (environment, startTime) => {
     // 方法4: Mixed Content 检测（使用Image对象绕过HTTPS限制）
     console.log(`🔍 方法4: Mixed Content绕过检测 ${baseUrl}`);
     try {
-      const imageTestResult = await checkWithImagePing(baseUrl);
+      await checkWithImagePing(baseUrl);
       clearTimeout(timeoutId);
       const responseTime = Date.now() - startTime;
 
@@ -233,28 +233,130 @@ const checkInternalNetwork = async (environment, startTime) => {
 // 外网环境检测策略
 const checkExternalNetwork = async (environment, startTime) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 外网延长到10秒
 
   try {
-    const response = await fetch(environment.url, {
-      method: 'HEAD',
-      mode: 'no-cors',
-      signal: controller.signal,
-      cache: 'no-cache'
-    });
+    // 方法1: 尝试正常的GET请求（获取真实状态码）
+    console.log(`🔍 外网方法1: GET请求 ${environment.url}`);
+    try {
+      const response = await fetch(environment.url, {
+        method: 'GET',
+        signal: controller.signal,
+        cache: 'no-cache',
+        credentials: 'omit'
+      });
 
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      // 检查状态码
+      if (response.ok || response.status === 401 || response.status === 403) {
+        // 200, 401, 403 都表示服务可达
+        console.log(`✅ 外网方法1成功: ${environment.name} 状态码 ${response.status} (${responseTime}ms)`);
+        return {
+          id: environment.id,
+          status: 'online',
+          responseTime,
+          lastChecked: new Date().toISOString(),
+          error: null
+        };
+      } else {
+        console.log(`⚠️ 外网方法1状态码异常: ${response.status} ${response.statusText}`);
+      }
+    } catch (getError) {
+      console.log(`❌ 外网方法1失败: ${getError.message}`);
+
+      // 如果不是CORS错误，直接抛出
+      if (!getError.message.includes('CORS') && !getError.message.includes('Failed to fetch')) {
+        throw getError;
+      }
+    }
+
+    // 方法2: 尝试HEAD请求
+    console.log(`🔍 外网方法2: HEAD请求 ${environment.url}`);
+    try {
+      const response = await fetch(environment.url, {
+        method: 'HEAD',
+        signal: controller.signal,
+        cache: 'no-cache',
+        credentials: 'omit'
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      if (response.ok || response.status === 401 || response.status === 403) {
+        console.log(`✅ 外网方法2成功: ${environment.name} 状态码 ${response.status} (${responseTime}ms)`);
+        return {
+          id: environment.id,
+          status: 'online',
+          responseTime,
+          lastChecked: new Date().toISOString(),
+          error: null
+        };
+      }
+    } catch (headError) {
+      console.log(`❌ 外网方法2失败: ${headError.message}`);
+    }
+
+    // 方法3: no-cors模式检测（作为最后的备用方案）
+    console.log(`🔍 外网方法3: no-cors模式 ${environment.url}`);
+    try {
+      await fetch(environment.url, {
+        method: 'GET',
+        mode: 'no-cors',
+        signal: controller.signal,
+        cache: 'no-cache'
+      });
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      console.log(`✅ 外网方法3成功: ${environment.name} no-cors检测成功 (${responseTime}ms)`);
+      return {
+        id: environment.id,
+        status: 'online',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: null
+      };
+    } catch (noCorsError) {
+      console.log(`❌ 外网方法3失败: ${noCorsError.message}`);
+    }
+
+    // 方法4: 尝试图片ping检测
+    console.log(`🔍 外网方法4: 图片ping检测`);
+    try {
+      const baseUrl = getBaseUrl(environment.url);
+      await checkWithImagePing(baseUrl);
+
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      console.log(`✅ 外网方法4成功: ${environment.name} 图片ping检测成功 (${responseTime}ms)`);
+      return {
+        id: environment.id,
+        status: 'online',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: null
+      };
+    } catch (imageError) {
+      console.log(`❌ 外网方法4失败: ${imageError.message}`);
+    }
+
+    // 所有方法都失败
     clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
 
-    console.log(`✅ ${environment.name} 外网检测完成: 响应时间 ${responseTime}ms`);
-
     return {
       id: environment.id,
-      status: 'online',
+      status: 'offline',
       responseTime,
       lastChecked: new Date().toISOString(),
-      error: null
+      error: `外网服务不可达，请检查：1) 服务是否正常运行 2) 网络连接是否正常 3) 防火墙或代理设置`
     };
+
   } catch (error) {
     clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
@@ -264,9 +366,12 @@ const checkExternalNetwork = async (environment, startTime) => {
 
     if (error.name === 'AbortError') {
       status = 'timeout';
-      errorMessage = '外网服务响应超时';
+      errorMessage = '外网服务响应超时，请检查网络连接或服务负载';
     } else if (error.message.includes('Failed to fetch')) {
-      errorMessage = '外网服务不可达或存在网络问题';
+      errorMessage = '网络连接失败，请检查网络设置或服务状态';
+    } else if (error.message.includes('CORS')) {
+      errorMessage = 'CORS策略阻止，但服务可能正常运行';
+      status = 'blocked';
     }
 
     console.log(`❌ ${environment.name} 外网检测失败: ${errorMessage} (${responseTime}ms)`);
@@ -329,18 +434,42 @@ const isInternalNetwork = (url) => {
 
     // 检测常见的内网IP段和域名
     const internalPatterns = [
-      /^192\.168\./,
-      /^10\./,
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-      /^localhost$/,
-      /^127\./,
-      /\.local$/,
-      /\.internal$/,
-      /^0\.0\.0\.0$/
+      /^192\.168\./,           // 192.168.x.x
+      /^10\./,                 // 10.x.x.x
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.x.x - 172.31.x.x
+      /^localhost$/,           // localhost
+      /^127\./,                // 127.x.x.x
+      /^169\.254\./,           // 169.254.x.x (链路本地地址)
+      /\.local$/,              // .local域名
+      /\.internal$/,           // .internal域名
+      /^0\.0\.0\.0$/,          // 0.0.0.0
+      /^::1$/,                 // IPv6 localhost
+      /^fe80:/,                // IPv6 链路本地地址
+      /^fc00:/,                // IPv6 唯一本地地址
+      /^fd00:/                 // IPv6 唯一本地地址
     ];
 
-    return internalPatterns.some(pattern => pattern.test(hostname));
+    const isInternal = internalPatterns.some(pattern => pattern.test(hostname));
+
+    // 额外检查：如果是IP地址，确保不是公网IP
+    if (!isInternal && /^\d+\.\d+\.\d+\.\d+$/.test(hostname)) {
+      const parts = hostname.split('.').map(Number);
+
+      // 检查是否为保留IP段
+      if (parts[0] === 0 ||                           // 0.x.x.x
+          parts[0] === 127 ||                         // 127.x.x.x
+          (parts[0] === 169 && parts[1] === 254) ||   // 169.254.x.x
+          (parts[0] === 192 && parts[1] === 168) ||   // 192.168.x.x
+          parts[0] === 10 ||                          // 10.x.x.x
+          (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)) { // 172.16-31.x.x
+        return true;
+      }
+    }
+
+    console.log(`🌐 网络类型判断: ${hostname} -> ${isInternal ? '内网' : '外网'}`);
+    return isInternal;
   } catch (error) {
+    console.warn('网络类型判断失败:', error);
     return false;
   }
 };
@@ -419,7 +548,8 @@ export const getStatusText = (status) => {
     'error': '错误',
     'network_error': '网络错误',
     'blocked': '被阻止',
-    'unknown': '未知'
+    'unknown': '未知',
+    'checking': '检测中'
   };
   return statusMap[status] || status;
 };
@@ -427,15 +557,31 @@ export const getStatusText = (status) => {
 // 获取状态颜色类
 export const getStatusColor = (status) => {
   const colorMap = {
-    'online': 'text-green-600 bg-green-100',
-    'offline': 'text-red-600 bg-red-100',
-    'timeout': 'text-yellow-600 bg-yellow-100',
-    'error': 'text-red-600 bg-red-100',
-    'network_error': 'text-orange-600 bg-orange-100',
-    'blocked': 'text-purple-600 bg-purple-100',
-    'unknown': 'text-gray-600 bg-gray-100'
+    'online': 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/20',
+    'offline': 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20',
+    'timeout': 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/20',
+    'error': 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20',
+    'network_error': 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/20',
+    'blocked': 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/20',
+    'unknown': 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700',
+    'checking': 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20'
   };
-  return colorMap[status] || 'text-gray-600 bg-gray-100';
+  return colorMap[status] || 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700';
+};
+
+// 获取状态图标
+export const getStatusIcon = (status) => {
+  const iconMap = {
+    'online': '🟢',
+    'offline': '🔴',
+    'timeout': '🟡',
+    'error': '❌',
+    'network_error': '🟠',
+    'blocked': '🟣',
+    'unknown': '⚪',
+    'checking': '🔵'
+  };
+  return iconMap[status] || '⚪';
 };
 
 // 格式化响应时间
