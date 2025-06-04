@@ -187,16 +187,21 @@ const MinimalEnvironmentList = () => {
       addStatusRecord(environment.id, result);
     } catch (error) {
       console.error(`检测环境 ${environment.name} 失败:`, error);
+      const errorResult = {
+        id: environment.id,
+        status: 'error',
+        error: error.message,
+        lastChecked: new Date().toISOString(),
+        isChecking: false
+      };
+
       setEnvironmentStatuses(prev => ({
         ...prev,
-        [environment.id]: {
-          id: environment.id,
-          status: 'error',
-          error: error.message,
-          lastChecked: new Date().toISOString(),
-          isChecking: false
-        }
+        [environment.id]: errorResult
       }));
+
+      // 记录错误状态历史
+      addStatusRecord(environment.id, errorResult);
     }
   };
 
@@ -215,7 +220,13 @@ const MinimalEnvironmentList = () => {
 
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
-      console.log('✅ 批量检测完成');
+
+      // 记录所有环境的状态历史
+      Object.entries(results).forEach(([envId, result]) => {
+        addStatusRecord(envId, result);
+      });
+
+      console.log('✅ 批量检测完成，已记录状态历史');
     } catch (error) {
       console.error('❌ 批量检测失败:', error);
     } finally {
