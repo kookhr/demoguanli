@@ -2,10 +2,10 @@ import React from 'react';
 
 // 标签颜色配置
 const tagColors = {
-  'production': 'bg-red-100 text-red-800 border-red-200',
-  'staging': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  'development': 'bg-green-100 text-green-800 border-green-200',
-  'testing': 'bg-blue-100 text-blue-800 border-blue-200',
+  'production': 'bg-blue-100 text-blue-800 border-blue-200', // 蓝色 - 生产环境
+  'staging': 'bg-yellow-100 text-yellow-800 border-yellow-200', // 黄色 - 预生产环境
+  'development': 'bg-green-100 text-green-800 border-green-200', // 绿色 - 开发环境
+  'testing': 'bg-cyan-100 text-cyan-800 border-cyan-200', // 青色 - 测试环境
   'demo': 'bg-purple-100 text-purple-800 border-purple-200',
   'frontend': 'bg-pink-100 text-pink-800 border-pink-200',
   'backend': 'bg-indigo-100 text-indigo-800 border-indigo-200',

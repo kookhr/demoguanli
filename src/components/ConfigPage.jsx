@@ -165,13 +165,13 @@ const ConfigPage = () => {
   const getTypeStyle = (type) => {
     switch (type) {
       case 'production':
-        return 'badge-danger';
+        return 'badge-primary'; // 蓝色 - 表示重要性和稳定性
       case 'staging':
-        return 'badge-warning';
+        return 'badge-warning'; // 黄色 - 保持不变
       case 'testing':
-        return 'badge-primary';
+        return 'badge-info'; // 青色 - 区分于生产环境的蓝色
       case 'development':
-        return 'badge-success';
+        return 'badge-success'; // 绿色 - 保持不变
       default:
         return 'badge-gray';
     }

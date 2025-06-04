@@ -126,13 +126,13 @@ const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }
   const getTypeStyle = (type) => {
     switch (type) {
       case 'production':
-        return 'badge-danger';
+        return 'badge-primary'; // 蓝色 - 表示重要性和稳定性
       case 'staging':
-        return 'badge-warning';
+        return 'badge-warning'; // 黄色 - 保持不变
       case 'testing':
-        return 'badge-primary';
+        return 'badge-info'; // 青色 - 区分于生产环境的蓝色
       case 'development':
-        return 'badge-success';
+        return 'badge-success'; // 绿色 - 保持不变
       default:
         return 'badge-gray';
     }
@@ -146,10 +146,10 @@ const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }
 
   return (
     <div className={`card card-hover animate-fade-in border-l-4 ${
-      environment.type === 'production' ? 'border-danger-500' :
-      environment.type === 'staging' ? 'border-warning-500' :
-      environment.type === 'testing' ? 'border-primary-500' :
-      'border-success-500'
+      environment.type === 'production' ? 'border-primary-500' : // 蓝色 - 生产环境
+      environment.type === 'staging' ? 'border-warning-500' : // 黄色 - 预生产环境
+      environment.type === 'testing' ? 'border-cyan-500' : // 青色 - 测试环境
+      'border-success-500' // 绿色 - 开发环境
     }`}>
       <div className="p-6">
         {/* 头部信息 */}

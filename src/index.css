@@ -83,6 +83,10 @@
     @apply bg-danger-100 text-danger-800;
   }
 
+  .badge-info {
+    @apply bg-cyan-100 text-cyan-800;
+  }
+
   .badge-gray {
     @apply bg-gray-100 text-gray-800;
   }
