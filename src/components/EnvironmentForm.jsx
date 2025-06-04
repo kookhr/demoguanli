@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X, AlertCircle } from 'lucide-react';
-import { TagEditor } from './TagManager';
+import { TagEditor } from './SimpleTagList';
 import ServiceForm from './ServiceForm';
 import { validateEnvironment } from '../utils/configManager';
 

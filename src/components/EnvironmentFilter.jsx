@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 
 const EnvironmentFilter = ({
@@ -10,15 +10,13 @@ const EnvironmentFilter = ({
   const [selectedType, setSelectedType] = useState('');
   const [selectedNetwork, setSelectedNetwork] = useState('');
 
-  // 获取所有可用的选项
-  const types = [...new Set(environments.map(env => env.type))];
-  const networks = [...new Set(environments.map(env => env.network))];
+  // 获取所有可用的选项 - 使用useMemo优化
+  const types = useMemo(() => [...new Set(environments.map(env => env.type))], [environments]);
+  const networks = useMemo(() => [...new Set(environments.map(env => env.network))], [environments]);
 
-  // 过滤逻辑 - 移除 onFilterChange 依赖避免无限循环
-  useEffect(() => {
-    console.log('🔍 执行过滤逻辑...');
-
-    const filtered = environments.filter(env => {
+  // 过滤逻辑 - 使用useMemo优化
+  const filteredEnvironments = useMemo(() => {
+    return environments.filter(env => {
       const matchesSearch = !searchTerm ||
         env.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         env.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -29,10 +27,12 @@ const EnvironmentFilter = ({
 
       return matchesSearch && matchesType && matchesNetwork;
     });
+  }, [environments, searchTerm, selectedType, selectedNetwork]);
 
-    console.log('🔍 过滤结果:', filtered.length, '个环境');
-    onFilterChange(filtered);
-  }, [searchTerm, selectedType, selectedNetwork, environments]);
+  // 通知父组件过滤结果变化
+  useEffect(() => {
+    onFilterChange(filteredEnvironments);
+  }, [filteredEnvironments, onFilterChange]);
 
   const clearFilters = () => {
     setSearchTerm('');
