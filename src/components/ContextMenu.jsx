@@ -117,18 +117,18 @@ const ContextMenu = ({
   return (
     <div
       ref={menuRef}
-      className="fixed bg-white border border-gray-200 rounded-lg shadow-lg py-2 z-50 min-w-48"
+      className="fixed bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-2 z-50 min-w-48 transition-colors duration-300"
       style={{
         left: adjustedPosition.x,
         top: adjustedPosition.y
       }}
     >
       {/* 环境信息头部 */}
-      <div className="px-3 py-2 border-b border-gray-100">
-        <div className="font-medium text-sm text-gray-900 truncate">
+      <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+        <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
           {environment.name}
         </div>
-        <div className="text-xs text-gray-500 truncate">
+        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
           {environment.type} • {environment.network === 'internal' ? '内网' : '外网'}
         </div>
       </div>
@@ -137,27 +137,29 @@ const ContextMenu = ({
       {menuItems.map((item, index) => {
         if (item.type === 'divider') {
           return (
-            <div key={index} className="border-t border-gray-100 my-1" />
+            <div key={index} className="border-t border-gray-100 dark:border-gray-700 my-1" />
           );
         }
 
         const Icon = item.icon;
-        
+
         return (
           <button
             key={index}
             onClick={() => handleItemClick(item.action)}
-            className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between group ${
-              item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'
+            className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-between group transition-colors ${
+              item.danger
+                ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                : 'text-gray-700 dark:text-gray-300'
             }`}
           >
             <div className="flex items-center gap-2">
               <Icon className="w-4 h-4" />
               <span>{item.label}</span>
             </div>
-            
+
             {item.shortcut && (
-              <kbd className="text-xs text-gray-400 bg-gray-100 px-1 rounded group-hover:bg-white">
+              <kbd className="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-1 rounded group-hover:bg-white dark:group-hover:bg-gray-600 transition-colors">
                 {item.shortcut}
               </kbd>
             )}

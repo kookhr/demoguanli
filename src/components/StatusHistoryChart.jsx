@@ -86,20 +86,20 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
 
   if (!stats) {
     return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 transition-colors duration-300">
         <div className="flex items-center justify-center h-32">
-          <div className="text-gray-500">加载历史数据中...</div>
+          <div className="text-gray-500 dark:text-gray-400">加载历史数据中...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors duration-300">
       {/* 头部控制 */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <BarChart3 className="w-5 h-5" />
             {environment?.name} - 状态历史
           </h3>
@@ -108,16 +108,16 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(Number(e.target.value))}
-              className="text-sm border border-gray-300 rounded px-2 py-1"
+              className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-colors"
             >
               <option value={1}>最近1小时</option>
               <option value={6}>最近6小时</option>
               <option value={24}>最近24小时</option>
             </select>
-            
+
             <button
               onClick={() => exportHistory(environmentId)}
-              className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-1"
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 flex items-center gap-1 transition-colors"
               title="导出历史数据"
             >
               <Download className="w-4 h-4" />
@@ -129,30 +129,30 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
         <div className="flex gap-2">
           <button
             onClick={() => setViewMode('availability')}
-            className={`px-3 py-1 text-sm rounded ${
-              viewMode === 'availability' 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'text-gray-600 hover:bg-gray-100'
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              viewMode === 'availability'
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             可用性
           </button>
           <button
             onClick={() => setViewMode('responseTime')}
-            className={`px-3 py-1 text-sm rounded ${
-              viewMode === 'responseTime' 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'text-gray-600 hover:bg-gray-100'
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              viewMode === 'responseTime'
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             响应时间
           </button>
           <button
             onClick={() => setViewMode('events')}
-            className={`px-3 py-1 text-sm rounded ${
-              viewMode === 'events' 
-                ? 'bg-blue-100 text-blue-800' 
-                : 'text-gray-600 hover:bg-gray-100'
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              viewMode === 'events'
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             状态变化
@@ -164,35 +164,35 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
         {/* 统计概览 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
               {stats.availability}%
             </div>
-            <div className="text-sm text-gray-500">可用性</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">可用性</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {stats.averageResponseTime}ms
             </div>
-            <div className="text-sm text-gray-500">平均响应时间</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">平均响应时间</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {stats.totalChecks}
             </div>
-            <div className="text-sm text-gray-500">总检测次数</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">总检测次数</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {stats.downtimeCount}
             </div>
-            <div className="text-sm text-gray-500">故障次数</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">故障次数</div>
           </div>
         </div>
 
         {/* 图表区域 */}
         {viewMode === 'availability' && (
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-3">可用性趋势</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">可用性趋势</h4>
             <div className="h-32 flex items-end gap-1">
               {trendData.map((data, index) => {
                 const availability = data.total > 0 ? (data.online / data.total) * 100 : 0;
@@ -219,7 +219,7 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
                       检测: {data.online}/{data.total}
                     </div>
                     
-                    <div className="text-xs text-gray-500 mt-1 transform -rotate-45 origin-left">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 transform -rotate-45 origin-left">
                       {formatTime(data.hour)}
                     </div>
                   </div>
@@ -231,7 +231,7 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
 
         {viewMode === 'responseTime' && (
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-3">响应时间趋势</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">响应时间趋势</h4>
             <div className="h-32 flex items-end gap-1">
               {trendData.map((data, index) => {
                 const maxResponseTime = Math.max(...trendData.map(d => d.avgResponseTime));
@@ -257,7 +257,7 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
                       响应时间: {data.avgResponseTime}ms
                     </div>
                     
-                    <div className="text-xs text-gray-500 mt-1 transform -rotate-45 origin-left">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 transform -rotate-45 origin-left">
                       {formatTime(data.hour)}
                     </div>
                   </div>
@@ -269,22 +269,22 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
 
         {viewMode === 'events' && (
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-3">状态变化事件</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">状态变化事件</h4>
             <div className="max-h-64 overflow-y-auto">
               {events.length > 0 ? (
                 <div className="space-y-2">
                   {events.map((event, index) => (
-                    <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
+                    <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded transition-colors">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(event.from)}
-                        <span className="text-sm">→</span>
+                        <span className="text-sm dark:text-gray-300">→</span>
                         {getStatusIcon(event.to)}
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm">
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
                           {getStatusText(event.from)} → {getStatusText(event.to)}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {formatDate(event.timestamp)}
                         </div>
                       </div>
@@ -292,7 +292,7 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center text-gray-500 py-8">
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                   在选定时间范围内没有状态变化
                 </div>
               )}
@@ -302,8 +302,8 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
 
         {/* 最后故障时间 */}
         {stats.lastDowntime && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded">
-            <div className="flex items-center gap-2 text-red-800">
+          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded transition-colors">
+            <div className="flex items-center gap-2 text-red-800 dark:text-red-400">
               <AlertTriangle className="w-4 h-4" />
               <span className="text-sm font-medium">
                 最后故障时间: {formatDate(stats.lastDowntime)}

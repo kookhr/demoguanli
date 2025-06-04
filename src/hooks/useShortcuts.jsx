@@ -83,34 +83,34 @@ export const ShortcutHelp = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 transition-colors duration-300">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">快捷键帮助</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">快捷键帮助</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             ✕
           </button>
         </div>
-        
+
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {Object.entries(SHORTCUTS).map(([key, action]) => (
             <div key={key} className="flex justify-between items-center py-1">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 {SHORTCUT_DESCRIPTIONS[action]}
               </span>
-              <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs font-mono">
+              <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono text-gray-900 dark:text-gray-100">
                 {key.replace(/\+/g, ' + ').toUpperCase()}
               </kbd>
             </div>
           ))}
         </div>
-        
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
-            按 <kbd className="px-1 bg-gray-100 rounded">ESC</kbd> 关闭此帮助
+
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            按 <kbd className="px-1 bg-gray-100 dark:bg-gray-700 rounded text-gray-900 dark:text-gray-100">ESC</kbd> 关闭此帮助
           </p>
         </div>
       </div>

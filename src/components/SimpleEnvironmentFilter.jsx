@@ -43,17 +43,17 @@ const SimpleEnvironmentFilter = ({
   const hasActiveFilters = searchTerm || selectedType || selectedNetwork;
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-4 ${className}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 transition-colors duration-300 ${className}`}>
       {/* 搜索栏 */}
       <div className="flex gap-3 mb-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
           <input
             type="text"
             placeholder="搜索环境名称、描述或URL..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           />
         </div>
 
@@ -72,13 +72,13 @@ const SimpleEnvironmentFilter = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 类型筛选 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             环境类型
           </label>
           <select
             value={selectedType}
             onChange={(e) => setSelectedType(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           >
             <option value="">所有类型</option>
             {types.map(type => (
@@ -95,13 +95,13 @@ const SimpleEnvironmentFilter = ({
 
         {/* 网络筛选 */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             网络类型
           </label>
           <select
             value={selectedNetwork}
             onChange={(e) => setSelectedNetwork(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           >
             <option value="">所有网络</option>
             {networks.map(network => (
@@ -115,12 +115,12 @@ const SimpleEnvironmentFilter = ({
       </div>
 
       {/* 结果统计 */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <p className="text-sm text-gray-600">
-          显示 <span className="font-medium text-gray-900">{environments.length}</span> 个环境
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          显示 <span className="font-medium text-gray-900 dark:text-gray-100">{environments.length}</span> 个环境
           {hasActiveFilters && (
             <span>
-              ，筛选后 <span className="font-medium text-primary-600">
+              ，筛选后 <span className="font-medium text-primary-600 dark:text-primary-400">
                 {environments.filter(env => {
                   const matchesSearch = !searchTerm ||
                     env.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
