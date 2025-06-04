@@ -18,11 +18,11 @@ import {
 import { checkEnvironmentStatus, formatLastDeployed, getCachedStatus } from '../utils/networkCheck';
 import { TagList } from './TagManager';
 
-const EnvironmentCard = ({ environment, currentNetwork, onStatusUpdate }) => {
-  const [status, setStatus] = useState('unknown');
+const EnvironmentCard = ({ environment, currentNetwork, status: externalStatus }) => {
+  const [status, setStatus] = useState(externalStatus?.status || 'unknown');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
-  const [lastChecked, setLastChecked] = useState(null);
+  const [lastChecked, setLastChecked] = useState(externalStatus?.lastChecked || null);
   const [checkError, setCheckError] = useState(null);
 
   // 初始化时检查缓存状态

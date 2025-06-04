@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-// 状态检测函数
+// 简化的状态检测函数
 const checkEnvironmentStatus = async (environment) => {
   const startTime = Date.now();
   
