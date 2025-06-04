@@ -1,107 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import {
   Cloud,
-  HardDrive,
-  Wifi,
-  WifiOff,
   RefreshCw,
   Database,
-  CheckCircle,
-  AlertCircle,
-  Upload,
-  Search
+  CheckCircle
 } from 'lucide-react';
-import { getStorageInfo, syncToKV } from '../utils/configManager';
-import { kvStorage } from '../utils/kvStorage';
+import { getEnvironments } from '../utils/configManager';
 
 const StorageStatus = () => {
-  const [storageInfo, setStorageInfo] = useState(null);
+  const [environmentCount, setEnvironmentCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
 
-  const loadStorageInfo = async () => {
+  const loadInfo = async () => {
     setIsLoading(true);
     try {
-      const info = await getStorageInfo();
-      setStorageInfo(info);
+      const environments = await getEnvironments();
+      setEnvironmentCount(environments.length);
     } catch (error) {
-      console.error('获取存储信息失败:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSyncToKV = async () => {
-    setIsSyncing(true);
-    setSyncResult(null);
-
-    try {
-      const result = await syncToKV();
-      setSyncResult({
-        success: true,
-        message: `成功同步 ${result.synced} 个环境配置到 KV 存储`
-      });
-
-      // 重新加载存储信息
-      await loadStorageInfo();
-    } catch (error) {
-      setSyncResult({
-        success: false,
-        message: `同步失败: ${error.message}`
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleRetryKVDetection = async () => {
-    setIsLoading(true);
-    setSyncResult(null);
-
-    try {
-      console.log('🔄 用户触发 KV 重新检测...');
-      await kvStorage.retryKVDetection();
-      await loadStorageInfo();
-
-      setSyncResult({
-        success: true,
-        message: 'KV 检测已重新运行，请查看控制台了解详细信息'
-      });
-    } catch (error) {
-      setSyncResult({
-        success: false,
-        message: `重新检测失败: ${error.message}`
-      });
+      console.error('获取环境信息失败:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadStorageInfo();
+    loadInfo();
   }, []);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-gray-500">
-        <RefreshCw className="w-4 h-4 animate-spin" />
-        <span>检测存储状态...</span>
-      </div>
-    );
-  }
-
-  if (!storageInfo) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-red-600">
-        <AlertCircle className="w-4 h-4" />
-        <span>无法获取存储信息</span>
-      </div>
-    );
-  }
-
-  const StorageIcon = storageInfo.storage === 'cloudflare-kv' ? Cloud : HardDrive;
-  const NetworkIcon = storageInfo.isKVAvailable ? Wifi : WifiOff;
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -110,9 +34,9 @@ const StorageStatus = () => {
           <Database className="w-5 h-5" />
           存储状态
         </h3>
-        
+
         <button
-          onClick={loadStorageInfo}
+          onClick={loadInfo}
           disabled={isLoading}
           className="text-sm text-primary-600 hover:text-primary-800 disabled:opacity-50"
         >
@@ -124,129 +48,30 @@ const StorageStatus = () => {
         {/* 存储类型 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <StorageIcon className="w-4 h-4 text-gray-500" />
+            <Cloud className="w-4 h-4 text-gray-500" />
             <span className="text-sm text-gray-600">存储类型</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-sm font-medium ${
-              storageInfo.storage.includes('cloudflare-kv')
-                ? 'text-primary-600'
-                : 'text-gray-600'
-            }`}>
-              {storageInfo.storage.includes('cloudflare-kv')
-                ? `Cloudflare KV${storageInfo.useApi ? ' (API)' : ''}`
-                : 'Local Storage'}
+            <span className="text-sm font-medium text-primary-600">
+              Cloudflare KV
             </span>
-            {storageInfo.storage.includes('cloudflare-kv') && (
-              <CheckCircle className="w-4 h-4 text-success-500" />
-            )}
+            <CheckCircle className="w-4 h-4 text-success-500" />
           </div>
         </div>
-
-        {/* KV 可用性 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <NetworkIcon className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-600">KV 连接</span>
-          </div>
-          <span className={`text-sm font-medium ${
-            storageInfo.isKVAvailable ? 'text-success-600' : 'text-gray-600'
-          }`}>
-            {storageInfo.isKVAvailable ? '可用' : '不可用'}
-          </span>
-        </div>
-
-        {/* 连接方法 */}
-        {storageInfo.method && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">连接方法</span>
-            <span className="text-sm font-medium text-gray-900">
-              {storageInfo.method}
-            </span>
-          </div>
-        )}
 
         {/* 环境数量 */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">环境数量</span>
           <span className="text-sm font-medium text-gray-900">
-            {storageInfo.environmentCount} 个
+            {environmentCount} 个
           </span>
         </div>
-
-        {/* 最后更新时间 */}
-        {storageInfo.lastUpdate && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">最后更新</span>
-            <span className="text-sm text-gray-500">
-              {new Date(storageInfo.lastUpdate).toLocaleString()}
-            </span>
-          </div>
-        )}
-
-        {/* 操作按钮 */}
-        <div className="pt-3 border-t border-gray-200 space-y-2">
-          {/* KV 重新检测按钮 */}
-          {!storageInfo.isKVAvailable && (
-            <button
-              onClick={handleRetryKVDetection}
-              disabled={isLoading}
-              className="w-full btn btn-secondary text-sm"
-            >
-              <Search className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              {isLoading ? '检测中...' : '重新检测 KV'}
-            </button>
-          )}
-
-          {/* 同步到 KV 按钮 */}
-          {storageInfo.isKVAvailable && !storageInfo.storage.includes('cloudflare-kv') && (
-            <button
-              onClick={handleSyncToKV}
-              disabled={isSyncing}
-              className="w-full btn btn-primary text-sm"
-            >
-              <Upload className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-pulse' : ''}`} />
-              {isSyncing ? '同步中...' : '同步到 KV 存储'}
-            </button>
-          )}
-        </div>
-
-        {/* 同步结果 */}
-        {syncResult && (
-          <div className={`p-3 rounded-lg text-sm ${
-            syncResult.success 
-              ? 'bg-success-50 text-success-800 border border-success-200'
-              : 'bg-danger-50 text-danger-800 border border-danger-200'
-          }`}>
-            <div className="flex items-center gap-2">
-              {syncResult.success ? (
-                <CheckCircle className="w-4 h-4" />
-              ) : (
-                <AlertCircle className="w-4 h-4" />
-              )}
-              <span>{syncResult.message}</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 说明文字 */}
       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
         <p className="text-xs text-gray-600">
-          {storageInfo.storage.includes('cloudflare-kv') ? (
-            <>
-              <strong>Cloudflare KV:</strong> 配置存储在全球边缘网络中，支持多用户共享和实时同步。
-              {storageInfo.useApi && (
-                <span className="block mt-1">
-                  <strong>API 模式:</strong> 通过 Pages Functions 访问 KV 存储，确保安全性和稳定性。
-                </span>
-              )}
-            </>
-          ) : (
-            <>
-              <strong>Local Storage:</strong> 配置仅存储在本地浏览器中。部署到 Cloudflare Pages 后可启用 KV 存储。
-            </>
-          )}
+          <strong>Cloudflare KV:</strong> 配置存储在全球边缘网络中，通过 Pages Functions API 访问，确保安全性和稳定性。
         </p>
       </div>
     </div>

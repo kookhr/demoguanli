@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import EnvironmentForm from './EnvironmentForm';
 import StorageStatus from './StorageStatus';
-import KVDiagnostics from './KVDiagnostics';
 import {
   getEnvironments,
   addEnvironment,
@@ -269,9 +268,8 @@ const ConfigPage = () => {
         )}
 
         {/* 存储状态 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="mb-8">
           <StorageStatus />
-          <KVDiagnostics />
         </div>
 
         {/* 环境列表 */}
