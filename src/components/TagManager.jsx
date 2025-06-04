@@ -168,10 +168,13 @@ export const TagEditor = ({
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
+      e.stopPropagation(); // 阻止事件冒泡，防止触发表单提交
       if (inputValue.trim()) {
         addTag(inputValue);
       }
     } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
       removeTag(tags[tags.length - 1]);
     }
   };
@@ -214,7 +217,12 @@ export const TagEditor = ({
           
           {inputValue && (
             <button
-              onClick={() => addTag(inputValue)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                addTag(inputValue);
+              }}
               className="text-primary-600 hover:text-primary-800"
             >
               <Plus className="w-4 h-4" />
@@ -229,7 +237,12 @@ export const TagEditor = ({
           {filteredSuggestions.map((suggestion, index) => (
             <button
               key={index}
-              onClick={() => handleSuggestionClick(suggestion)}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSuggestionClick(suggestion);
+              }}
               className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
             >
               <Tag className="w-3 h-3 text-gray-400" />
@@ -253,7 +266,12 @@ export const TagEditor = ({
                 .map((suggestion, index) => (
                   <button
                     key={index}
-                    onClick={() => handleSuggestionClick(suggestion)}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSuggestionClick(suggestion);
+                    }}
                     className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded border text-gray-700"
                   >
                     {suggestion}
