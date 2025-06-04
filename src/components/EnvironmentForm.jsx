@@ -236,10 +236,8 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
             tags={formData.tags || []}
             onChange={(tags) => handleChange('tags', tags)}
             suggestions={[
-              '稳定版', '测试版', '内测版', '实验版',
-              '关键', '重要', '可选',
-              '容器', '集群', '云服务', '微服务', '分布式',
-              '框架', '组件', '工具', '平台', '系统'
+              'SaaS', '私有化', 'CMDB', 'DOOP', 'TSB', '日志', '监控', '告警',
+              '关键', '重要', '可选'
             ]}
             placeholder="添加标签，用于分类和筛选..."
           />
