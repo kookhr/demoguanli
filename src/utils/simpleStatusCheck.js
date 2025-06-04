@@ -3,20 +3,45 @@
 // 检测单个环境状态
 export const checkEnvironmentStatus = async (environment) => {
   const startTime = Date.now();
-  
+
   try {
     console.log(`🔍 检测环境状态: ${environment.name} (${environment.url})`);
-    
+
+    // 判断是否为内网地址
+    const isInternalUrl = isInternalNetwork(environment.url);
+
     // 使用 AbortController 设置超时
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
 
-    const response = await fetch(environment.url, {
-      method: 'HEAD', // 使用 HEAD 请求减少数据传输
-      mode: 'no-cors', // 避免 CORS 问题
-      signal: controller.signal,
-      cache: 'no-cache'
-    });
+    let response;
+
+    if (isInternalUrl) {
+      // 内网地址：先尝试正常请求，失败后再用 no-cors
+      try {
+        response = await fetch(environment.url, {
+          method: 'HEAD',
+          signal: controller.signal,
+          cache: 'no-cache'
+        });
+      } catch (corsError) {
+        // 如果正常请求失败，尝试 no-cors 模式
+        response = await fetch(environment.url, {
+          method: 'HEAD',
+          mode: 'no-cors',
+          signal: controller.signal,
+          cache: 'no-cache'
+        });
+      }
+    } else {
+      // 外网地址：直接使用 no-cors 模式
+      response = await fetch(environment.url, {
+        method: 'HEAD',
+        mode: 'no-cors',
+        signal: controller.signal,
+        cache: 'no-cache'
+      });
+    }
 
     clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
@@ -32,16 +57,23 @@ export const checkEnvironmentStatus = async (environment) => {
     };
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    
+
     let status = 'offline';
     let errorMessage = error.message;
-    
+
     if (error.name === 'AbortError') {
       status = 'timeout';
       errorMessage = '请求超时';
     } else if (error.message.includes('network')) {
       status = 'network_error';
       errorMessage = '网络错误';
+    } else if (error.message.includes('Failed to fetch')) {
+      // 对于 Failed to fetch 错误，尝试更详细的判断
+      if (isInternalNetwork(environment.url)) {
+        errorMessage = '内网服务不可达，请检查服务是否启动或网络连接';
+      } else {
+        errorMessage = '外网服务不可达或存在网络问题';
+      }
     }
 
     console.log(`❌ ${environment.name} 检测失败: ${errorMessage} (${responseTime}ms)`);
@@ -53,6 +85,30 @@ export const checkEnvironmentStatus = async (environment) => {
       lastChecked: new Date().toISOString(),
       error: errorMessage
     };
+  }
+};
+
+// 判断是否为内网地址
+const isInternalNetwork = (url) => {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+
+    // 检测常见的内网IP段和域名
+    const internalPatterns = [
+      /^192\.168\./,
+      /^10\./,
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+      /^localhost$/,
+      /^127\./,
+      /\.local$/,
+      /\.internal$/,
+      /^0\.0\.0\.0$/
+    ];
+
+    return internalPatterns.some(pattern => pattern.test(hostname));
+  } catch (error) {
+    return false;
   }
 };
 

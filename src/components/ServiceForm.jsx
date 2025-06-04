@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Server } from 'lucide-react';
 
 const ServiceForm = ({ services = [], onChange }) => {
   const [localServices, setLocalServices] = useState(services);
+
+  // 当props中的services变化时，同步更新本地状态
+  useEffect(() => {
+    setLocalServices(services);
+  }, [services]);
 
   // 添加新服务
   const addService = () => {
