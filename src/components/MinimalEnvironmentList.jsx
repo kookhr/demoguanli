@@ -6,6 +6,7 @@ import SimpleEnvironmentFilter from './SimpleEnvironmentFilter';
 import StyledEnvironmentCard from './StyledEnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
+import DarkModeToggle from './DarkModeToggle';
 import { useShortcuts, ShortcutHelp } from '../hooks/useShortcuts';
 import {
   checkMultipleEnvironments,
@@ -312,19 +313,19 @@ const MinimalEnvironmentList = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* 头部 */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">环境管理中心</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">环境管理中心</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
                 管理和访问多套环境配置 • 当前网络: {currentNetwork === 'internal' ? '内网' : '外网'}
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 共 {environments.length} 个环境 • {favorites.length} 个收藏
               </div>
 
@@ -332,7 +333,7 @@ const MinimalEnvironmentList = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="text-sm border border-gray-300 rounded px-2 py-1"
+                  className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 >
                   <option value="custom">自定义排序</option>
                   <option value="favorites">收藏优先</option>
@@ -343,17 +344,21 @@ const MinimalEnvironmentList = () => {
 
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  className={`p-2 rounded ${
-                    showHistory ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
+                  className={`p-2 rounded transition-colors ${
+                    showHistory
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                   title="切换历史面板 (Ctrl+Shift+H)"
                 >
                   <BarChart3 className="w-4 h-4" />
                 </button>
 
+                <DarkModeToggle className="text-gray-600 dark:text-gray-400" />
+
                 <button
                   onClick={() => setShowShortcutHelp(true)}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                   title="快捷键帮助"
                 >
                   <Keyboard className="w-4 h-4" />
@@ -367,9 +372,9 @@ const MinimalEnvironmentList = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* 状态监控面板 */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6 transition-colors duration-300">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Activity className="w-5 h-5" />
               环境状态监控
             </h3>
