@@ -1,49 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Shield, 
-  ShieldCheck, 
-  Eye, 
+import {
+  Users,
+  Search,
+  Edit,
+  Trash2,
+  Shield,
+  ShieldCheck,
+  Eye,
   EyeOff,
   UserCheck,
   UserX,
-  MoreVertical,
-  Ticket,
-  RefreshCw
+  Settings,
+  RefreshCw,
+  Key,
+  Lock,
+  Unlock,
+  X
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
-import { 
-  getAllUsers, 
-  searchUsers, 
-  toggleUserStatus, 
-  deleteUser, 
-  batchUpdateUsers, 
+import {
+  getAllUsers,
+  searchUsers,
+  toggleUserStatus,
+  deleteUser,
+  batchUpdateUsers,
   batchDeleteUsers,
-  getUserStatistics 
+  getUserStatistics
 } from '../utils/userManagement';
 import {
-  getAllActivationCodes,
-  createActivationCode,
-  deleteActivationCode,
-  getActivationCodeStatistics
-} from '../utils/activationCodes';
+  getSystemSettings,
+  toggleRegistration,
+  changePassword
+} from '../utils/auth';
 
 const UserManagementPage = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
-  const [activationCodes, setActivationCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUsers, setSelectedUsers] = useState(new Set());
-  const [showActivationCodes, setShowActivationCodes] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [userStats, setUserStats] = useState(null);
-  const [codeStats, setCodeStats] = useState(null);
+  const [systemSettings, setSystemSettings] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
 
   // 加载数据
   useEffect(() => {
@@ -54,18 +60,16 @@ const UserManagementPage = () => {
     try {
       setLoading(true);
       setError('');
-      
-      const [usersData, codesData, userStatsData, codeStatsData] = await Promise.all([
+
+      const [usersData, userStatsData, settingsData] = await Promise.all([
         getAllUsers(),
-        getAllActivationCodes(),
         getUserStatistics(),
-        getActivationCodeStatistics()
+        getSystemSettings()
       ]);
-      
+
       setUsers(usersData);
-      setActivationCodes(codesData);
       setUserStats(userStatsData);
-      setCodeStats(codeStatsData);
+      setSystemSettings(settingsData);
     } catch (error) {
       console.error('❌ 加载用户管理数据失败:', error);
       setError('加载数据失败: ' + error.message);
@@ -147,37 +151,37 @@ const UserManagementPage = () => {
     }
   };
 
-  // 生成激活码
-  const handleGenerateActivationCode = async () => {
-    const description = prompt('请输入激活码描述（可选）:');
-    const expiresInDays = parseInt(prompt('请输入有效期（天数，默认30天）:') || '30');
-    
-    if (isNaN(expiresInDays) || expiresInDays <= 0) {
-      setError('有效期必须是正整数');
-      return;
-    }
-
+  // 切换注册状态
+  const handleToggleRegistration = async () => {
     try {
-      await createActivationCode(currentUser.username, expiresInDays, description || '');
-      setSuccess('激活码生成成功');
+      const newStatus = !systemSettings.registrationDisabled;
+      await toggleRegistration(newStatus);
+      setSuccess(`注册功能已${newStatus ? '禁用' : '启用'}`);
       loadData();
     } catch (error) {
-      setError('生成激活码失败: ' + error.message);
+      setError('更新注册状态失败: ' + error.message);
     }
   };
 
-  // 删除激活码
-  const handleDeleteActivationCode = async (code) => {
-    if (!confirm(`确定要删除激活码 ${code} 吗？`)) {
+  // 修改密码
+  const handleChangePassword = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setError('新密码和确认密码不匹配');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setError('新密码至少需要6个字符');
       return;
     }
 
     try {
-      await deleteActivationCode(code);
-      setSuccess(`激活码 ${code} 已删除`);
-      loadData();
+      await changePassword(currentUser.username, passwordForm.currentPassword, passwordForm.newPassword);
+      setSuccess('密码修改成功');
+      setShowPasswordModal(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
-      setError('删除激活码失败: ' + error.message);
+      setError('密码修改失败: ' + error.message);
     }
   };
 
@@ -185,11 +189,6 @@ const UserManagementPage = () => {
   const formatDate = (dateString) => {
     if (!dateString) return '从未';
     return new Date(dateString).toLocaleString('zh-CN');
-  };
-
-  // 获取状态颜色
-  const getStatusColor = (enabled) => {
-    return enabled !== false ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
   };
 
   // 获取角色颜色
@@ -221,7 +220,7 @@ const UserManagementPage = () => {
             <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             用户管理
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">管理系统用户账户、权限和激活码</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">管理系统用户账户和权限设置</p>
         </div>
 
         {/* 统计卡片 */}
@@ -259,10 +258,16 @@ const UserManagementPage = () => {
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 transition-colors duration-300">
               <div className="flex items-center">
-                <Ticket className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                {systemSettings.registrationDisabled ? (
+                  <Lock className="w-8 h-8 text-red-600 dark:text-red-400" />
+                ) : (
+                  <Unlock className="w-8 h-8 text-green-600 dark:text-green-400" />
+                )}
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">激活码</p>
-                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{codeStats?.active || 0}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">注册状态</p>
+                  <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                    {systemSettings.registrationDisabled ? '已禁用' : '已启用'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -288,11 +293,19 @@ const UserManagementPage = () => {
               {/* 操作按钮 */}
               <div className="flex gap-2">
                 <button
-                  onClick={() => setShowActivationCodes(!showActivationCodes)}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-300"
+                  onClick={() => setShowPasswordModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-300"
                 >
-                  <Ticket className="w-4 h-4" />
-                  {showActivationCodes ? '用户列表' : '激活码管理'}
+                  <Key className="w-4 h-4" />
+                  修改密码
+                </button>
+
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-300"
+                >
+                  <Settings className="w-4 h-4" />
+                  {showSettings ? '用户列表' : '系统设置'}
                 </button>
 
                 <button
@@ -306,7 +319,7 @@ const UserManagementPage = () => {
             </div>
 
             {/* 批量操作 */}
-            {selectedUsers.size > 0 && !showActivationCodes && (
+            {selectedUsers.size > 0 && !showSettings && (
               <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-blue-800 dark:text-blue-200">
@@ -352,88 +365,34 @@ const UserManagementPage = () => {
         )}
 
         {/* 主要内容区域 */}
-        {showActivationCodes ? (
-          /* 激活码管理界面将在下一个文件中实现 */
+        {showSettings ? (
+          /* 系统设置界面 */
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow transition-colors duration-300">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">激活码管理</h2>
-                <button
-                  onClick={handleGenerateActivationCode}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-300"
-                >
-                  <Plus className="w-4 h-4" />
-                  生成激活码
-                </button>
-              </div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">系统设置</h2>
               
-              {/* 激活码列表 */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        激活码
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        状态
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        创建者
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        创建时间
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        过期时间
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        使用者
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                        操作
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {activationCodes.map((code) => (
-                      <tr key={code.code} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="font-mono text-sm text-gray-900 dark:text-gray-100">{code.code}</span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            code.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
-                            code.status === 'used' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
-                            'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                          }`}>
-                            {code.status === 'active' ? '可用' : code.status === 'used' ? '已使用' : '已过期'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                          {code.createdBy}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {formatDate(code.createdAt)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {formatDate(code.expiresAt)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {code.usedBy || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleDeleteActivationCode(code.code)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-6">
+                {/* 注册控制 */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">用户注册控制</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      控制是否允许新用户通过注册页面创建账户
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleToggleRegistration}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      systemSettings.registrationDisabled ? 'bg-red-600' : 'bg-green-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        systemSettings.registrationDisabled ? 'translate-x-1' : 'translate-x-6'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -548,7 +507,7 @@ const UserManagementPage = () => {
                           >
                             {user.enabled !== false ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
-                          
+
                           <button
                             onClick={() => handleDeleteUser(user.username)}
                             disabled={user.username === currentUser?.username}
@@ -563,6 +522,78 @@ const UserManagementPage = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* 密码修改模态框 */}
+        {showPasswordModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">修改密码</h3>
+                  <button
+                    onClick={() => setShowPasswordModal(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      当前密码
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      新密码
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      确认新密码
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={handleChangePassword}
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    确认修改
+                  </button>
+                  <button
+                    onClick={() => setShowPasswordModal(false)}
+                    className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 py-2 px-4 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

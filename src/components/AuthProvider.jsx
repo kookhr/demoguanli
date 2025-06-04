@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authManager, addAuthListener } from '../utils/auth';
+import { Key } from 'lucide-react';
+import { authManager, addAuthListener, isAdmin } from '../utils/auth';
 
 // 创建认证上下文
 const AuthContext = createContext(null);
@@ -78,7 +79,7 @@ export const ProtectedRoute = ({ children }) => {
 };
 
 // 用户信息显示组件
-export const UserInfo = ({ className = '' }) => {
+export const UserInfo = ({ className = '', onChangePassword }) => {
   const { user, logout } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -87,6 +88,13 @@ export const UserInfo = ({ className = '' }) => {
   const handleLogout = () => {
     logout();
     setShowDropdown(false);
+  };
+
+  const handleChangePassword = () => {
+    setShowDropdown(false);
+    if (onChangePassword) {
+      onChangePassword();
+    }
   };
 
   return (
@@ -125,6 +133,16 @@ export const UserInfo = ({ className = '' }) => {
             </div>
             
             <div className="p-1">
+              {isAdmin(user) && onChangePassword && (
+                <button
+                  onClick={handleChangePassword}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors duration-200 flex items-center gap-2"
+                >
+                  <Key className="w-4 h-4" />
+                  修改密码
+                </button>
+              )}
+
               <button
                 onClick={handleLogout}
                 className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors duration-200"

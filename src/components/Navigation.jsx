@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Settings, Monitor, Sparkles, Users } from 'lucide-react';
 import { UserInfo, useAuth } from './AuthProvider';
-import { isAdmin } from '../utils/auth';
+import { isAdmin, hasPermission } from '../utils/auth';
 import DarkModeToggle from './DarkModeToggle';
 
 const Navigation = () => {
   const location = useLocation();
   const { user } = useAuth();
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // 基础导航项
   const baseNavItems = [
@@ -15,13 +16,19 @@ const Navigation = () => {
       path: '/',
       label: '环境管理',
       icon: Home,
-      description: '查看和访问环境'
-    },
+      description: '查看和访问环境',
+      permission: 'environment_access'
+    }
+  ];
+
+  // 管理员配置项
+  const configNavItems = [
     {
       path: '/config',
       label: '配置管理',
       icon: Settings,
-      description: '编辑环境配置'
+      description: '编辑环境配置',
+      permission: 'config_management'
     }
   ];
 
@@ -31,12 +38,16 @@ const Navigation = () => {
       path: '/user-management',
       label: '用户管理',
       icon: Users,
-      description: '管理用户账户和权限'
+      description: '管理用户账户和权限',
+      permission: 'user_management'
     }
   ];
 
   // 根据用户权限组合导航项
-  const navItems = isAdmin(user) ? [...baseNavItems, ...adminNavItems] : baseNavItems;
+  const allNavItems = [...baseNavItems, ...configNavItems, ...adminNavItems];
+  const navItems = allNavItems.filter(item =>
+    !item.permission || hasPermission(user, item.permission)
+  );
 
   return (
     <nav className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-50 transition-colors duration-300">
@@ -91,7 +102,7 @@ const Navigation = () => {
             <DarkModeToggle />
 
             {/* 用户信息 */}
-            <UserInfo />
+            <UserInfo onChangePassword={() => setShowPasswordModal(true)} />
           </div>
         </div>
       </div>

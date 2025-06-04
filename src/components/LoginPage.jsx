@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Monitor, Sparkles, Eye, EyeOff, User, Lock, Mail, LogIn, UserPlus, Ticket } from 'lucide-react';
-import { login, register } from '../utils/auth';
+import { Monitor, Sparkles, Eye, EyeOff, User, Lock, Mail, LogIn, UserPlus, AlertCircle } from 'lucide-react';
+import { login, register, isRegistrationDisabled } from '../utils/auth';
 
 const LoginPage = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -8,13 +8,13 @@ const LoginPage = ({ onLoginSuccess }) => {
     username: '',
     password: '',
     email: '',
-    activationCode: '',
     rememberMe: false
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [registrationDisabled, setRegistrationDisabled] = useState(false);
 
   // 检测深色模式
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -36,6 +36,20 @@ const LoginPage = ({ onLoginSuccess }) => {
     });
 
     return () => observer.disconnect();
+  }, []);
+
+  // 检查注册状态
+  useEffect(() => {
+    const checkRegistrationStatus = async () => {
+      try {
+        const disabled = await isRegistrationDisabled();
+        setRegistrationDisabled(disabled);
+      } catch (error) {
+        console.warn('检查注册状态失败:', error);
+      }
+    };
+
+    checkRegistrationStatus();
   }, []);
 
   const handleInputChange = (e) => {
@@ -101,13 +115,13 @@ const LoginPage = ({ onLoginSuccess }) => {
         }, 500);
       } else {
         // 注册
-        await register(formData.username, formData.password, formData.email, formData.activationCode);
+        await register(formData.username, formData.password, formData.email);
         setSuccess('注册成功！请登录');
 
         // 自动切换到登录模式
         setTimeout(() => {
           setIsLogin(true);
-          setFormData(prev => ({ ...prev, password: '', email: '', activationCode: '' }));
+          setFormData(prev => ({ ...prev, password: '', email: '' }));
         }, 1500);
       }
     } catch (error) {
@@ -125,8 +139,7 @@ const LoginPage = ({ onLoginSuccess }) => {
     setFormData(prev => ({
       ...prev,
       password: '',
-      email: '',
-      activationCode: ''
+      email: ''
     }));
   };
 
@@ -231,39 +244,18 @@ const LoginPage = ({ onLoginSuccess }) => {
               </div>
             )}
 
-            {/* 激活码输入（仅注册时显示） */}
-            {!isLogin && (
-              <div>
-                <label htmlFor="activationCode" className={`block text-sm font-medium mb-2 transition-colors duration-300 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                  激活码 (可选)
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Ticket className={`h-5 w-5 transition-colors duration-300 ${
-                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                    }`} />
+            {/* 注册禁用提示 */}
+            {!isLogin && registrationDisabled && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mr-3" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">注册功能已禁用</p>
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                      当前系统已禁止新用户注册，请联系管理员获取账户
+                    </p>
                   </div>
-                  <input
-                    id="activationCode"
-                    name="activationCode"
-                    type="text"
-                    value={formData.activationCode}
-                    onChange={handleInputChange}
-                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      isDarkMode
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                    }`}
-                    placeholder="请输入激活码（如有）"
-                  />
                 </div>
-                <p className={`mt-1 text-xs transition-colors duration-300 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                  如果您有激活码，请输入以完成注册
-                </p>
               </div>
             )}
 
@@ -341,9 +333,9 @@ const LoginPage = ({ onLoginSuccess }) => {
             {/* 提交按钮 */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (!isLogin && registrationDisabled)}
               className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                loading
+                loading || (!isLogin && registrationDisabled)
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5'
               }`}
@@ -359,7 +351,7 @@ const LoginPage = ({ onLoginSuccess }) => {
                   }`} />
                 )}
               </span>
-              {loading ? '处理中...' : (isLogin ? '登录' : '注册')}
+              {loading ? '处理中...' : (isLogin ? '登录' : (registrationDisabled ? '注册已禁用' : '注册'))}
             </button>
 
             {/* 切换登录/注册模式 */}

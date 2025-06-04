@@ -128,29 +128,37 @@ class AuthManager {
     this.listeners.forEach(callback => callback(this.currentUser));
   }
 
+  // 检查注册是否被禁用
+  async isRegistrationDisabled() {
+    try {
+      const settings = await kvApi.get('system_settings');
+      return settings?.registrationDisabled || false;
+    } catch (error) {
+      // KV存储不可用时，从本地存储检查
+      try {
+        const settings = localStorage.getItem('env_mgmt_system_settings');
+        return settings ? JSON.parse(settings).registrationDisabled || false : false;
+      } catch {
+        return false;
+      }
+    }
+  }
+
   // 用户注册
-  async register(username, password, email = '', activationCode = '') {
+  async register(username, password, email = '') {
     try {
       console.log('📝 用户注册:', username);
+
+      // 检查注册是否被禁用
+      const registrationDisabled = await this.isRegistrationDisabled();
+      if (registrationDisabled) {
+        throw new Error('当前系统已禁止新用户注册，请联系管理员');
+      }
 
       // 检查用户是否已存在
       const existingUser = await this.getUserFromKV(username);
       if (existingUser) {
         throw new Error('用户名已存在');
-      }
-
-      // 验证激活码（如果提供）
-      if (activationCode) {
-        const { validateActivationCode, useActivationCode } = await import('./activationCodes');
-
-        const validation = await validateActivationCode(activationCode);
-        if (!validation.valid) {
-          throw new Error(`激活码无效: ${validation.reason}`);
-        }
-
-        // 使用激活码
-        await useActivationCode(activationCode, username);
-        console.log('🎫 激活码验证成功:', activationCode);
       }
 
       // 创建用户数据
@@ -163,7 +171,6 @@ class AuthManager {
         lastLogin: null,
         role: 'user',
         enabled: true,
-        activationCode: activationCode || null,
         loginCount: 0
       };
 
@@ -345,6 +352,84 @@ class AuthManager {
     }
   }
 
+  // 修改密码
+  async changePassword(username, currentPassword, newPassword) {
+    try {
+      console.log('🔑 修改密码:', username);
+
+      // 获取用户数据
+      const userData = await this.getUserFromKV(username);
+      if (!userData) {
+        throw new Error('用户不存在');
+      }
+
+      // 验证当前密码
+      const hashedCurrentPassword = await hashPassword(currentPassword);
+      if (userData.password !== hashedCurrentPassword) {
+        throw new Error('当前密码错误');
+      }
+
+      // 更新密码
+      const hashedNewPassword = await hashPassword(newPassword);
+      userData.password = hashedNewPassword;
+      userData.passwordChangedAt = new Date().toISOString();
+
+      // 保存到存储
+      await this.saveUserToKV(username, userData);
+
+      // 如果是当前用户，更新会话信息
+      if (this.currentUser && this.currentUser.username === username) {
+        this.currentUser.passwordChangedAt = userData.passwordChangedAt;
+      }
+
+      console.log('✅ 密码修改成功:', username);
+      return { success: true, message: '密码修改成功' };
+    } catch (error) {
+      console.error('❌ 密码修改失败:', error);
+      throw error;
+    }
+  }
+
+  // 获取系统设置
+  async getSystemSettings() {
+    try {
+      return await kvApi.get('system_settings') || {};
+    } catch (error) {
+      // KV存储不可用时，从本地存储获取
+      try {
+        const settings = localStorage.getItem('env_mgmt_system_settings');
+        return settings ? JSON.parse(settings) : {};
+      } catch {
+        return {};
+      }
+    }
+  }
+
+  // 保存系统设置
+  async saveSystemSettings(settings) {
+    try {
+      await kvApi.put('system_settings', settings);
+    } catch (error) {
+      // KV存储不可用时，保存到本地存储
+      localStorage.setItem('env_mgmt_system_settings', JSON.stringify(settings));
+    }
+  }
+
+  // 切换注册状态
+  async toggleRegistration(disabled) {
+    try {
+      const settings = await this.getSystemSettings();
+      settings.registrationDisabled = disabled;
+      await this.saveSystemSettings(settings);
+
+      console.log('⚙️ 注册状态已更新:', disabled ? '已禁用' : '已启用');
+      return { success: true, disabled };
+    } catch (error) {
+      console.error('❌ 更新注册状态失败:', error);
+      throw error;
+    }
+  }
+
   // 检查KV存储是否可用
   async checkKVAvailability() {
     try {
@@ -374,7 +459,9 @@ export const hasPermission = (user, permission) => {
 
   switch (permission) {
     case 'user_management':
-    case 'activation_codes':
+    case 'system_settings':
+      return user.role === USER_ROLES.ADMIN;
+    case 'config_management':
       return user.role === USER_ROLES.ADMIN;
     case 'environment_access':
       return user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.USER;
@@ -393,8 +480,8 @@ export const isAdmin = (user = null) => {
 export const login = (username, password, rememberMe) =>
   authManager.login(username, password, rememberMe);
 
-export const register = (username, password, email, activationCode) =>
-  authManager.register(username, password, email, activationCode);
+export const register = (username, password, email) =>
+  authManager.register(username, password, email);
 
 export const logout = () => authManager.logout();
 
@@ -403,3 +490,12 @@ export const isAuthenticated = () => authManager.isAuthenticated();
 export const getCurrentUser = () => authManager.getCurrentUser();
 
 export const addAuthListener = (callback) => authManager.addListener(callback);
+
+export const changePassword = (username, currentPassword, newPassword) =>
+  authManager.changePassword(username, currentPassword, newPassword);
+
+export const getSystemSettings = () => authManager.getSystemSettings();
+
+export const toggleRegistration = (disabled) => authManager.toggleRegistration(disabled);
+
+export const isRegistrationDisabled = () => authManager.isRegistrationDisabled();

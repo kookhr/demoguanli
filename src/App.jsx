@@ -1,7 +1,7 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, ProtectedRoute, useAuth } from './components/AuthProvider'
-import { isAdmin } from './utils/auth'
+import { isAdmin, hasPermission } from './utils/auth'
 import Navigation from './components/Navigation'
 import MinimalEnvironmentList from './components/MinimalEnvironmentList'
 import ConfigPage from './components/ConfigPage'
@@ -24,6 +24,17 @@ const AdminRoute = ({ children }) => {
   const { user } = useAuth();
 
   if (!isAdmin(user)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
+// 权限路由保护组件
+const PermissionRoute = ({ children, permission }) => {
+  const { user } = useAuth();
+
+  if (!hasPermission(user, permission)) {
     return <Navigate to="/" replace />;
   }
 
@@ -61,7 +72,9 @@ const AppContent = () => {
         } />
         <Route path="/config" element={
           <ProtectedRoute>
-            <ConfigPage />
+            <PermissionRoute permission="config_management">
+              <ConfigPage />
+            </PermissionRoute>
           </ProtectedRoute>
         } />
         <Route path="/user-management" element={
