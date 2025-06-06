@@ -6,11 +6,16 @@ import EnvironmentCard from './EnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
 import { useShortcuts, ShortcutHelp } from '../hooks/useShortcuts';
+
 import {
   checkMultipleEnvironments,
   checkEnvironmentStatus,
   formatLastChecked
 } from '../utils/simpleStatusCheck';
+import {
+  checkEnvironmentStatusWithProxy,
+  checkMultipleEnvironmentsWithProxy
+} from '../utils/proxyStatusCheck';
 import { addStatusRecord } from '../utils/statusHistory';
 import {
   getFavorites,
@@ -37,6 +42,8 @@ const EnvironmentList = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [selectedEnvironmentForHistory, setSelectedEnvironmentForHistory] = useState(null);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+
+
 
   // 右键菜单
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
@@ -143,7 +150,9 @@ const EnvironmentList = () => {
     }));
 
     try {
-      const result = await checkEnvironmentStatus(environment);
+      // 使用精确检测方法
+      const result = await checkEnvironmentStatusWithProxy(environment);
+
       setEnvironmentStatuses(prev => ({
         ...prev,
         [environment.id]: { ...result, isChecking: false }
@@ -170,12 +179,13 @@ const EnvironmentList = () => {
   const handleCheckAll = async () => {
     if (isChecking || environments.length === 0) return;
 
-    console.log('🚀 开始批量检测所有环境');
+    console.log(`🚀 开始批量检测所有环境`);
     setIsChecking(true);
     setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
 
     try {
-      const results = await checkMultipleEnvironments(environments, (progress) => {
+      // 使用精确检测方法
+      const results = await checkMultipleEnvironmentsWithProxy(environments, (progress) => {
         setCheckProgress(progress);
       });
 
@@ -319,6 +329,8 @@ const EnvironmentList = () => {
                   <BarChart3 className="w-4 h-4" />
                 </button>
 
+
+
                 <button
                   onClick={() => setShowShortcutHelp(true)}
                   className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
@@ -348,6 +360,8 @@ const EnvironmentList = () => {
                   最后检测: {formatLastChecked(lastCheckTime)}
                 </span>
               )}
+
+
 
               <button
                 onClick={handleCheckAll}
@@ -475,6 +489,8 @@ const EnvironmentList = () => {
           onAction={handleContextMenuAction}
           isFavorite={contextMenu.environment ? isFavorite(contextMenu.environment.id) : false}
         />
+
+
 
         {/* 快捷键帮助 */}
         <ShortcutHelp

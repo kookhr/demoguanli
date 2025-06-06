@@ -2,7 +2,6 @@
   "name": "environment-monitor-proxy",
   "version": "1.0.0",
   "description": "CORS proxy server for environment monitoring",
-  "type": "module",
   "main": "proxy-server.js",
   "scripts": {
     "start": "node proxy-server.js",

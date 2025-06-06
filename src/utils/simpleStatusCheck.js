@@ -1,5 +1,17 @@
 // 简化但稳定的状态检测工具
 
+// CORS 规避策略配置
+const CORS_BYPASS_STRATEGIES = {
+  // 策略1: no-cors 模式
+  NO_CORS: 'no-cors',
+  // 策略2: 图片检测
+  IMAGE_PROBE: 'image-probe',
+  // 策略3: 代理检测
+  PROXY_CHECK: 'proxy-check',
+  // 策略4: 服务器端检测
+  SERVER_SIDE: 'server-side'
+};
+
 // 检测单个环境状态
 export const checkEnvironmentStatus = async (environment) => {
   const startTime = Date.now();
@@ -15,8 +27,8 @@ export const checkEnvironmentStatus = async (environment) => {
       // 内网地址：使用多层检测策略
       return await checkInternalNetwork(environment, startTime);
     } else {
-      // 外网地址：使用标准检测
-      return await checkExternalNetwork(environment, startTime);
+      // 外网地址：使用 CORS 规避策略
+      return await checkExternalNetworkWithCORSBypass(environment, startTime);
     }
   } catch (error) {
     const responseTime = Date.now() - startTime;
@@ -548,6 +560,11 @@ export const getStatusText = (status) => {
     'error': '错误',
     'network_error': '网络错误',
     'blocked': '被阻止',
+    'cors-blocked': 'CORS受限',
+    'cors-bypassed': '可达(CORS规避)',
+    'image-reachable': '可达(图片探测)',
+    'port-reachable': '可达(端口探测)',
+    'assumed-reachable': '可达(假设)',
     'unknown': '未知',
     'checking': '检测中'
   };
@@ -563,6 +580,11 @@ export const getStatusColor = (status) => {
     'error': 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/20',
     'network_error': 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/20',
     'blocked': 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/20',
+    'cors-blocked': 'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/20',
+    'cors-bypassed': 'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/20',
+    'image-reachable': 'text-teal-600 bg-teal-100 dark:text-teal-400 dark:bg-teal-900/20',
+    'port-reachable': 'text-cyan-600 bg-cyan-100 dark:text-cyan-400 dark:bg-cyan-900/20',
+    'assumed-reachable': 'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/20',
     'unknown': 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-700',
     'checking': 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/20'
   };
@@ -578,6 +600,11 @@ export const getStatusIcon = (status) => {
     'error': '❌',
     'network_error': '🟠',
     'blocked': '🟣',
+    'cors-blocked': '🟨',
+    'cors-bypassed': '🟩',
+    'image-reachable': '🔷',
+    'port-reachable': '🔹',
+    'assumed-reachable': '🟦',
     'unknown': '⚪',
     'checking': '🔵'
   };
@@ -594,19 +621,284 @@ export const formatResponseTime = (responseTime) => {
 // 格式化最后检测时间
 export const formatLastChecked = (lastChecked) => {
   if (!lastChecked) return '未检测';
-  
+
   const date = new Date(lastChecked);
   const now = new Date();
   const diff = now - date;
-  
+
   if (diff < 60000) return '刚刚';
   if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
-  
+
   return date.toLocaleString('zh-CN', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+// ===== CORS 规避策略函数 =====
+
+// 策略1: 尝试标准 CORS 请求
+const tryStandardCORSRequest = async (environment, controller, startTime) => {
+  console.log(`🔍 CORS策略1: 标准请求 ${environment.url}`);
+
+  try {
+    // 尝试 HEAD 请求（更轻量）
+    const response = await fetch(environment.url, {
+      method: 'HEAD',
+      signal: controller.signal,
+      cache: 'no-cache',
+      credentials: 'omit',
+      headers: {
+        'Accept': '*/*',
+        'User-Agent': 'Environment-Monitor/1.0'
+      }
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    // 检查状态码
+    if (response.ok || response.status === 401 || response.status === 403 || response.status === 404) {
+      console.log(`✅ CORS策略1成功: ${environment.name} 状态码 ${response.status} (${responseTime}ms)`);
+      return {
+        id: environment.id,
+        status: 'online',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: null,
+        method: 'standard-cors'
+      };
+    }
+  } catch (error) {
+    console.log(`❌ CORS策略1失败: ${error.message}`);
+
+    // 如果是 CORS 错误，不抛出异常，继续尝试其他策略
+    if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+      return null;
+    }
+    throw error;
+  }
+
+  return null;
+};
+
+// 策略2: no-cors 模式请求
+const tryNoCorsRequest = async (environment, controller, startTime) => {
+  console.log(`🔍 CORS策略2: no-cors模式 ${environment.url}`);
+
+  try {
+    await fetch(environment.url, {
+      method: 'GET',
+      mode: 'no-cors',
+      signal: controller.signal,
+      cache: 'no-cache',
+      credentials: 'omit'
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    console.log(`✅ CORS策略2成功: ${environment.name} no-cors检测成功 (${responseTime}ms)`);
+    return {
+      id: environment.id,
+      status: 'cors-bypassed',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: null,
+      method: 'no-cors'
+    };
+  } catch (error) {
+    console.log(`❌ CORS策略2失败: ${error.message}`);
+    return null;
+  }
+};
+
+// 策略3: 图片探测法
+const tryImageProbe = async (environment, controller, startTime) => {
+  console.log(`🔍 CORS策略3: 图片探测 ${environment.url}`);
+
+  try {
+    const baseUrl = getBaseUrl(environment.url);
+    await checkWithImagePing(baseUrl);
+
+    const responseTime = Date.now() - startTime;
+
+    console.log(`✅ CORS策略3成功: ${environment.name} 图片探测成功 (${responseTime}ms)`);
+    return {
+      id: environment.id,
+      status: 'image-reachable',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: null,
+      method: 'image-probe'
+    };
+  } catch (error) {
+    console.log(`❌ CORS策略3失败: ${error.message}`);
+    return null;
+  }
+};
+
+// 策略4: 多端口探测
+const tryMultiPortProbe = async (environment, controller, startTime) => {
+  console.log(`🔍 CORS策略4: 多端口探测 ${environment.url}`);
+
+  try {
+    const urlObj = new URL(environment.url);
+    const commonPorts = [80, 443, 8080, 8443, 3000, 5000];
+
+    // 如果当前端口不在常见端口列表中，添加进去
+    const currentPort = parseInt(urlObj.port) || (urlObj.protocol === 'https:' ? 443 : 80);
+    if (!commonPorts.includes(currentPort)) {
+      commonPorts.unshift(currentPort);
+    }
+
+    for (const port of commonPorts.slice(0, 3)) { // 只测试前3个端口
+      try {
+        const testUrl = `${urlObj.protocol}//${urlObj.hostname}:${port}`;
+
+        await fetch(testUrl, {
+          method: 'HEAD',
+          mode: 'no-cors',
+          signal: controller.signal,
+          cache: 'no-cache',
+          credentials: 'omit'
+        });
+
+        const responseTime = Date.now() - startTime;
+
+        console.log(`✅ CORS策略4成功: ${environment.name} 端口${port}可达 (${responseTime}ms)`);
+        return {
+          id: environment.id,
+          status: 'port-reachable',
+          responseTime,
+          lastChecked: new Date().toISOString(),
+          error: null,
+          method: `multi-port-${port}`
+        };
+      } catch (portError) {
+        console.log(`⚠️ 端口${port}不可达: ${portError.message}`);
+        continue;
+      }
+    }
+  } catch (error) {
+    console.log(`❌ CORS策略4失败: ${error.message}`);
+  }
+
+  return null;
+};
+
+// 策略5: 假设可达（基于服务存在的假设）
+const tryAssumedReachable = async (environment, controller, startTime) => {
+  console.log(`🔍 CORS策略5: 假设可达 ${environment.url}`);
+
+  try {
+    // 进行一个简单的 no-cors 请求，如果没有抛出网络错误，就假设服务可达
+    await fetch(environment.url, {
+      method: 'GET',
+      mode: 'no-cors',
+      signal: controller.signal,
+      cache: 'no-cache',
+      credentials: 'omit'
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    console.log(`✅ CORS策略5成功: ${environment.name} 假设可达 (${responseTime}ms)`);
+    return {
+      id: environment.id,
+      status: 'assumed-reachable',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: 'CORS限制，但服务可能正常运行',
+      method: 'assumed-reachable'
+    };
+  } catch (error) {
+    console.log(`❌ CORS策略5失败: ${error.message}`);
+    return null;
+  }
+};
+
+// 外网环境检测策略（带 CORS 规避）- 替换原有的 checkExternalNetwork
+const checkExternalNetworkWithCORSBypass = async (environment, startTime) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 延长到15秒以支持更多策略
+
+  try {
+    // 策略1: 尝试正常的 CORS 请求
+    const corsResult = await tryStandardCORSRequest(environment, controller, startTime);
+    if (corsResult) {
+      clearTimeout(timeoutId);
+      return corsResult;
+    }
+
+    // 策略2: no-cors 模式检测
+    const noCorsResult = await tryNoCorsRequest(environment, controller, startTime);
+    if (noCorsResult) {
+      clearTimeout(timeoutId);
+      return noCorsResult;
+    }
+
+    // 策略3: 图片探测法
+    const imageResult = await tryImageProbe(environment, controller, startTime);
+    if (imageResult) {
+      clearTimeout(timeoutId);
+      return imageResult;
+    }
+
+    // 策略4: 多端口探测
+    const portResult = await tryMultiPortProbe(environment, controller, startTime);
+    if (portResult) {
+      clearTimeout(timeoutId);
+      return portResult;
+    }
+
+    // 策略5: 假设可达（基于 no-cors 成功）
+    const assumedResult = await tryAssumedReachable(environment, controller, startTime);
+    if (assumedResult) {
+      clearTimeout(timeoutId);
+      return assumedResult;
+    }
+
+    // 如果所有策略都失败，返回离线状态
+    clearTimeout(timeoutId);
+    const responseTime = Date.now() - startTime;
+
+    console.log(`❌ ${environment.name} 所有 CORS 规避策略都失败 (${responseTime}ms)`);
+    return {
+      id: environment.id,
+      status: 'offline',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: '所有检测策略都失败，服务可能不可用或存在严格的 CORS 限制'
+    };
+
+  } catch (error) {
+    clearTimeout(timeoutId);
+    const responseTime = Date.now() - startTime;
+
+    let status = 'offline';
+    let errorMessage = error.message;
+
+    if (error.name === 'AbortError') {
+      status = 'timeout';
+      errorMessage = '服务响应超时，请检查网络连接或服务负载';
+    } else if (error.message.includes('Failed to fetch')) {
+      errorMessage = '网络连接失败，请检查网络设置或服务状态';
+    } else if (error.message.includes('CORS')) {
+      // CORS 错误时，假设服务是可达的
+      status = 'cors-blocked';
+      errorMessage = 'CORS 策略阻止访问，但服务可能正常运行';
+    }
+
+    console.log(`❌ ${environment.name} 外网检测失败: ${errorMessage} (${responseTime}ms)`);
+
+    return {
+      id: environment.id,
+      status,
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: errorMessage
+    };
+  }
 };

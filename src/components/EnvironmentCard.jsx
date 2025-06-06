@@ -12,7 +12,8 @@ import {
   ChevronUp,
   AlertCircle,
   Clock,
-  Activity
+  Activity,
+  HelpCircle
 } from 'lucide-react';
 import { SimpleTagList } from './SimpleTagList';
 import {
@@ -22,6 +23,8 @@ import {
 
 const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+
 
   // 获取状态信息
   const getStatusInfo = (status) => {
@@ -57,6 +60,79 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           bg: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700',
           text: '被阻止',
           description: 'Mixed Content阻止'
+        };
+
+      case 'cors-bypassed':
+        return {
+          icon: CheckCircle,
+          color: 'text-emerald-600 dark:text-emerald-400',
+          bg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700',
+          text: '可达(CORS规避)',
+          description: '通过CORS规避策略检测到服务可达'
+        };
+      case 'image-reachable':
+        return {
+          icon: CheckCircle,
+          color: 'text-teal-600 dark:text-teal-400',
+          bg: 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700',
+          text: '可达(图片探测)',
+          description: '通过图片探测确认服务可达'
+        };
+      case 'port-reachable':
+        return {
+          icon: CheckCircle,
+          color: 'text-cyan-600 dark:text-cyan-400',
+          bg: 'bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-700',
+          text: '可达(端口探测)',
+          description: '通过端口探测确认服务可达'
+        };
+      case 'assumed-reachable':
+        return {
+          icon: CheckCircle,
+          color: 'text-indigo-600 dark:text-indigo-400',
+          bg: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-700',
+          text: '可达(假设)',
+          description: '基于网络响应假设服务可达'
+        };
+      case 'client-error':
+        return {
+          icon: AlertTriangle,
+          color: 'text-orange-600 dark:text-orange-400',
+          bg: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700',
+          text: '客户端错误',
+          description: '请求错误'
+        };
+      case 'server-error':
+        return {
+          icon: XCircle,
+          color: 'text-red-600 dark:text-red-400',
+          bg: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700',
+          text: '服务器错误',
+          description: '服务器异常'
+        };
+      case 'reachable-unverified':
+        return {
+          icon: CheckCircle,
+          color: 'text-blue-600 dark:text-blue-400',
+          bg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700',
+          text: '可达',
+          description: '服务响应正常'
+        };
+      case 'cors-blocked':
+        return {
+          icon: Shield,
+          color: 'text-yellow-600 dark:text-yellow-400',
+          bg: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700',
+          text: '受限',
+          description: '访问受限'
+        };
+      case 'unknown-status':
+        return {
+          icon: HelpCircle,
+          color: 'text-purple-600 dark:text-purple-400',
+          bg: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700',
+          text: '未知',
+          description: '状态未知'
         };
       case 'error':
         return {
@@ -104,6 +180,24 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
     switch (status?.status) {
       case 'online':
         return 'border-success-500 dark:border-success-400';
+      case 'cors-bypassed':
+        return 'border-emerald-500 dark:border-emerald-400';
+      case 'image-reachable':
+        return 'border-teal-500 dark:border-teal-400';
+      case 'port-reachable':
+        return 'border-cyan-500 dark:border-cyan-400';
+      case 'assumed-reachable':
+        return 'border-indigo-500 dark:border-indigo-400';
+      case 'client-error':
+        return 'border-orange-500 dark:border-orange-400';
+      case 'server-error':
+        return 'border-red-500 dark:border-red-400';
+      case 'reachable-unverified':
+        return 'border-blue-500 dark:border-blue-400';
+      case 'cors-blocked':
+        return 'border-yellow-500 dark:border-yellow-400';
+      case 'unknown-status':
+        return 'border-purple-500 dark:border-purple-400';
       case 'offline':
       case 'error':
         return 'border-danger-500 dark:border-danger-400';
@@ -111,8 +205,6 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         return 'border-warning-500 dark:border-warning-400';
       case 'blocked':
         return 'border-purple-500 dark:border-purple-400';
-      case 'reachable':
-        return 'border-primary-500 dark:border-primary-400';
       default:
         return 'border-gray-300 dark:border-gray-600';
     }
@@ -186,15 +278,12 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
                   </span>
                 )}
               </div>
-              {!isChecking && (
-                <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                  <span>{statusInfo.description}</span>
-                  {status?.responseTime && (
-                    <span className="flex items-center gap-1">
-                      <Activity className="w-3 h-3" />
-                      {formatResponseTime(status.responseTime)}
-                    </span>
-                  )}
+              {!isChecking && status?.responseTime && (
+                <div className="flex items-center justify-end text-xs text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center gap-1">
+                    <Activity className="w-3 h-3" />
+                    {formatResponseTime(status.responseTime)}
+                  </span>
                 </div>
               )}
             </div>
@@ -220,14 +309,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           </div>
         )}
 
-        {/* 错误信息 */}
-        {status?.error && (
-          <div className="mb-4 p-3 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-700 rounded-lg">
-            <p className="text-xs text-danger-600 dark:text-danger-400">
-              <strong>错误:</strong> {status.error}
-            </p>
-          </div>
-        )}
+
 
         {/* 操作按钮区 */}
         <div className="flex items-center justify-between gap-3">
