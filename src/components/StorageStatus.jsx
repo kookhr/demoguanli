@@ -17,7 +17,7 @@ const StorageStatus = () => {
       const environments = await getEnvironments();
       setEnvironmentCount(environments.length);
     } catch (error) {
-      console.error('获取环境信息失败:', error);
+      // 静默处理错误
     } finally {
       setIsLoading(false);
     }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import {
   Globe,
   Shield,
@@ -16,15 +16,129 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { SimpleTagList } from './SimpleTagList';
-import {
-  formatResponseTime,
-  formatLastChecked
-} from '../utils/simpleStatusCheck';
+
+// 格式化响应时间
+const formatResponseTime = (time) => {
+  if (!time) return '';
+  if (time < 1000) return `${time}ms`;
+  return `${(time / 1000).toFixed(2)}s`;
+};
+
+// 格式化最后检测时间
+const formatLastChecked = (timestamp) => {
+  if (!timestamp) return '';
+
+  const now = new Date();
+  const lastChecked = new Date(timestamp);
+  const diffMs = now - lastChecked;
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMinutes < 1) return '刚刚';
+  if (diffMinutes < 60) return `${diffMinutes}分钟前`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}小时前`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}天前`;
+};
 
 const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
 
+
+  // 合并环境类型和现有标签
+  const getAllTags = () => {
+    const tags = [];
+
+    // 添加环境类型作为第一个标签
+    if (environment.type) {
+      tags.push(environment.type);
+    }
+
+    // 添加现有标签
+    if (environment.tags && environment.tags.length > 0) {
+      tags.push(...environment.tags);
+    }
+
+    return tags;
+  };
+
+  // 根据HTTP状态码和检测结果获取详细状态描述
+  const getDetailedStatusDescription = (status) => {
+    if (!status) return null;
+
+    // 如果有具体的HTTP状态码，优先使用状态码描述
+    if (status.statusCode) {
+      const code = status.statusCode;
+
+      // 2xx 成功状态
+      if (code >= 200 && code < 300) {
+        switch (code) {
+          case 200: return "服务正常运行";
+          case 201: return "资源创建成功";
+          case 202: return "请求已接受";
+          case 204: return "请求成功，无内容返回";
+          default: return "服务响应正常";
+        }
+      }
+
+      // 3xx 重定向状态
+      if (code >= 300 && code < 400) {
+        switch (code) {
+          case 301: return "资源已永久移动";
+          case 302: return "资源临时重定向";
+          case 304: return "资源未修改";
+          default: return "请求被重定向";
+        }
+      }
+
+      // 4xx 客户端错误
+      if (code >= 400 && code < 500) {
+        switch (code) {
+          case 400: return "请求格式错误";
+          case 401: return "需要身份验证";
+          case 403: return "访问被拒绝";
+          case 404: return "页面未找到";
+          case 405: return "请求方法不允许";
+          case 408: return "请求超时";
+          case 429: return "请求过于频繁";
+          default: return "客户端请求错误";
+        }
+      }
+
+      // 5xx 服务器错误
+      if (code >= 500 && code < 600) {
+        switch (code) {
+          case 500: return "服务器内部错误";
+          case 501: return "功能未实现";
+          case 502: return "网关错误";
+          case 503: return "服务不可用";
+          case 504: return "网关超时";
+          default: return "服务器错误";
+        }
+      }
+    }
+
+    // 根据检测状态返回描述
+    switch (status.status) {
+      case 'online': return "服务正常运行";
+      case 'offline': return "服务不可达";
+      case 'timeout': return "连接超时";
+      case 'blocked': return "Mixed Content阻止访问";
+      case 'cors-blocked': return "跨域访问受限";
+      case 'cors-bypassed': return "通过CORS规避策略检测可达";
+      case 'image-reachable': return "通过图片探测确认可达";
+      case 'port-reachable': return "通过端口探测确认可达";
+      case 'assumed-reachable': return "基于网络响应假设可达";
+      case 'client-error': return "客户端请求错误";
+      case 'server-error': return "服务器响应错误";
+      case 'reachable-unverified': return "服务响应正常";
+      case 'error': return "检测过程出现错误";
+      default: return null; // 不显示未知状态
+    }
+  };
 
   // 获取状态信息
   const getStatusInfo = (status) => {
@@ -153,23 +267,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
     }
   };
 
-  // 获取环境类型样式
-  const getTypeStyle = (type) => {
-    switch (type) {
-      case '生产环境':
-        return 'badge-primary';
-      case '预生产环境':
-        return 'badge-warning';
-      case '测试环境':
-        return 'badge-info';
-      case '开发环境':
-        return 'badge-success';
-      case '演示环境':
-        return 'badge-gray';
-      default:
-        return 'badge-gray';
-    }
-  };
+
 
   // 获取状态边框颜色
   const getStatusBorderColor = (status) => {
@@ -222,14 +320,16 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         {/* 头部：环境名称和操作区 */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
-            {/* 环境名称和类型 */}
+            {/* 环境名称和版本号 */}
             <div className="flex items-center gap-3 mb-2">
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                 {environment.name}
               </h3>
-              <span className={`badge ${getTypeStyle(environment.type)} flex-shrink-0`}>
-                {environment.type}
-              </span>
+              {environment.version && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 px-1.5 py-0.5 rounded font-mono flex-shrink-0">
+                  v{environment.version}
+                </span>
+              )}
             </div>
             
             {/* 环境描述 */}
@@ -242,8 +342,8 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
 
           {/* 右上角操作区 */}
           <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-            {/* 网络类型 */}
-            <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700" title={environment.network === 'internal' ? '内网环境' : '外网环境'}>
+            {/* 网络类型标签 */}
+            <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700" title={`网络类型: ${environment.network === 'internal' ? '内网' : '外网'} (仅作分类标签)`}>
               {environment.network === 'internal' ? (
                 <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               ) : (
@@ -265,49 +365,67 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
 
         {/* 状态信息区 */}
         <div className="mb-4">
-          <div className={`flex items-center gap-3 p-4 rounded-xl border ${statusInfo.bg}`}>
-            <StatusIcon className={`w-5 h-5 ${statusInfo.color} flex-shrink-0 ${isChecking ? 'animate-spin' : ''}`} />
+          <div className={`flex items-start gap-3 px-4 py-2.5 rounded-xl border ${statusInfo.bg}`}>
+            <StatusIcon className={`w-5 h-5 ${statusInfo.color} flex-shrink-0 mt-0.5 ${isChecking ? 'animate-spin' : ''}`} />
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-sm font-semibold ${statusInfo.color}`}>
-                  {isChecking ? '检测中...' : statusInfo.text}
-                </span>
-                {environment.version && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md font-mono">
-                    v{environment.version}
-                  </span>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  {/* 状态文字 */}
+                  <div className="mb-0.5">
+                    <span className={`text-sm font-semibold ${statusInfo.color} leading-tight`}>
+                      {isChecking ? '检测中...' : statusInfo.text}
+                    </span>
+                  </div>
+
+                  {/* 状态描述 */}
+                  {!isChecking && (() => {
+                    const description = getDetailedStatusDescription(status);
+                    return description ? (
+                      <div className="text-xs text-gray-600 dark:text-gray-400 leading-tight">
+                        {description}
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+
+                {/* 右侧：垂直排列的时间信息 */}
+                {!isChecking && (status?.lastChecked || status?.responseTime) && (
+                  <div className="flex flex-col items-end gap-1 text-xs text-gray-500 dark:text-gray-400 ml-4">
+                    {/* 最后检测时间 */}
+                    {status?.lastChecked && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {formatLastChecked(status.lastChecked)}
+                      </span>
+                    )}
+
+                    {/* 响应时间 */}
+                    {status?.responseTime && (
+                      <span className="flex items-center gap-1">
+                        <Activity className="w-3 h-3" />
+                        {formatResponseTime(status.responseTime)}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-              {!isChecking && status?.responseTime && (
-                <div className="flex items-center justify-end text-xs text-gray-500 dark:text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <Activity className="w-3 h-3" />
-                    {formatResponseTime(status.responseTime)}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
         {/* 标签区域 */}
-        {environment.tags && environment.tags.length > 0 && (
-          <div className="mb-4">
-            <SimpleTagList 
-              tags={environment.tags} 
-              maxVisible={5}
-              size="sm"
-            />
-          </div>
-        )}
-
-        {/* 辅助信息 */}
-        {status?.lastChecked && (
-          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-4">
-            <Clock className="w-3 h-3" />
-            <span>最后检测: {formatLastChecked(status.lastChecked)}</span>
-          </div>
-        )}
+        {(() => {
+          const allTags = getAllTags();
+          return allTags.length > 0 ? (
+            <div className="mb-4">
+              <SimpleTagList
+                tags={allTags}
+                maxVisible={6}
+                size="sm"
+              />
+            </div>
+          ) : null;
+        })()}
 
 
 
@@ -370,4 +488,4 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
   );
 };
 
-export default EnvironmentCard;
+export default memo(EnvironmentCard);

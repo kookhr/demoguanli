@@ -37,7 +37,6 @@ const ConfigPage = () => {
       const envs = await getEnvironments();
       setEnvironments(envs);
     } catch (error) {
-      console.error('加载环境配置失败:', error);
       showMessage('error', '加载环境配置失败: ' + error.message);
     }
   };
@@ -306,7 +305,7 @@ const ConfigPage = () => {
                             {env.type}
                           </span>
                           <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {env.network === 'internal' ? '内网' : '外网'}
+                            {env.network === 'internal' ? '内网' : '外网'} (标签)
                           </div>
                         </div>
                       </td>

@@ -78,8 +78,8 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
   ];
 
   const networkTypes = [
-    { value: 'internal', label: '内网环境' },
-    { value: 'external', label: '外网环境' }
+    { value: 'internal', label: '内网 (分类标签)' },
+    { value: 'external', label: '外网 (分类标签)' }
   ];
 
 
@@ -167,7 +167,7 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
           {/* 网络类型 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              网络类型 *
+              网络类型 * <span className="text-xs text-gray-500">(仅作分类标签)</span>
             </label>
             <select
               value={formData.network}
@@ -180,6 +180,9 @@ const EnvironmentForm = ({ environment, onSave, onCancel, isEdit = false }) => {
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              网络类型仅用于分类和视觉识别，不影响实际检测功能
+            </p>
           </div>
 
           {/* 主要URL */}

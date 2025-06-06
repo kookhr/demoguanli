@@ -1,21 +1,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Activity, Star, BarChart3, Keyboard, SortAsc } from 'lucide-react';
+import { RefreshCw, Activity, Star, BarChart3 } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
 import EnvironmentFilter from './EnvironmentFilter';
 import EnvironmentCard from './EnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
-import { useShortcuts, ShortcutHelp } from '../hooks/useShortcuts';
 
 import {
-  checkMultipleEnvironments,
-  checkEnvironmentStatus,
-  formatLastChecked
-} from '../utils/simpleStatusCheck';
-import {
-  checkEnvironmentStatusWithProxy,
-  checkMultipleEnvironmentsWithProxy
+  checkEnvironmentStatusWithProxy as checkEnvironmentStatus,
+  checkMultipleEnvironmentsWithProxy as checkMultipleEnvironments
 } from '../utils/proxyStatusCheck';
+
+// 格式化最后检测时间
+const formatLastChecked = (timestamp) => {
+  if (!timestamp) return '';
+
+  const now = new Date();
+  const lastChecked = new Date(timestamp);
+  const diffMs = now - lastChecked;
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMinutes < 1) return '刚刚';
+  if (diffMinutes < 60) return `${diffMinutes}分钟前`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}小时前`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}天前`;
+};
 import { addStatusRecord } from '../utils/statusHistory';
 import {
   getFavorites,
@@ -41,7 +54,6 @@ const EnvironmentList = () => {
   const [sortBy, setSortBy] = useState('custom');
   const [showHistory, setShowHistory] = useState(false);
   const [selectedEnvironmentForHistory, setSelectedEnvironmentForHistory] = useState(null);
-  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
 
 
@@ -53,36 +65,11 @@ const EnvironmentList = () => {
     setFavorites(getFavorites());
   }, []);
 
-  // 快捷键处理
-  const shortcutHandlers = {
-    refresh_status: () => {
-      if (selectedEnvironmentForHistory) {
-        handleCheckSingle(selectedEnvironmentForHistory);
-      }
-    },
-    refresh_all: () => handleCheckAll(),
-    focus_search: () => {
-      const searchInput = document.querySelector('input[type="text"]');
-      if (searchInput) searchInput.focus();
-    },
-    close_modal: () => {
-      if (showHistory) setShowHistory(false);
-      if (showShortcutHelp) setShowShortcutHelp(false);
-      closeContextMenu();
-    },
-    toggle_history: () => setShowHistory(!showHistory),
-    refresh_page: (e) => {
-      e.preventDefault();
-      window.location.reload();
-    }
-  };
 
-  useShortcuts(shortcutHandlers);
 
   // 页面加载完成后自动检测状态
   useEffect(() => {
     if (environments.length > 0) {
-      console.log('🚀 页面加载完成，开始自动状态检测...');
       // 延迟1秒后开始检测，确保页面渲染完成
       const timer = setTimeout(() => {
         handleCheckAll();
@@ -96,7 +83,6 @@ const EnvironmentList = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && environments.length > 0) {
-        console.log('👀 页面重新可见，开始状态检测...');
         // 延迟500ms后检测，避免频繁切换
         setTimeout(() => {
           if (!isChecking) {
@@ -117,17 +103,14 @@ const EnvironmentList = () => {
 
   const loadEnvironments = async () => {
     try {
-      console.log('🔄 开始加载环境配置...');
       setLoading(true);
       setError(null);
-      
+
       const envs = await getEnvironments();
-      console.log('✅ 环境配置加载成功:', envs);
 
       setEnvironments(envs);
       setFilteredEnvironments(envs);
     } catch (err) {
-      console.error('❌ 加载环境配置失败:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -136,13 +119,11 @@ const EnvironmentList = () => {
 
   // 处理过滤变化 - 使用 useCallback 避免无限循环
   const handleFilterChange = useCallback((filtered) => {
-    console.log('🔍 过滤结果更新:', filtered.length, '个环境');
     setFilteredEnvironments(filtered);
   }, []);
 
   // 检测单个环境状态
   const handleCheckSingle = async (environment) => {
-    console.log(`🔍 检测单个环境: ${environment.name}`);
 
     setEnvironmentStatuses(prev => ({
       ...prev,
@@ -151,7 +132,7 @@ const EnvironmentList = () => {
 
     try {
       // 使用精确检测方法
-      const result = await checkEnvironmentStatusWithProxy(environment);
+      const result = await checkEnvironmentStatus(environment);
 
       setEnvironmentStatuses(prev => ({
         ...prev,
@@ -161,7 +142,6 @@ const EnvironmentList = () => {
       // 记录状态历史
       addStatusRecord(environment.id, result);
     } catch (error) {
-      console.error(`检测环境 ${environment.name} 失败:`, error);
       setEnvironmentStatuses(prev => ({
         ...prev,
         [environment.id]: {
@@ -178,22 +158,19 @@ const EnvironmentList = () => {
   // 批量检测所有环境状态
   const handleCheckAll = async () => {
     if (isChecking || environments.length === 0) return;
-
-    console.log(`🚀 开始批量检测所有环境`);
     setIsChecking(true);
     setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
 
     try {
       // 使用精确检测方法
-      const results = await checkMultipleEnvironmentsWithProxy(environments, (progress) => {
+      const results = await checkMultipleEnvironments(environments, (progress) => {
         setCheckProgress(progress);
       });
 
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
-      console.log('✅ 批量检测完成');
     } catch (error) {
-      console.error('❌ 批量检测失败:', error);
+      // 批量检测失败，保持静默
     } finally {
       setIsChecking(false);
       setCheckProgress(null);
@@ -247,7 +224,6 @@ const EnvironmentList = () => {
         setShowHistory(true);
         break;
       default:
-        console.log('未知操作:', action);
         break;
     }
   };
@@ -331,13 +307,7 @@ const EnvironmentList = () => {
 
 
 
-                <button
-                  onClick={() => setShowShortcutHelp(true)}
-                  className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                  title="快捷键帮助"
-                >
-                  <Keyboard className="w-4 h-4" />
-                </button>
+
               </div>
             </div>
           </div>
@@ -492,11 +462,7 @@ const EnvironmentList = () => {
 
 
 
-        {/* 快捷键帮助 */}
-        <ShortcutHelp
-          isOpen={showShortcutHelp}
-          onClose={() => setShowShortcutHelp(false)}
-        />
+
       </div>
     </div>
   );

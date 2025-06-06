@@ -2,7 +2,6 @@
 import { kvApi } from './kvApi.js';
 import { environments as defaultEnvironments } from '../data/environments.js';
 
-const CONFIG_STORAGE_KEY = 'environment_config';
 const KV_KEY = 'environments';
 
 // 获取所有环境配置
@@ -11,14 +10,11 @@ export const getEnvironments = async () => {
     // 尝试从 KV 获取
     const environments = await kvApi.get(KV_KEY);
     if (environments && Array.isArray(environments) && environments.length > 0) {
-      console.log('✅ 从 KV 获取到环境配置:', environments.length, '个');
       return environments;
     } else {
-      console.log('📋 KV 中无数据，使用默认配置');
       return defaultEnvironments;
     }
   } catch (error) {
-    console.error('❌ 从 KV 获取环境配置失败，使用默认配置:', error);
     return defaultEnvironments;
   }
 };
@@ -29,7 +25,6 @@ export const saveEnvironments = async (environments) => {
     await kvApi.put(KV_KEY, environments);
     return true;
   } catch (error) {
-    console.error('保存环境配置失败:', error);
     return false;
   }
 };
@@ -47,7 +42,6 @@ export const addEnvironment = async (environment) => {
     await saveEnvironments(environments);
     return newEnvironment;
   } catch (error) {
-    console.error('添加环境失败:', error);
     return null;
   }
 };
@@ -64,7 +58,6 @@ export const updateEnvironment = async (id, updatedEnvironment) => {
     }
     return null;
   } catch (error) {
-    console.error('更新环境失败:', error);
     return null;
   }
 };
@@ -77,7 +70,6 @@ export const deleteEnvironment = async (id) => {
     await saveEnvironments(filtered);
     return filtered;
   } catch (error) {
-    console.error('删除环境失败:', error);
     return null;
   }
 };
@@ -98,7 +90,6 @@ export const exportConfig = async () => {
     };
     return JSON.stringify(config, null, 2);
   } catch (error) {
-    console.error('导出配置失败:', error);
     throw error;
   }
 };
@@ -113,7 +104,6 @@ export const importConfig = async (configString) => {
     }
     return false;
   } catch (error) {
-    console.error('导入配置失败:', error);
     throw error;
   }
 };
@@ -140,8 +130,10 @@ export const validateEnvironment = (environment) => {
     errors.push('环境类型无效');
   }
   
-  if (!['internal', 'external'].includes(environment.network)) {
-    errors.push('网络类型无效');
+  // 网络类型现在仅作为分类标签，不进行严格验证
+  // 允许任何网络类型值，但建议使用 'internal' 或 'external'
+  if (!environment.network || environment.network.trim() === '') {
+    errors.push('网络类型不能为空');
   }
   
   if (!['online', 'offline', 'maintenance'].includes(environment.status)) {

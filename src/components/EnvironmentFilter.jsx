@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 
 const EnvironmentFilter = ({
@@ -89,17 +89,17 @@ const EnvironmentFilter = ({
           </select>
         </div>
 
-        {/* 网络筛选 */}
+        {/* 网络类型筛选 (仅作为分类标签) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            网络类型
+            网络类型 <span className="text-xs text-gray-500">(分类标签)</span>
           </label>
           <select
             value={selectedNetwork}
             onChange={(e) => setSelectedNetwork(e.target.value)}
             className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
           >
-            <option value="">所有网络</option>
+            <option value="">所有网络类型</option>
             {networks.map(network => (
               <option key={network} value={network}>
                 {network === 'internal' ? '内网' :
@@ -135,4 +135,4 @@ const EnvironmentFilter = ({
   );
 };
 
-export default EnvironmentFilter;
+export default memo(EnvironmentFilter);

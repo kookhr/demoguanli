@@ -82,6 +82,7 @@ export const environments = [
   }
 ];
 
+// 根据网络类型获取环境 (仅用于分类，不影响功能)
 export const getEnvironmentsByNetwork = (network) => {
   return environments.filter(env => env.network === network);
 };

@@ -1,19 +1,31 @@
-// 精确的HTTP状态检测工具
-// 优先获取真实HTTP状态码，确保检测准确性
+// 增强的CORS绕过检测工具
+// 简化版 - 3策略检测，专注核心功能
+//
+// 包含的检测策略：
+// 1. 标准CORS请求（HEAD, GET, OPTIONS）
+// 2. 增强静态资源探测（favicon.ico等）
+// 3. 智能连通性检测（no-cors模式）
+//
+// 已移除的策略（不适用于当前部署环境）：
+// - 健康检查端点探测（/health, /ping等）
+// - WebSocket探测
+// - JSONP探测
 
 // 检测配置
-const ACCURATE_CHECK_CONFIG = {
+const ENHANCED_CHECK_CONFIG = {
   // 超时配置
-  timeout: 10000,
+  timeout: 12000,
+  quickTimeout: 5000,
+  imageTimeout: 3000,
 
   // 重试配置
   retry: {
-    maxAttempts: 1,
+    maxAttempts: 2,
     delay: 1000
   },
 
   // 请求方法优先级
-  methods: ['HEAD', 'GET'],
+  methods: ['HEAD', 'GET', 'OPTIONS'],
 
   // 状态码分类
   statusCategories: {
@@ -21,26 +33,37 @@ const ACCURATE_CHECK_CONFIG = {
     redirect: [300, 301, 302, 303, 304, 307, 308],
     clientError: [400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 421, 422, 423, 424, 425, 426, 428, 429, 431, 451],
     serverError: [500, 501, 502, 503, 504, 505, 506, 507, 508, 510, 511]
-  }
+  },
+
+  // 常见静态资源路径
+  staticPaths: [
+    '/favicon.ico',
+    '/favicon.png',
+    '/apple-touch-icon.png',
+    '/robots.txt',
+    '/sitemap.xml',
+    '/manifest.json',
+    '/.well-known/security.txt'
+  ]
 };
 
 // 获取检测配置
 const getCheckConfig = () => {
   try {
-    const stored = localStorage.getItem('accurate-check-config');
+    const stored = localStorage.getItem('enhanced-check-config');
     if (stored) {
-      return { ...ACCURATE_CHECK_CONFIG, ...JSON.parse(stored) };
+      return { ...ENHANCED_CHECK_CONFIG, ...JSON.parse(stored) };
     }
   } catch (error) {
     console.warn('Failed to load check config:', error);
   }
-  return ACCURATE_CHECK_CONFIG;
+  return ENHANCED_CHECK_CONFIG;
 };
 
 // 保存检测配置
 export const saveCheckConfig = (config) => {
   try {
-    localStorage.setItem('accurate-check-config', JSON.stringify(config));
+    localStorage.setItem('enhanced-check-config', JSON.stringify(config));
     return true;
   } catch (error) {
     console.error('Failed to save check config:', error);
@@ -65,33 +88,32 @@ const categorizeStatus = (statusCode) => {
   }
 };
 
-// 主要检测函数 - 精确版
+// 主要检测函数 - 简化版（移除健康检查、WebSocket、JSONP策略）
 export const checkEnvironmentStatusWithProxy = async (environment) => {
   const startTime = Date.now();
 
   try {
-    console.log(`🔍 精确检测开始: ${environment.name} (${environment.url})`);
-
     // 策略1: 标准CORS请求（优先策略 - 获取真实状态码）
     const corsResult = await tryStandardRequest(environment, startTime);
     if (corsResult) {
-      return corsResult;
+      // 如果是真正的网络错误（offline）或超时，直接返回
+      if (corsResult.status === 'offline' || corsResult.status === 'timeout') {
+        return corsResult;
+      }
+      // 如果是成功的结果，也直接返回
+      if (corsResult.status === 'online' || corsResult.status === 'client-error' || corsResult.status === 'server-error') {
+        return corsResult;
+      }
     }
 
-    // 策略2: JSONP探测（某些API支持）
-    const jsonpResult = await tryJSONPProbe(environment, startTime);
-    if (jsonpResult) {
-      return jsonpResult;
+    // 策略2: 增强静态资源探测（多种静态资源）
+    const staticResult = await tryEnhancedStaticProbe(environment, startTime);
+    if (staticResult) {
+      return staticResult;
     }
 
-    // 策略3: 图片探测（静态资源检测）
-    const imageResult = await tryImageProbe(environment, startTime);
-    if (imageResult) {
-      return imageResult;
-    }
-
-    // 策略4: 连通性检测（最后备用）
-    const connectivityResult = await tryConnectivityCheck(environment, startTime);
+    // 策略3: 智能连通性检测（最后备用）
+    const connectivityResult = await trySmartConnectivityCheck(environment, startTime);
     if (connectivityResult) {
       return connectivityResult;
     }
@@ -103,13 +125,12 @@ export const checkEnvironmentStatusWithProxy = async (environment) => {
       status: 'offline',
       responseTime,
       lastChecked: new Date().toISOString(),
-      error: '服务不可达或网络连接失败',
-      method: 'all-failed'
+      error: '所有检测策略均失败，服务可能不可达',
+      method: 'all-strategies-failed'
     };
 
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    console.error(`❌ 检测异常: ${environment.name}`, error);
 
     return {
       id: environment.id,
@@ -117,7 +138,7 @@ export const checkEnvironmentStatusWithProxy = async (environment) => {
       responseTime,
       lastChecked: new Date().toISOString(),
       error: `检测异常: ${error.message}`,
-      method: 'error'
+      method: 'exception'
     };
   }
 };
@@ -128,8 +149,6 @@ const tryStandardRequest = async (environment, startTime) => {
 
   for (const method of config.methods) {
     try {
-      console.log(`🔍 尝试标准${method}请求: ${environment.url}`);
-
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), config.timeout);
 
@@ -149,8 +168,6 @@ const tryStandardRequest = async (environment, startTime) => {
       const statusCode = response.status;
       const statusCategory = categorizeStatus(statusCode);
 
-      console.log(`✅ 标准${method}请求成功: ${environment.name} - ${statusCode} (${responseTime}ms)`);
-
       return {
         id: environment.id,
         status: statusCategory,
@@ -163,8 +180,6 @@ const tryStandardRequest = async (environment, startTime) => {
       };
 
     } catch (error) {
-      console.log(`❌ 标准${method}请求失败: ${error.message}`);
-
       // 如果是超时错误，直接返回
       if (error.name === 'AbortError') {
         const responseTime = Date.now() - startTime;
@@ -178,17 +193,46 @@ const tryStandardRequest = async (environment, startTime) => {
         };
       }
 
-      // 如果是网络错误（非CORS），说明服务不可达
-      if (error.name === 'TypeError' && !error.message.includes('CORS')) {
-        const responseTime = Date.now() - startTime;
-        return {
-          id: environment.id,
-          status: 'offline',
-          responseTime,
-          lastChecked: new Date().toISOString(),
-          error: '网络连接失败',
-          method: `standard-${method.toLowerCase()}-network-error`
-        };
+      // 对于TypeError，需要更仔细地判断是否真的是网络错误
+      if (error.name === 'TypeError') {
+        // 检查错误消息中的关键词来判断是否是CORS错误
+        // 常见的CORS相关错误消息模式
+        const corsErrorPatterns = [
+          'CORS',
+          'cross-origin',
+          'Access-Control',
+          'Failed to fetch',
+          'Load failed',           // Safari和其他浏览器的CORS错误
+          'Network request failed', // 另一种常见模式
+          'blocked by CORS policy',
+          'No \'Access-Control-Allow-Origin\'',
+          'has been blocked by CORS policy'
+        ];
+
+        const isCorsError = corsErrorPatterns.some(pattern =>
+          error.message.toLowerCase().includes(pattern.toLowerCase())
+        );
+
+        // 对于跨域请求，大多数"Load failed"都是CORS错误
+        const isLikelyCorsError = isCorsError || (
+          error.message.includes('Load failed') &&
+          (environment.url.startsWith('https://') || environment.url.startsWith('http://')) &&
+          !environment.url.includes('localhost') &&
+          !environment.url.includes('127.0.0.1')
+        );
+
+        if (!isLikelyCorsError) {
+          // 真正的网络错误（如DNS解析失败、连接拒绝等）
+          const responseTime = Date.now() - startTime;
+          return {
+            id: environment.id,
+            status: 'offline',
+            responseTime,
+            lastChecked: new Date().toISOString(),
+            error: '网络连接失败',
+            method: `standard-${method.toLowerCase()}-network-error`
+          };
+        }
       }
 
       // CORS错误，继续尝试下一个方法
@@ -199,25 +243,49 @@ const tryStandardRequest = async (environment, startTime) => {
   return null;
 };
 
-// 策略2: JSONP探测（某些API支持）
-const tryJSONPProbe = async (environment, startTime) => {
-  try {
-    console.log(`🔍 尝试JSONP探测: ${environment.url}`);
+// 策略2: 增强静态资源探测
+const tryEnhancedStaticProbe = async (environment, startTime) => {
+  const config = getCheckConfig();
+  const baseUrl = getBaseUrl(environment.url);
 
-    // 检查URL是否可能支持JSONP
-    const url = new URL(environment.url);
-    if (!url.pathname.includes('api') && !url.searchParams.has('callback')) {
-      return null; // 不太可能支持JSONP
+  // 尝试多种静态资源
+  for (const staticPath of config.staticPaths) {
+    try {
+      const staticUrl = `${baseUrl}${staticPath}?_t=${Date.now()}`;
+      const result = await checkImageLoad(staticUrl, config.imageTimeout);
+
+      if (result.success) {
+        const responseTime = Date.now() - startTime;
+
+        return {
+          id: environment.id,
+          status: result.type === 'loaded' ? 'image-reachable' : 'reachable-unverified',
+          responseTime,
+          lastChecked: new Date().toISOString(),
+          error: result.type === 'loaded' ? null : '静态资源可达但状态未知',
+          method: 'enhanced-static-probe',
+          statusCode: result.type === 'loaded' ? 200 : null,
+          resource: staticPath
+        };
+      }
+    } catch (error) {
+      continue;
     }
+  }
 
+  return null;
+};
+
+// 策略3: 智能连通性检测（最后备用）
+const trySmartConnectivityCheck = async (environment, startTime) => {
+  try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    // 尝试添加callback参数
-    const jsonpUrl = `${environment.url}${environment.url.includes('?') ? '&' : '?'}callback=test&_t=${Date.now()}`;
-
-    const response = await fetch(jsonpUrl, {
+    // 使用 no-cors 模式进行基本连通性检测
+    await fetch(environment.url, {
       method: 'GET',
+      mode: 'no-cors',
       signal: controller.signal,
       cache: 'no-cache',
       credentials: 'omit'
@@ -225,76 +293,56 @@ const tryJSONPProbe = async (environment, startTime) => {
 
     clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
-    const statusCode = response.status;
-    const statusCategory = categorizeStatus(statusCode);
 
-    console.log(`✅ JSONP探测成功: ${environment.name} - ${statusCode} (${responseTime}ms)`);
-
-    return {
-      id: environment.id,
-      status: statusCategory,
-      responseTime,
-      lastChecked: new Date().toISOString(),
-      error: statusCategory !== 'online' ? `HTTP ${statusCode}: ${response.statusText}` : null,
-      method: 'jsonp-probe',
-      statusCode: statusCode,
-      statusText: response.statusText
-    };
+    // 对于 no-cors 请求，我们需要更保守的判断
+    // 只有在响应时间合理的情况下才认为服务可达
+    if (responseTime < 5000) {
+      return {
+        id: environment.id,
+        status: 'cors-bypassed',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: 'CORS限制但服务可达',
+        method: 'smart-connectivity',
+        statusCode: null
+      };
+    } else {
+      return null;
+    }
 
   } catch (error) {
-    console.log(`❌ JSONP探测失败: ${error.message}`);
+    if (error.name === 'AbortError') {
+      const responseTime = Date.now() - startTime;
+      return {
+        id: environment.id,
+        status: 'timeout',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: '连接超时',
+        method: 'smart-connectivity-timeout'
+      };
+    }
+
+    // 对于 TypeError，通常表示网络错误（DNS解析失败等）
+    if (error.name === 'TypeError') {
+      const responseTime = Date.now() - startTime;
+      return {
+        id: environment.id,
+        status: 'offline',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: '网络连接失败，服务不可达',
+        method: 'smart-connectivity-network-error'
+      };
+    }
+
     return null;
   }
 };
 
-// 策略3: 图片探测（静态资源检测）
-const tryImageProbe = async (environment, startTime) => {
-  try {
-    console.log(`🔍 尝试图片探测: ${environment.url}`);
-
-    const baseUrl = getBaseUrl(environment.url);
-    const imagePaths = ['/favicon.ico', '/favicon.png', '/apple-touch-icon.png'];
-
-    for (const imagePath of imagePaths) {
-      try {
-        const imageUrl = `${baseUrl}${imagePath}?_t=${Date.now()}`;
-        const result = await checkImageLoad(imageUrl, 5000);
-
-        if (result.success) {
-          const responseTime = Date.now() - startTime;
-
-          console.log(`✅ 图片探测成功: ${environment.name} via ${imagePath} (${responseTime}ms)`);
-
-          // 图片探测成功，但无法获取确切状态码，标记为可达但需要验证
-          return {
-            id: environment.id,
-            status: 'reachable-unverified',
-            responseTime,
-            lastChecked: new Date().toISOString(),
-            error: '无法获取HTTP状态码，仅确认服务器响应',
-            method: 'image-probe',
-            statusCode: null
-          };
-        }
-      } catch (error) {
-        console.log(`⚠️ 图片路径 ${imagePath} 失败: ${error.message}`);
-        continue;
-      }
-    }
-
-    console.log(`❌ 所有图片路径都失败: ${environment.name}`);
-
-  } catch (error) {
-    console.log(`❌ 图片探测异常: ${error.message}`);
-  }
-
-  return null;
-};
-
-// 策略4: 连通性检测（最后备用）
+// 旧的连通性检测（保留兼容性）
 const tryConnectivityCheck = async (environment, startTime) => {
   try {
-    console.log(`🔍 尝试连通性检测: ${environment.url}`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -311,8 +359,6 @@ const tryConnectivityCheck = async (environment, startTime) => {
     clearTimeout(timeoutId);
     const responseTime = Date.now() - startTime;
 
-    console.log(`⚠️ 连通性检测成功: ${environment.name} (${responseTime}ms) - 但无法确认HTTP状态`);
-
     return {
       id: environment.id,
       status: 'cors-blocked',
@@ -324,7 +370,6 @@ const tryConnectivityCheck = async (environment, startTime) => {
     };
 
   } catch (error) {
-    console.log(`❌ 连通性检测失败: ${error.message}`);
 
     if (error.name === 'AbortError') {
       const responseTime = Date.now() - startTime;
@@ -358,7 +403,8 @@ const checkImageLoad = (imageUrl, timeout) => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const timeoutId = setTimeout(() => {
-      reject(new Error('Image load timeout'));
+      clearTimeout(timeoutId);
+      resolve({ success: false, error: 'Image load timeout' });
     }, timeout);
 
     img.onload = () => {
@@ -369,9 +415,8 @@ const checkImageLoad = (imageUrl, timeout) => {
 
     img.onerror = () => {
       clearTimeout(timeoutId);
-      // 图片加载失败，但收到了响应（可能是404、403等）
-      // 这仍然表示服务器是可达的
-      resolve({ success: true, type: 'error-response' });
+      // 图片加载失败，保守地认为加载失败
+      resolve({ success: false, error: 'Image load failed' });
     };
 
     // 设置图片源，开始加载
@@ -381,7 +426,6 @@ const checkImageLoad = (imageUrl, timeout) => {
 
 // 批量检测 - 精确版
 export const checkMultipleEnvironmentsWithProxy = async (environments, onProgress) => {
-  console.log(`🚀 开始精确批量检测 ${environments.length} 个环境`);
 
   const results = {};
   const total = environments.length;
@@ -441,9 +485,8 @@ export const checkMultipleEnvironmentsWithProxy = async (environments, onProgres
     await Promise.all(promises);
   }
 
-  console.log(`✅ 精确批量检测完成，共检测 ${total} 个环境`);
   return results;
 };
 
 // 导出配置
-export { ACCURATE_CHECK_CONFIG as DEFAULT_CHECK_CONFIG };
+export { ENHANCED_CHECK_CONFIG as DEFAULT_CHECK_CONFIG };
