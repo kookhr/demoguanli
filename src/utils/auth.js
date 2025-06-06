@@ -39,7 +39,6 @@ const parseToken = (token) => {
     
     return payload;
   } catch (error) {
-    console.error('Token解析失败:', error);
     return null;
   }
 };
@@ -117,20 +116,18 @@ class AuthManager {
           console.warn('⚠️ 无法将管理员添加到用户管理器:', error);
         }
 
-        console.log('✅ 默认管理员账户创建成功');
-        console.log('📝 默认登录信息: admin / admin123');
+        // 默认管理员账户创建成功
       } else {
         // 确保现有管理员账户在用户管理器中
         try {
           const { userManager } = await import('./userManagement');
           await userManager.addUser(adminUsername, existingAdmin);
         } catch (error) {
-          console.warn('⚠️ 无法将现有管理员添加到用户管理器:', error);
+          // 静默处理错误
         }
       }
     } catch (error) {
-      console.warn('⚠️ 无法创建默认管理员账户:', error.message);
-      console.log('💡 提示：您可以手动注册账户或检查KV存储配置');
+      // 静默处理错误
     }
   }
 
@@ -240,7 +237,7 @@ class AuthManager {
         const { recordUserLogin } = await import('./userManagement');
         await recordUserLogin(username);
       } catch (error) {
-        console.warn('⚠️ 无法记录用户登录:', error);
+        // 静默处理错误
       }
 
       // 创建用户会话
@@ -270,20 +267,16 @@ class AuthManager {
       otherStorage.removeItem(AUTH_STORAGE_KEY);
       otherStorage.removeItem(USER_STORAGE_KEY);
 
-      console.log('✅ 登录成功:', username);
       this.notifyListeners();
-      
+
       return { success: true, user: userSession };
     } catch (error) {
-      console.error('❌ 登录失败:', error);
       throw error;
     }
   }
 
   // 用户登出
   logout() {
-    console.log('👋 用户登出:', this.currentUser?.username);
-    
     this.clearAuth();
     this.notifyListeners();
   }
@@ -327,7 +320,6 @@ class AuthManager {
       }
 
       // KV存储不可用时，尝试从本地存储获取
-      console.warn('⚠️ KV存储不可用，使用本地存储备用方案');
       return this.getUserFromLocalStorage(username);
     }
   }
@@ -339,7 +331,6 @@ class AuthManager {
       await kvApi.put(userKey, userData);
     } catch (error) {
       // KV存储不可用时，保存到本地存储
-      console.warn('⚠️ KV存储不可用，使用本地存储备用方案');
       this.saveUserToLocalStorage(username, userData);
     }
   }
@@ -441,10 +432,8 @@ class AuthManager {
       settings.registrationDisabled = disabled;
       await this.saveSystemSettings(settings);
 
-      console.log('⚙️ 注册状态已更新:', disabled ? '已禁用' : '已启用');
       return { success: true, disabled };
     } catch (error) {
-      console.error('❌ 更新注册状态失败:', error);
       throw error;
     }
   }
@@ -457,7 +446,6 @@ class AuthManager {
       const result = await response.json();
       return result.success && result.available;
     } catch (error) {
-      console.warn('⚠️ KV存储不可用，将使用本地存储模式');
       return false;
     }
   }

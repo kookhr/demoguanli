@@ -17,9 +17,7 @@ class UserManager {
       // 获取所有用户数据
       await this.loadAllUsers();
       this.initialized = true;
-      console.log('👥 用户管理器初始化完成');
     } catch (error) {
-      console.error('❌ 用户管理器初始化失败:', error);
       this.initialized = true;
     }
   }
@@ -29,7 +27,6 @@ class UserManager {
     this.initialized = false;
     this.users.clear();
     await this.init();
-    console.log('🔄 用户管理器已强制重新初始化');
   }
 
   // 加载所有用户数据
@@ -46,17 +43,15 @@ class UserManager {
               this.users.set(username, userData);
             }
           } catch (error) {
-            console.warn(`⚠️ 无法加载用户 ${username} 的数据:`, error);
+            // 静默处理错误
           }
         }
       } else {
         // 如果没有用户列表，尝试扫描已知用户
-        console.log('📋 用户列表为空，尝试扫描已知用户...');
         await this.scanExistingUsers();
       }
     } catch (error) {
       // KV存储不可用时，从本地存储加载
-      console.warn('⚠️ KV存储不可用，从本地存储加载用户数据');
       this.loadUsersFromLocalStorage();
     }
   }
@@ -119,12 +114,10 @@ class UserManager {
     if (existingUser) {
       // 更新用户数据
       this.users.set(username, userData);
-      console.log('📝 用户数据已更新:', username);
     } else {
       // 添加新用户
       this.users.set(username, userData);
       await this.saveUserList();
-      console.log('👤 用户已添加到管理器:', username);
     }
   }
 
@@ -165,8 +158,7 @@ class UserManager {
     
     // 更新本地缓存
     this.users.set(username, updatedUser);
-    
-    console.log('📝 用户信息已更新:', username);
+
     return updatedUser;
   }
 
@@ -188,7 +180,7 @@ class UserManager {
     try {
       await kvApi.delete(`user_${username}`);
     } catch (error) {
-      console.warn('⚠️ 无法从KV存储删除用户:', error);
+      // 静默处理错误
     }
 
     // 从本地缓存删除
@@ -196,8 +188,7 @@ class UserManager {
     
     // 更新用户列表
     await this.saveUserList();
-    
-    console.log('🗑️ 用户已删除:', username);
+
     return true;
   }
 

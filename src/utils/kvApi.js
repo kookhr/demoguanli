@@ -7,7 +7,6 @@ class KVApiClient {
   // 获取数据
   async get(key, type = 'json') {
     try {
-      console.log('📡 KV GET 请求:', key);
       const response = await fetch(`${this.baseUrl}?action=get&key=${encodeURIComponent(key)}`);
 
       if (!response.ok) {
@@ -15,7 +14,6 @@ class KVApiClient {
       }
 
       const result = await response.json();
-      console.log('📡 KV GET 响应:', result);
 
       if (result.success) {
         return result.data;
@@ -23,7 +21,6 @@ class KVApiClient {
         throw new Error(result.error || 'KV GET 操作失败');
       }
     } catch (error) {
-      console.error('❌ KV GET 错误:', error);
       throw error;
     }
   }
@@ -31,7 +28,6 @@ class KVApiClient {
   // 存储数据
   async put(key, value) {
     try {
-      console.log('📡 KV PUT 请求:', key, '数据长度:', JSON.stringify(value).length);
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
@@ -49,7 +45,6 @@ class KVApiClient {
       }
 
       const result = await response.json();
-      console.log('📡 KV PUT 响应:', result);
 
       if (!result.success) {
         throw new Error(result.error || 'KV PUT 操作失败');
@@ -57,7 +52,6 @@ class KVApiClient {
 
       return true;
     } catch (error) {
-      console.error('❌ KV PUT 错误:', error);
       throw error;
     }
   }
@@ -84,7 +78,6 @@ class KVApiClient {
 
       return true;
     } catch (error) {
-      console.error('KV DELETE 错误:', error);
       throw error;
     }
   }
