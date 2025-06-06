@@ -147,6 +147,15 @@ export const checkEnvironmentStatusWithProxy = async (environment) => {
 const tryStandardRequest = async (environment, startTime) => {
   const config = getCheckConfig();
 
+  // 检查是否是混合内容问题（HTTPS页面访问HTTP资源）
+  const isMixedContent = window.location.protocol === 'https:' && environment.url.startsWith('http:');
+
+  if (isMixedContent) {
+    // 对于混合内容，浏览器会阻止请求，直接跳过标准请求
+    console.log(`跳过混合内容检测: ${environment.url} (HTTPS页面无法访问HTTP资源)`);
+    return null;
+  }
+
   for (const method of config.methods) {
     try {
       const controller = new AbortController();
@@ -248,6 +257,26 @@ const tryEnhancedStaticProbe = async (environment, startTime) => {
   const config = getCheckConfig();
   const baseUrl = getBaseUrl(environment.url);
 
+  // 检查是否是混合内容问题
+  const isMixedContent = window.location.protocol === 'https:' && baseUrl.startsWith('http:');
+
+  if (isMixedContent) {
+    // 对于混合内容，图片加载也会被阻止，但我们可以尝试特殊处理
+    console.log(`混合内容静态资源检测: ${baseUrl} (可能被浏览器阻止)`);
+
+    // 返回一个特殊状态，表明这是混合内容问题
+    const responseTime = Date.now() - startTime;
+    return {
+      id: environment.id,
+      status: 'mixed-content',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: '混合内容限制：HTTPS页面无法访问HTTP资源',
+      method: 'mixed-content-blocked',
+      statusCode: null
+    };
+  }
+
   // 尝试多种静态资源
   for (const staticPath of config.staticPaths) {
     try {
@@ -278,6 +307,24 @@ const tryEnhancedStaticProbe = async (environment, startTime) => {
 
 // 策略3: 智能连通性检测（最后备用）
 const trySmartConnectivityCheck = async (environment, startTime) => {
+  // 检查是否是混合内容问题
+  const isMixedContent = window.location.protocol === 'https:' && environment.url.startsWith('http:');
+
+  if (isMixedContent) {
+    // 对于混合内容，即使是 no-cors 模式也会被阻止
+    console.log(`混合内容连通性检测被跳过: ${environment.url}`);
+    const responseTime = Date.now() - startTime;
+    return {
+      id: environment.id,
+      status: 'mixed-content',
+      responseTime,
+      lastChecked: new Date().toISOString(),
+      error: '混合内容限制：HTTPS页面无法访问HTTP资源',
+      method: 'mixed-content-blocked',
+      statusCode: null
+    };
+  }
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);

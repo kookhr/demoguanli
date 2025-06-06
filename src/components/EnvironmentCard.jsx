@@ -127,6 +127,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
       case 'offline': return "服务不可达";
       case 'timeout': return "连接超时";
       case 'blocked': return "Mixed Content阻止访问";
+      case 'mixed-content': return "混合内容限制：HTTPS页面无法访问HTTP资源";
       case 'cors-blocked': return "跨域访问受限";
       case 'cors-bypassed': return "通过CORS规避策略检测可达";
       case 'image-reachable': return "通过图片探测确认可达";
@@ -174,6 +175,14 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           bg: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700',
           text: '被阻止',
           description: 'Mixed Content阻止'
+        };
+      case 'mixed-content':
+        return {
+          icon: Shield,
+          color: 'text-amber-600 dark:text-amber-400',
+          bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700',
+          text: '混合内容限制',
+          description: 'HTTPS页面无法访问HTTP资源'
         };
 
       case 'cors-bypassed':
@@ -303,6 +312,8 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         return 'border-warning-500 dark:border-warning-400';
       case 'blocked':
         return 'border-purple-500 dark:border-purple-400';
+      case 'mixed-content':
+        return 'border-amber-500 dark:border-amber-400';
       default:
         return 'border-gray-300 dark:border-gray-600';
     }
