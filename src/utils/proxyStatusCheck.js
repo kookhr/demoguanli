@@ -140,6 +140,9 @@ const categorizeStatus = (statusCode) => {
   }
 };
 
+// 导入混合内容解决方案
+import { detectMixedContentService } from './mixedContentSolution.js';
+
 // 主要检测函数 - 简化版（移除健康检查、WebSocket、JSONP策略）
 export const checkEnvironmentStatusWithProxy = async (environment) => {
   const startTime = Date.now();
@@ -149,17 +152,9 @@ export const checkEnvironmentStatusWithProxy = async (environment) => {
     const isMixedContent = checkMixedContent(environment.url);
 
     if (isMixedContent) {
-      // 对于混合内容，直接返回相应状态，不尝试任何网络请求
-      const responseTime = Date.now() - startTime;
-      return {
-        id: environment.id,
-        status: 'mixed-content',
-        responseTime,
-        lastChecked: new Date().toISOString(),
-        error: '混合内容限制：HTTPS页面无法访问HTTP资源',
-        method: 'mixed-content-blocked',
-        statusCode: null
-      };
+      // 对于混合内容，使用专门的检测方案
+      console.log(`检测到混合内容场景，启用专用检测方案: ${environment.url}`);
+      return await detectMixedContentService(environment);
     }
 
     // 策略1: 标准CORS请求（优先策略 - 获取真实状态码）

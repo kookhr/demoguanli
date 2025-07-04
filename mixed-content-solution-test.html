@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>混合内容解决方案测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .test-section {
+            background: white;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; color: #856404; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .url-input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .url-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online { background-color: #28a745; }
+        .status-offline { background-color: #dc3545; }
+        .status-warning { background-color: #ffc107; }
+        .status-info { background-color: #17a2b8; }
+        
+        .log { 
+            max-height: 400px; 
+            overflow-y: auto; 
+            font-size: 13px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 6px;
+        }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔒 混合内容解决方案测试</h1>
+        <p>验证HTTPS页面访问HTTP服务的技术解决方案</p>
+        <p><strong>当前页面协议：</strong><span id="protocol"></span></p>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 测试目标配置</h3>
+        <input type="text" id="target-url" class="url-input" 
+               placeholder="输入要测试的HTTP服务URL (如: http://10.0.0.192:10800/)" 
+               value="http://10.0.0.192:10800/">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span class="status-indicator" id="url-status"></span>
+            <span id="url-analysis">请输入URL进行分析</span>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="test-section">
+            <h3>🔍 传统检测方法</h3>
+            <p>使用标准fetch API进行检测（预期会失败）</p>
+            <button onclick="testTraditionalMethod()">测试传统方法</button>
+            <div id="traditional-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🚀 混合内容解决方案</h3>
+            <p>使用我们的综合检测方案</p>
+            <button onclick="testMixedContentSolution()">测试解决方案</button>
+            <div id="solution-result" class="result"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>📊 详细检测结果</h3>
+        <div id="detailed-results" class="result info">
+            等待检测结果...
+        </div>
+        <div class="confidence-bar">
+            <div class="confidence-fill" id="confidence-fill" style="width: 0%"></div>
+        </div>
+        <p><strong>置信度：</strong><span id="confidence-text">0%</span></p>
+    </div>
+
+    <div class="test-section">
+        <h3>📝 测试日志</h3>
+        <div id="log" class="log"></div>
+        <button onclick="clearLog()">清空日志</button>
+        <button onclick="exportResults()">导出结果</button>
+    </div>
+
+    <script type="module">
+        document.getElementById('protocol').textContent = window.location.protocol;
+
+        let testResults = {};
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            logDiv.textContent += `[${timestamp}] ${icon} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+            log('日志已清空');
+        }
+
+        function updateUrlAnalysis() {
+            const url = document.getElementById('target-url').value;
+            const statusIndicator = document.getElementById('url-status');
+            const analysisText = document.getElementById('url-analysis');
+            
+            if (!url) {
+                statusIndicator.className = 'status-indicator';
+                analysisText.textContent = '请输入URL进行分析';
+                return;
+            }
+
+            try {
+                const urlObj = new URL(url);
+                const isMixedContent = window.location.protocol === 'https:' && url.startsWith('http:');
+                
+                if (isMixedContent) {
+                    statusIndicator.className = 'status-indicator status-warning';
+                    analysisText.textContent = `混合内容场景：HTTPS页面访问HTTP服务 (${urlObj.hostname}:${urlObj.port})`;
+                } else if (url.startsWith('https:')) {
+                    statusIndicator.className = 'status-indicator status-online';
+                    analysisText.textContent = `HTTPS服务，无混合内容问题`;
+                } else {
+                    statusIndicator.className = 'status-indicator status-info';
+                    analysisText.textContent = `HTTP服务，当前页面也是HTTP，无混合内容问题`;
+                }
+            } catch (error) {
+                statusIndicator.className = 'status-indicator status-offline';
+                analysisText.textContent = `URL格式错误：${error.message}`;
+            }
+        }
+
+        // 监听URL输入变化
+        document.getElementById('target-url').addEventListener('input', updateUrlAnalysis);
+        updateUrlAnalysis();
+
+        // 传统检测方法
+        window.testTraditionalMethod = async function() {
+            const resultDiv = document.getElementById('traditional-result');
+            const url = document.getElementById('target-url').value;
+            
+            if (!url) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ 请输入测试URL';
+                return;
+            }
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在使用传统方法检测...';
+            log(`开始传统检测: ${url}`);
+
+            try {
+                const startTime = Date.now();
+                const response = await fetch(url, {
+                    method: 'HEAD',
+                    mode: 'cors',
+                    cache: 'no-cache'
+                });
+                const responseTime = Date.now() - startTime;
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = 
+                    `✅ 传统方法检测成功\n` +
+                    `状态码: ${response.status} ${response.statusText}\n` +
+                    `响应时间: ${responseTime}ms`;
+                
+                log(`传统检测成功: ${response.status} ${response.statusText} (${responseTime}ms)`, 'success');
+                testResults.traditional = { success: true, status: response.status, time: responseTime };
+
+            } catch (error) {
+                const responseTime = Date.now() - startTime;
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 
+                    `❌ 传统方法检测失败\n` +
+                    `错误: ${error.message}\n` +
+                    `这是预期的结果（混合内容限制）`;
+                
+                log(`传统检测失败: ${error.message}`, 'error');
+                testResults.traditional = { success: false, error: error.message, time: responseTime };
+            }
+        };
+
+        // 混合内容解决方案测试
+        window.testMixedContentSolution = async function() {
+            const resultDiv = document.getElementById('solution-result');
+            const detailedDiv = document.getElementById('detailed-results');
+            const url = document.getElementById('target-url').value;
+            
+            if (!url) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ 请输入测试URL';
+                return;
+            }
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在使用混合内容解决方案检测...';
+            detailedDiv.className = 'result info';
+            detailedDiv.textContent = '检测进行中...';
+            log(`开始混合内容解决方案检测: ${url}`);
+
+            try {
+                // 模拟环境对象
+                const environment = { id: 'test', url: url, name: 'Test Service' };
+                
+                // 这里需要导入实际的检测函数
+                // 由于是在HTML中，我们模拟检测过程
+                const result = await simulateMixedContentDetection(environment);
+                
+                // 更新结果显示
+                updateSolutionResults(result, resultDiv, detailedDiv);
+                testResults.solution = result;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ 解决方案检测失败: ${error.message}`;
+                log(`解决方案检测失败: ${error.message}`, 'error');
+            }
+        };
+
+        // 模拟混合内容检测（实际项目中会调用真实的检测函数）
+        async function simulateMixedContentDetection(environment) {
+            const startTime = Date.now();
+            
+            // 检查是否是混合内容场景
+            const isMixedContent = window.location.protocol === 'https:' && environment.url.startsWith('http:');
+            
+            if (!isMixedContent) {
+                return {
+                    id: environment.id,
+                    status: 'not-mixed-content',
+                    responseTime: Date.now() - startTime,
+                    lastChecked: new Date().toISOString(),
+                    error: null,
+                    method: 'mixed-content-check',
+                    confidence: 1.0,
+                    details: '非混合内容场景，可以使用标准检测方法'
+                };
+            }
+
+            log('检测到混合内容场景，启用专用检测方案');
+
+            // 模拟多种检测方法
+            const detectionResults = await Promise.allSettled([
+                simulateImageProbe(environment.url),
+                simulateScriptProbe(environment.url),
+                simulateWebSocketProbe(environment.url),
+                simulateTimingAnalysis(environment.url)
+            ]);
+
+            // 分析结果
+            const analysis = analyzeSimulatedResults(detectionResults);
+            
+            return {
+                id: environment.id,
+                status: analysis.status,
+                responseTime: Date.now() - startTime,
+                lastChecked: new Date().toISOString(),
+                error: analysis.error,
+                method: analysis.method,
+                confidence: analysis.confidence,
+                details: analysis.details
+            };
+        }
+
+        // 模拟检测方法
+        async function simulateImageProbe(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                const startTime = Date.now();
+                
+                img.onload = () => {
+                    log('图片探测成功', 'success');
+                    resolve({ method: 'image-probe', success: true, time: Date.now() - startTime });
+                };
+                
+                img.onerror = () => {
+                    log('图片探测失败');
+                    resolve({ method: 'image-probe', success: false, time: Date.now() - startTime });
+                };
+
+                setTimeout(() => {
+                    resolve({ method: 'image-probe', success: false, time: Date.now() - startTime, timeout: true });
+                }, 3000);
+
+                img.src = url + 'favicon.ico?_test=' + Date.now();
+            });
+        }
+
+        async function simulateScriptProbe(url) {
+            return new Promise((resolve) => {
+                const script = document.createElement('script');
+                const startTime = Date.now();
+                
+                script.onload = () => {
+                    log('脚本探测成功', 'success');
+                    document.head.removeChild(script);
+                    resolve({ method: 'script-probe', success: true, time: Date.now() - startTime });
+                };
+                
+                script.onerror = () => {
+                    log('脚本探测失败');
+                    document.head.removeChild(script);
+                    resolve({ method: 'script-probe', success: false, time: Date.now() - startTime });
+                };
+
+                setTimeout(() => {
+                    if (script.parentNode) {
+                        document.head.removeChild(script);
+                        resolve({ method: 'script-probe', success: false, time: Date.now() - startTime, timeout: true });
+                    }
+                }, 3000);
+
+                script.src = url + 'js/test.js?_test=' + Date.now();
+                document.head.appendChild(script);
+            });
+        }
+
+        async function simulateWebSocketProbe(url) {
+            return new Promise((resolve) => {
+                try {
+                    const wsUrl = url.replace('http://', 'ws://');
+                    const ws = new WebSocket(wsUrl);
+                    const startTime = Date.now();
+                    
+                    ws.onopen = () => {
+                        log('WebSocket探测成功', 'success');
+                        ws.close();
+                        resolve({ method: 'websocket-probe', success: true, time: Date.now() - startTime });
+                    };
+                    
+                    ws.onerror = () => {
+                        log('WebSocket探测失败');
+                        resolve({ method: 'websocket-probe', success: false, time: Date.now() - startTime });
+                    };
+
+                    setTimeout(() => {
+                        if (ws.readyState === WebSocket.CONNECTING) {
+                            ws.close();
+                            resolve({ method: 'websocket-probe', success: false, time: Date.now() - startTime, timeout: true });
+                        }
+                    }, 3000);
+
+                } catch (error) {
+                    log(`WebSocket探测异常: ${error.message}`, 'error');
+                    resolve({ method: 'websocket-probe', success: false, time: 0, error: error.message });
+                }
+            });
+        }
+
+        async function simulateTimingAnalysis(url) {
+            const tests = [];
+            const testCount = 3;
+            
+            for (let i = 0; i < testCount; i++) {
+                await new Promise(resolve => {
+                    const img = new Image();
+                    const startTime = performance.now();
+                    
+                    img.onload = () => {
+                        tests.push({ success: true, time: performance.now() - startTime });
+                        resolve();
+                    };
+                    
+                    img.onerror = () => {
+                        tests.push({ success: false, time: performance.now() - startTime });
+                        resolve();
+                    };
+
+                    setTimeout(() => {
+                        tests.push({ success: false, time: performance.now() - startTime, timeout: true });
+                        resolve();
+                    }, 2000);
+
+                    img.src = url + `favicon.ico?_timing_${i}_${Date.now()}`;
+                });
+            }
+
+            const failureTimes = tests.filter(t => !t.success).map(t => t.time);
+            const avgFailureTime = failureTimes.length > 0 ? failureTimes.reduce((a, b) => a + b, 0) / failureTimes.length : 0;
+            const isFastFailure = avgFailureTime < 100;
+
+            log(`时间差分析完成: 平均失败时间 ${avgFailureTime.toFixed(2)}ms`);
+
+            return {
+                method: 'timing-analysis',
+                success: tests.some(t => t.success),
+                fastFailure: isFastFailure && failureTimes.length > 0,
+                averageFailureTime: avgFailureTime,
+                details: tests
+            };
+        }
+
+        function analyzeSimulatedResults(detectionResults) {
+            const results = detectionResults
+                .filter(result => result.status === 'fulfilled' && result.value)
+                .map(result => result.value);
+            
+            if (results.length === 0) {
+                return {
+                    status: 'mixed-content-detection-failed',
+                    error: '所有检测方法均失败',
+                    method: 'mixed-content-analysis',
+                    confidence: 0,
+                    details: 'No detection methods succeeded'
+                };
+            }
+            
+            const successfulMethods = results.filter(r => r.success);
+            const timingResult = results.find(r => r.method === 'timing-analysis');
+            
+            if (successfulMethods.length > 0) {
+                return {
+                    status: 'mixed-content-service-reachable',
+                    error: null,
+                    method: 'mixed-content-bypass',
+                    confidence: Math.min(0.9, successfulMethods.length / results.length),
+                    details: `通过 ${successfulMethods.map(m => m.method).join(', ')} 检测到服务可达`
+                };
+            }
+            
+            if (timingResult && timingResult.fastFailure) {
+                return {
+                    status: 'mixed-content-service-restricted',
+                    error: '服务可能在线但拒绝HTTP连接',
+                    method: 'mixed-content-timing-analysis',
+                    confidence: 0.6,
+                    details: `平均失败时间: ${timingResult.averageFailureTime.toFixed(2)}ms (快速失败模式)`
+                };
+            }
+            
+            return {
+                status: 'mixed-content-service-unreachable',
+                error: '服务不可达或离线',
+                method: 'mixed-content-analysis',
+                confidence: 0.8,
+                details: '所有检测方法均表明服务不可达'
+            };
+        }
+
+        function updateSolutionResults(result, resultDiv, detailedDiv) {
+            // 更新主要结果
+            let resultClass = 'result ';
+            let statusIcon = '';
+            
+            switch (result.status) {
+                case 'mixed-content-service-reachable':
+                    resultClass += 'success';
+                    statusIcon = '✅';
+                    break;
+                case 'mixed-content-service-restricted':
+                    resultClass += 'warning';
+                    statusIcon = '⚠️';
+                    break;
+                case 'mixed-content-service-unreachable':
+                    resultClass += 'error';
+                    statusIcon = '❌';
+                    break;
+                default:
+                    resultClass += 'info';
+                    statusIcon = 'ℹ️';
+            }
+
+            resultDiv.className = resultClass;
+            resultDiv.textContent = 
+                `${statusIcon} 混合内容解决方案检测完成\n` +
+                `状态: ${result.status}\n` +
+                `响应时间: ${result.responseTime}ms\n` +
+                `置信度: ${(result.confidence * 100).toFixed(1)}%\n` +
+                `方法: ${result.method}`;
+
+            // 更新详细结果
+            detailedDiv.className = resultClass;
+            detailedDiv.textContent = 
+                `详细检测结果:\n\n` +
+                `状态: ${result.status}\n` +
+                `错误信息: ${result.error || '无'}\n` +
+                `检测方法: ${result.method}\n` +
+                `置信度: ${(result.confidence * 100).toFixed(1)}%\n` +
+                `详细信息: ${result.details}\n` +
+                `检测时间: ${result.lastChecked}`;
+
+            // 更新置信度条
+            const confidenceFill = document.getElementById('confidence-fill');
+            const confidenceText = document.getElementById('confidence-text');
+            confidenceFill.style.width = `${result.confidence * 100}%`;
+            confidenceText.textContent = `${(result.confidence * 100).toFixed(1)}%`;
+
+            log(`检测完成: ${result.status} (置信度: ${(result.confidence * 100).toFixed(1)}%)`, 
+                result.confidence > 0.7 ? 'success' : result.confidence > 0.4 ? 'warning' : 'error');
+        }
+
+        window.exportResults = function() {
+            const results = {
+                timestamp: new Date().toISOString(),
+                testUrl: document.getElementById('target-url').value,
+                pageProtocol: window.location.protocol,
+                traditional: testResults.traditional || null,
+                solution: testResults.solution || null,
+                userAgent: navigator.userAgent
+            };
+
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mixed-content-test-results-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            log('测试结果已导出', 'success');
+        };
+
+        // 页面加载时的初始化
+        log('混合内容解决方案测试页面已加载');
+        log(`当前页面协议: ${window.location.protocol}`);
+        log(`浏览器: ${navigator.userAgent}`);
+    </script>
+</body>
+</html>

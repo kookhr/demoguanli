@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>间接网络检测方法测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #6f42c1;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; }
+        button {
+            background-color: #6f42c1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #5a32a3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .log {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .url-input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <h1>间接网络检测方法技术验证</h1>
+    <p><strong>目标：</strong>探索绕过混合内容限制的间接检测方法</p>
+    <p><strong>当前页面协议：</strong><span id="protocol"></span></p>
+
+    <div class="test-section">
+        <h3>测试目标配置</h3>
+        <input type="text" id="target-host" class="url-input" placeholder="目标主机 (如: 10.0.0.192)" value="10.0.0.192">
+        <input type="text" id="target-port" class="url-input" placeholder="目标端口 (如: 10800)" value="10800">
+        <p><strong>完整URL：</strong><span id="full-url">http://10.0.0.192:10800/</span></p>
+    </div>
+
+    <div class="grid">
+        <div class="test-section">
+            <h3>1. 图片资源探测</h3>
+            <p>通过图片加载检测服务可达性</p>
+            <button onclick="testImageProbe()">测试图片探测</button>
+            <div id="image-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. 脚本资源探测</h3>
+            <p>通过脚本加载检测服务可达性</p>
+            <button onclick="testScriptProbe()">测试脚本探测</button>
+            <div id="script-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. CSS资源探测</h3>
+            <p>通过CSS加载检测服务可达性</p>
+            <button onclick="testCSSProbe()">测试CSS探测</button>
+            <div id="css-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. iframe探测</h3>
+            <p>通过iframe加载检测服务可达性</p>
+            <button onclick="testIframeProbe()">测试iframe探测</button>
+            <div id="iframe-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. WebSocket探测</h3>
+            <p>通过WebSocket连接检测服务可达性</p>
+            <button onclick="testWebSocketProbe()">测试WebSocket探测</button>
+            <div id="websocket-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. 时间差分析</h3>
+            <p>通过请求时间差分析服务状态</p>
+            <button onclick="testTimingAnalysis()">测试时间差分析</button>
+            <div id="timing-result" class="result"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>7. 综合检测策略</h3>
+        <p>结合多种方法进行综合检测</p>
+        <button onclick="testComprehensiveDetection()">运行综合检测</button>
+        <div id="comprehensive-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>测试日志</h3>
+        <div id="log" class="log"></div>
+        <button onclick="clearLog()">清空日志</button>
+    </div>
+
+    <script>
+        document.getElementById('protocol').textContent = window.location.protocol;
+
+        function updateFullUrl() {
+            const host = document.getElementById('target-host').value;
+            const port = document.getElementById('target-port').value;
+            const fullUrl = `http://${host}:${port}/`;
+            document.getElementById('full-url').textContent = fullUrl;
+            return fullUrl;
+        }
+
+        document.getElementById('target-host').addEventListener('input', updateFullUrl);
+        document.getElementById('target-port').addEventListener('input', updateFullUrl);
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function getTargetUrl() {
+            return updateFullUrl();
+        }
+
+        // 1. 图片资源探测
+        function testImageProbe() {
+            const resultDiv = document.getElementById('image-result');
+            const baseUrl = getTargetUrl();
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在进行图片探测...';
+
+            const imagePaths = [
+                'favicon.ico',
+                'favicon.png',
+                'logo.png',
+                'apple-touch-icon.png',
+                'robots.txt', // 虽然不是图片，但可以通过Image对象尝试加载
+                'manifest.json'
+            ];
+
+            let successCount = 0;
+            let errorCount = 0;
+            let totalTests = imagePaths.length;
+            const results = [];
+
+            imagePaths.forEach((path, index) => {
+                const img = new Image();
+                const startTime = Date.now();
+                const testUrl = baseUrl + path;
+
+                img.onload = () => {
+                    const responseTime = Date.now() - startTime;
+                    successCount++;
+                    results.push(`✅ ${path}: 加载成功 (${responseTime}ms)`);
+                    log(`图片探测成功: ${testUrl} (${responseTime}ms)`);
+                    updateImageResult();
+                };
+
+                img.onerror = () => {
+                    const responseTime = Date.now() - startTime;
+                    errorCount++;
+                    results.push(`❌ ${path}: 加载失败 (${responseTime}ms)`);
+                    log(`图片探测失败: ${testUrl} (${responseTime}ms)`);
+                    updateImageResult();
+                };
+
+                // 设置超时
+                setTimeout(() => {
+                    if (!img.complete) {
+                        errorCount++;
+                        results.push(`⏰ ${path}: 超时`);
+                        updateImageResult();
+                    }
+                }, 5000);
+
+                img.src = testUrl + '?_t=' + Date.now();
+            });
+
+            function updateImageResult() {
+                if (successCount + errorCount >= totalTests) {
+                    if (successCount > 0) {
+                        resultDiv.className = 'result success';
+                        resultDiv.textContent =
+                            `✅ 图片探测完成\n` +
+                            `成功: ${successCount}/${totalTests}\n` +
+                            `结果表明服务可能在线\n\n` +
+                            results.join('\n');
+                    } else {
+                        resultDiv.className = 'result error';
+                        resultDiv.textContent =
+                            `❌ 图片探测完成\n` +
+                            `成功: ${successCount}/${totalTests}\n` +
+                            `服务可能离线或不支持这些资源\n\n` +
+                            results.join('\n');
+                    }
+                }
+            }
+        }
+
+        // 2. 脚本资源探测
+        function testScriptProbe() {
+            const resultDiv = document.getElementById('script-result');
+            const baseUrl = getTargetUrl();
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在进行脚本探测...';
+
+            const scriptPaths = [
+                'js/app.js',
+                'js/main.js',
+                'static/js/main.js',
+                'assets/js/app.js',
+                'script.js'
+            ];
+
+            let successCount = 0;
+            let errorCount = 0;
+            let totalTests = scriptPaths.length;
+            const results = [];
+
+            scriptPaths.forEach((path, index) => {
+                const script = document.createElement('script');
+                const startTime = Date.now();
+                const testUrl = baseUrl + path;
+
+                script.onload = () => {
+                    const responseTime = Date.now() - startTime;
+                    successCount++;
+                    results.push(`✅ ${path}: 加载成功 (${responseTime}ms)`);
+                    log(`脚本探测成功: ${testUrl} (${responseTime}ms)`);
+                    updateScriptResult();
+                    document.head.removeChild(script);
+                };
+
+                script.onerror = () => {
+                    const responseTime = Date.now() - startTime;
+                    errorCount++;
+                    results.push(`❌ ${path}: 加载失败 (${responseTime}ms)`);
+                    log(`脚本探测失败: ${testUrl} (${responseTime}ms)`);
+                    updateScriptResult();
+                    document.head.removeChild(script);
+                };
+
+                script.src = testUrl + '?_t=' + Date.now();
+                document.head.appendChild(script);
+
+                // 设置超时
+                setTimeout(() => {
+                    if (script.parentNode) {
+                        errorCount++;
+                        results.push(`⏰ ${path}: 超时`);
+                        updateScriptResult();
+                        document.head.removeChild(script);
+                    }
+                }, 5000);
+            });
+
+            function updateScriptResult() {
+                if (successCount + errorCount >= totalTests) {
+                    if (successCount > 0) {
+                        resultDiv.className = 'result success';
+                        resultDiv.textContent =
+                            `✅ 脚本探测完成\n` +
+                            `成功: ${successCount}/${totalTests}\n` +
+                            `结果表明服务可能在线\n\n` +
+                            results.join('\n');
+                    } else {
+                        resultDiv.className = 'result error';
+                        resultDiv.textContent =
+                            `❌ 脚本探测完成\n` +
+                            `成功: ${successCount}/${totalTests}\n` +
+                            `服务可能离线或不支持这些资源\n\n` +
+                            results.join('\n');
+                    }
+                }
+            }
+        }
+
+        // 3. CSS资源探测
+        function testCSSProbe() {
+            const resultDiv = document.getElementById('css-result');
+            const baseUrl = getTargetUrl();
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在进行CSS探测...';
+
+            const cssPaths = [
+                'css/style.css',
+                'css/main.css',
+                'static/css/main.css',
+                'assets/css/app.css',
+                'style.css'
+            ];
+
+            let successCount = 0;
+            let errorCount = 0;
+            let totalTests = cssPaths.length;
+            const results = [];
+
+            cssPaths.forEach((path, index) => {
+                const link = document.createElement('link');
+                const startTime = Date.now();
+                const testUrl = baseUrl + path;
+
+                link.rel = 'stylesheet';
+                link.type = 'text/css';
+
+                link.onload = () => {
+                    const responseTime = Date.now() - startTime;
+                    successCount++;
+                    results.push(`✅ ${path}: 加载成功 (${responseTime}ms)`);
+                    log(`CSS探测成功: ${testUrl} (${responseTime}ms)`);
+                    updateCSSResult();
+                    document.head.removeChild(link);
+                };
+
+                link.onerror = () => {
+                    const responseTime = Date.now() - startTime;
+                    errorCount++;
+                    results.push(`❌ ${path}: 加载失败 (${responseTime}ms)`);
+                    log(`CSS探测失败: ${testUrl} (${responseTime}ms)`);
+                    updateCSSResult();
+                    document.head.removeChild(link);
+                };
+
+                link.href = testUrl + '?_t=' + Date.now();
+                document.head.appendChild(link);
+
+                // 设置超时
+                setTimeout(() => {
+                    if (link.parentNode) {
+                        errorCount++;
+                        results.push(`⏰ ${path}: 超时`);
+                        updateCSSResult();
+                        document.head.removeChild(link);
+                    }
+                }, 5000);
+            });
+
+            function updateCSSResult() {
+                if (successCount + errorCount >= totalTests) {
+                    if (successCount > 0) {
+                        resultDiv.className = 'result success';
+                        resultDiv.textContent =
+                            `✅ CSS探测完成\n` +
+                            `成功: ${successCount}/${totalTests}\n` +
+                            `结果表明服务可能在线\n\n` +
+                            results.join('\n');
+                    } else {
+                        resultDiv.className = 'result error';
+                        resultDiv.textContent =
+                            `❌ CSS探测完成\n` +
+                            `成功: ${successCount}/${totalTests}\n` +
+                            `服务可能离线或不支持这些资源\n\n` +
+                            results.join('\n');
+                    }
+                }
+            }
+        }
+
+        // 4. iframe探测
+        function testIframeProbe() {
+            const resultDiv = document.getElementById('iframe-result');
+            const baseUrl = getTargetUrl();
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在进行iframe探测...';
+
+            const iframe = document.createElement('iframe');
+            const startTime = Date.now();
+
+            iframe.style.display = 'none';
+            iframe.src = baseUrl + '?_t=' + Date.now();
+
+            let completed = false;
+
+            iframe.onload = () => {
+                if (!completed) {
+                    completed = true;
+                    const responseTime = Date.now() - startTime;
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent =
+                        `✅ iframe探测成功\n` +
+                        `URL: ${baseUrl}\n` +
+                        `响应时间: ${responseTime}ms\n` +
+                        `服务可能在线`;
+                    log(`iframe探测成功: ${baseUrl} (${responseTime}ms)`);
+                    document.body.removeChild(iframe);
+                }
+            };
+
+            iframe.onerror = () => {
+                if (!completed) {
+                    completed = true;
+                    const responseTime = Date.now() - startTime;
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent =
+                        `❌ iframe探测失败\n` +
+                        `URL: ${baseUrl}\n` +
+                        `响应时间: ${responseTime}ms\n` +
+                        `服务可能离线`;
+                    log(`iframe探测失败: ${baseUrl} (${responseTime}ms)`);
+                    document.body.removeChild(iframe);
+                }
+            };
+
+            document.body.appendChild(iframe);
+
+            // 设置超时
+            setTimeout(() => {
+                if (!completed) {
+                    completed = true;
+                    resultDiv.className = 'result warning';
+                    resultDiv.textContent =
+                        `⏰ iframe探测超时\n` +
+                        `URL: ${baseUrl}\n` +
+                        `可能由于混合内容限制或服务响应慢`;
+                    log(`iframe探测超时: ${baseUrl}`);
+                    document.body.removeChild(iframe);
+                }
+            }, 10000);
+        }
+
+        // 5. WebSocket探测
+        function testWebSocketProbe() {
+            const resultDiv = document.getElementById('websocket-result');
+            const host = document.getElementById('target-host').value;
+            const port = document.getElementById('target-port').value;
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在进行WebSocket探测...';
+
+            // 尝试不同的WebSocket协议
+            const wsUrls = [
+                `ws://${host}:${port}/`,
+                `ws://${host}:${port}/ws`,
+                `ws://${host}:${port}/websocket`,
+                `wss://${host}:${port}/`,
+                `wss://${host}:${port}/ws`
+            ];
+
+            let successCount = 0;
+            let errorCount = 0;
+            let totalTests = wsUrls.length;
+            const results = [];
+
+            wsUrls.forEach((wsUrl, index) => {
+                const startTime = Date.now();
+
+                try {
+                    const ws = new WebSocket(wsUrl);
+
+                    ws.onopen = () => {
+                        const responseTime = Date.now() - startTime;
+                        successCount++;
+                        results.push(`✅ ${wsUrl}: 连接成功 (${responseTime}ms)`);
+                        log(`WebSocket连接成功: ${wsUrl} (${responseTime}ms)`);
+                        ws.close();
+                        updateWSResult();
+                    };
+
+                    ws.onerror = () => {
+                        const responseTime = Date.now() - startTime;
+                        errorCount++;
+                        results.push(`❌ ${wsUrl}: 连接失败 (${responseTime}ms)`);
+                        log(`WebSocket连接失败: ${wsUrl} (${responseTime}ms)`);
+                        updateWSResult();
+                    };
+
+                    ws.onclose = () => {
+                        // 连接关闭，但这可能意味着服务器存在
+                        if (ws.readyState === WebSocket.CLOSED && !results.some(r => r.includes(wsUrl))) {
+                            const responseTime = Date.now() - startTime;
+                            errorCount++;
+                            results.push(`🔒 ${wsUrl}: 连接被关闭 (${responseTime}ms)`);
+                            log(`WebSocket连接被关闭: ${wsUrl} (${responseTime}ms)`);
+                            updateWSResult();
+                        }
+                    };
+
+                    // 设置超时
+                    setTimeout(() => {
+                        if (ws.readyState === WebSocket.CONNECTING) {
+                            ws.close();
+                            errorCount++;
+                            results.push(`⏰ ${wsUrl}: 连接超时`);
+                            updateWSResult();
+                        }
+                    }, 5000);
+
+                } catch (error) {
+                    errorCount++;
+                    results.push(`❌ ${wsUrl}: 异常 - ${error.message}`);
+                    log(`WebSocket异常: ${wsUrl} - ${error.message}`);
+                    updateWSResult();
+                }
+            });
+
+            function updateWSResult() {
+                if (successCount + errorCount >= totalTests) {
+                    if (successCount > 0) {
+                        resultDiv.className = 'result success';
+                        resultDiv.textContent =
+                            `✅ WebSocket探测完成\n` +
+                            `成功: ${successCount}/${totalTests}\n` +
+                            `发现WebSocket服务\n\n` +
+                            results.join('\n');
+                    } else {
+                        resultDiv.className = 'result error';
+                        resultDiv.textContent =
+                            `❌ WebSocket探测完成\n` +
+                            `成功: ${successCount}/${totalTests}\n` +
+                            `未发现WebSocket服务\n\n` +
+                            results.join('\n');
+                    }
+                }
+            }
+        }
+
+        // 6. 时间差分析
+        function testTimingAnalysis() {
+            const resultDiv = document.getElementById('timing-result');
+            const baseUrl = getTargetUrl();
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在进行时间差分析...';
+
+            const tests = [];
+            const testCount = 5;
+
+            // 进行多次测试以分析时间模式
+            for (let i = 0; i < testCount; i++) {
+                setTimeout(() => {
+                    const img = new Image();
+                    const startTime = performance.now();
+
+                    img.onload = () => {
+                        const responseTime = performance.now() - startTime;
+                        tests.push({ success: true, time: responseTime });
+                        checkTimingComplete();
+                    };
+
+                    img.onerror = () => {
+                        const responseTime = performance.now() - startTime;
+                        tests.push({ success: false, time: responseTime });
+                        checkTimingComplete();
+                    };
+
+                    img.src = baseUrl + 'favicon.ico?_t=' + Date.now() + '_' + i;
+                }, i * 200);
+            }
+
+            function checkTimingComplete() {
+                if (tests.length >= testCount) {
+                    const successTimes = tests.filter(t => t.success).map(t => t.time);
+                    const errorTimes = tests.filter(t => !t.success).map(t => t.time);
+
+                    const avgSuccessTime = successTimes.length > 0 ?
+                        successTimes.reduce((a, b) => a + b, 0) / successTimes.length : 0;
+                    const avgErrorTime = errorTimes.length > 0 ?
+                        errorTimes.reduce((a, b) => a + b, 0) / errorTimes.length : 0;
+
+                    let analysis = '';
+                    if (successTimes.length > 0) {
+                        analysis = `✅ 检测到成功响应\n平均响应时间: ${avgSuccessTime.toFixed(2)}ms`;
+                        resultDiv.className = 'result success';
+                    } else if (errorTimes.length > 0) {
+                        if (avgErrorTime < 100) {
+                            analysis = `⚠️ 快速失败模式\n平均失败时间: ${avgErrorTime.toFixed(2)}ms\n可能是连接被拒绝（服务在线但拒绝连接）`;
+                            resultDiv.className = 'result warning';
+                        } else {
+                            analysis = `❌ 慢速失败模式\n平均失败时间: ${avgErrorTime.toFixed(2)}ms\n可能是超时（服务离线或网络不可达）`;
+                            resultDiv.className = 'result error';
+                        }
+                    }
+
+                    resultDiv.textContent =
+                        `时间差分析完成\n` +
+                        `成功: ${successTimes.length}/${testCount}\n` +
+                        `失败: ${errorTimes.length}/${testCount}\n\n` +
+                        analysis + '\n\n' +
+                        `详细时间: ${tests.map(t => t.time.toFixed(1) + 'ms').join(', ')}`;
+
+                    log(`时间差分析完成: 成功${successTimes.length}, 失败${errorTimes.length}`);
+                }
+            }
+        }
+
+        // 7. 综合检测策略
+        async function testComprehensiveDetection() {
+            const resultDiv = document.getElementById('comprehensive-result');
+            const baseUrl = getTargetUrl();
+
+            resultDiv.className = 'result info';
+            resultDiv.textContent = '正在运行综合检测...';
+
+            const detectionResults = {
+                image: null,
+                script: null,
+                css: null,
+                iframe: null,
+                websocket: null,
+                timing: null
+            };
+
+            // 图片检测
+            await new Promise(resolve => {
+                const img = new Image();
+                const startTime = Date.now();
+
+                img.onload = () => {
+                    detectionResults.image = { success: true, time: Date.now() - startTime };
+                    resolve();
+                };
+
+                img.onerror = () => {
+                    detectionResults.image = { success: false, time: Date.now() - startTime };
+                    resolve();
+                };
+
+                setTimeout(() => {
+                    detectionResults.image = { success: false, time: Date.now() - startTime, timeout: true };
+                    resolve();
+                }, 3000);
+
+                img.src = baseUrl + 'favicon.ico?_t=' + Date.now();
+            });
+
+            // 脚本检测
+            await new Promise(resolve => {
+                const script = document.createElement('script');
+                const startTime = Date.now();
+
+                script.onload = () => {
+                    detectionResults.script = { success: true, time: Date.now() - startTime };
+                    document.head.removeChild(script);
+                    resolve();
+                };
+
+                script.onerror = () => {
+                    detectionResults.script = { success: false, time: Date.now() - startTime };
+                    document.head.removeChild(script);
+                    resolve();
+                };
+
+                setTimeout(() => {
+                    if (script.parentNode) {
+                        detectionResults.script = { success: false, time: Date.now() - startTime, timeout: true };
+                        document.head.removeChild(script);
+                        resolve();
+                    }
+                }, 3000);
+
+                script.src = baseUrl + 'js/app.js?_t=' + Date.now();
+                document.head.appendChild(script);
+            });
+
+            // WebSocket检测
+            await new Promise(resolve => {
+                const host = document.getElementById('target-host').value;
+                const port = document.getElementById('target-port').value;
+                const wsUrl = `ws://${host}:${port}/`;
+                const startTime = Date.now();
+
+                try {
+                    const ws = new WebSocket(wsUrl);
+
+                    ws.onopen = () => {
+                        detectionResults.websocket = { success: true, time: Date.now() - startTime };
+                        ws.close();
+                        resolve();
+                    };
+
+                    ws.onerror = () => {
+                        detectionResults.websocket = { success: false, time: Date.now() - startTime };
+                        resolve();
+                    };
+
+                    setTimeout(() => {
+                        if (ws.readyState === WebSocket.CONNECTING) {
+                            ws.close();
+                            detectionResults.websocket = { success: false, time: Date.now() - startTime, timeout: true };
+                            resolve();
+                        }
+                    }, 3000);
+
+                } catch (error) {
+                    detectionResults.websocket = { success: false, time: 0, error: error.message };
+                    resolve();
+                }
+            });
+
+            // 分析综合结果
+            const successCount = Object.values(detectionResults).filter(r => r && r.success).length;
+            const totalTests = Object.keys(detectionResults).length;
+
+            let conclusion = '';
+            let resultClass = '';
+
+            if (successCount > 0) {
+                conclusion = `🎯 服务可能在线\n检测到 ${successCount}/${totalTests} 种方法成功`;
+                resultClass = 'result success';
+            } else {
+                const fastFailures = Object.values(detectionResults).filter(r => r && !r.success && r.time < 100).length;
+                if (fastFailures > totalTests / 2) {
+                    conclusion = `⚠️ 服务可能在线但拒绝连接\n多数检测快速失败，表明网络可达但服务拒绝`;
+                    resultClass = 'result warning';
+                } else {
+                    conclusion = `❌ 服务可能离线\n所有检测方法均失败`;
+                    resultClass = 'result error';
+                }
+            }
+
+            resultDiv.className = resultClass;
+            resultDiv.textContent =
+                `综合检测完成\n\n` +
+                conclusion + '\n\n' +
+                `详细结果:\n` +
+                `图片探测: ${detectionResults.image?.success ? '✅' : '❌'} (${detectionResults.image?.time || 0}ms)\n` +
+                `脚本探测: ${detectionResults.script?.success ? '✅' : '❌'} (${detectionResults.script?.time || 0}ms)\n` +
+                `WebSocket: ${detectionResults.websocket?.success ? '✅' : '❌'} (${detectionResults.websocket?.time || 0}ms)`;
+
+            log(`综合检测完成: ${successCount}/${totalTests} 成功`);
+        }
+
+        // 页面加载时的初始化
+        window.onload = () => {
+            log('页面加载完成');
+            log(`当前协议: ${window.location.protocol}`);
+            updateFullUrl();
+
+            // 检查各种API支持
+            log(`WebSocket支持: ${typeof WebSocket !== 'undefined' ? '✅' : '❌'}`);
+            log(`Performance API支持: ${typeof performance !== 'undefined' ? '✅' : '❌'}`);
+        };
+    </script>
+</body>
+</html>

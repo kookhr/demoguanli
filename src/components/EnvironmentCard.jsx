@@ -128,6 +128,10 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
       case 'timeout': return "连接超时";
       case 'blocked': return "Mixed Content阻止访问";
       case 'mixed-content': return "混合内容限制：HTTPS页面无法访问HTTP资源。建议：1) 将服务升级为HTTPS，2) 使用HTTP页面访问，3) 配置代理服务器";
+      case 'mixed-content-service-reachable': return "通过间接检测发现服务可达，但受混合内容限制无法直接访问";
+      case 'mixed-content-service-restricted': return "服务可能在线但拒绝HTTP连接，建议检查服务配置";
+      case 'mixed-content-service-unreachable': return "服务不可达或离线，请检查服务状态和网络连接";
+      case 'mixed-content-detection-failed': return "混合内容检测失败，无法确定服务状态";
       case 'cors-blocked': return "跨域访问受限";
       case 'cors-bypassed': return "通过CORS规避策略检测可达";
       case 'image-reachable': return "通过图片探测确认可达";
@@ -183,6 +187,38 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700',
           text: '混合内容限制',
           description: 'HTTPS页面无法访问HTTP资源'
+        };
+      case 'mixed-content-service-reachable':
+        return {
+          icon: CheckCircle,
+          color: 'text-green-600 dark:text-green-400',
+          bg: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700',
+          text: '间接检测可达',
+          description: '通过间接方法检测到服务可达'
+        };
+      case 'mixed-content-service-restricted':
+        return {
+          icon: AlertTriangle,
+          color: 'text-orange-600 dark:text-orange-400',
+          bg: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700',
+          text: '服务受限',
+          description: '服务在线但拒绝连接'
+        };
+      case 'mixed-content-service-unreachable':
+        return {
+          icon: XCircle,
+          color: 'text-red-600 dark:text-red-400',
+          bg: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700',
+          text: '服务不可达',
+          description: '服务离线或网络不可达'
+        };
+      case 'mixed-content-detection-failed':
+        return {
+          icon: HelpCircle,
+          color: 'text-gray-600 dark:text-gray-400',
+          bg: 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-700',
+          text: '检测失败',
+          description: '无法确定服务状态'
         };
 
       case 'cors-bypassed':
@@ -314,6 +350,14 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         return 'border-purple-500 dark:border-purple-400';
       case 'mixed-content':
         return 'border-amber-500 dark:border-amber-400';
+      case 'mixed-content-service-reachable':
+        return 'border-green-500 dark:border-green-400';
+      case 'mixed-content-service-restricted':
+        return 'border-orange-500 dark:border-orange-400';
+      case 'mixed-content-service-unreachable':
+        return 'border-red-500 dark:border-red-400';
+      case 'mixed-content-detection-failed':
+        return 'border-gray-500 dark:border-gray-400';
       default:
         return 'border-gray-300 dark:border-gray-600';
     }
