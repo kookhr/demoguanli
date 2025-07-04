@@ -44,7 +44,17 @@ const ENHANCED_CHECK_CONFIG = {
     '/sitemap.xml',
     '/manifest.json',
     '/.well-known/security.txt'
-  ]
+  ],
+
+  // 混合内容检测配置
+  mixedContent: {
+    // 是否严格检查混合内容（false = 尝试检测，true = 直接标记为限制）
+    strictMode: true,
+    // 允许的本地主机名
+    allowedLocalHosts: ['localhost', '127.0.0.1', '::1'],
+    // 是否允许内网IP（如果为false，内网IP也会被标记为混合内容）
+    allowPrivateNetworks: false
+  }
 };
 
 // 获取检测配置
@@ -71,6 +81,48 @@ export const saveCheckConfig = (config) => {
   }
 };
 
+// 统一的混合内容检测函数
+const checkMixedContent = (url) => {
+  // 如果当前页面不是HTTPS，则不存在混合内容问题
+  if (window.location.protocol !== 'https:') {
+    return false;
+  }
+
+  // 如果目标URL不是HTTP，则不存在混合内容问题
+  if (!url.startsWith('http:')) {
+    return false;
+  }
+
+  const config = getCheckConfig();
+  const mixedContentConfig = config.mixedContent;
+
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+
+    // 检查是否在允许的本地主机列表中
+    if (mixedContentConfig.allowedLocalHosts.includes(hostname)) {
+      return false;
+    }
+
+    // 检查是否是内网IP地址
+    const isPrivateNetwork = hostname.match(/^192\.168\.\d+\.\d+$/) ||
+                            hostname.match(/^10\.\d+\.\d+\.\d+$/) ||
+                            hostname.match(/^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/);
+
+    if (isPrivateNetwork) {
+      // 根据配置决定是否允许内网IP
+      return !mixedContentConfig.allowPrivateNetworks;
+    }
+
+    // 其他HTTP URL在HTTPS页面中会被阻止
+    return true;
+  } catch (error) {
+    // URL解析失败，保守起见认为是混合内容
+    return true;
+  }
+};
+
 // 分类HTTP状态码
 const categorizeStatus = (statusCode) => {
   const config = getCheckConfig();
@@ -93,6 +145,23 @@ export const checkEnvironmentStatusWithProxy = async (environment) => {
   const startTime = Date.now();
 
   try {
+    // 预先检查是否是混合内容问题
+    const isMixedContent = checkMixedContent(environment.url);
+
+    if (isMixedContent) {
+      // 对于混合内容，直接返回相应状态，不尝试任何网络请求
+      const responseTime = Date.now() - startTime;
+      return {
+        id: environment.id,
+        status: 'mixed-content',
+        responseTime,
+        lastChecked: new Date().toISOString(),
+        error: '混合内容限制：HTTPS页面无法访问HTTP资源',
+        method: 'mixed-content-blocked',
+        statusCode: null
+      };
+    }
+
     // 策略1: 标准CORS请求（优先策略 - 获取真实状态码）
     const corsResult = await tryStandardRequest(environment, startTime);
     if (corsResult) {
@@ -148,7 +217,7 @@ const tryStandardRequest = async (environment, startTime) => {
   const config = getCheckConfig();
 
   // 检查是否是混合内容问题（HTTPS页面访问HTTP资源）
-  const isMixedContent = window.location.protocol === 'https:' && environment.url.startsWith('http:');
+  const isMixedContent = checkMixedContent(environment.url);
 
   if (isMixedContent) {
     // 对于混合内容，浏览器会阻止请求，直接跳过标准请求
@@ -257,25 +326,7 @@ const tryEnhancedStaticProbe = async (environment, startTime) => {
   const config = getCheckConfig();
   const baseUrl = getBaseUrl(environment.url);
 
-  // 检查是否是混合内容问题
-  const isMixedContent = window.location.protocol === 'https:' && baseUrl.startsWith('http:');
-
-  if (isMixedContent) {
-    // 对于混合内容，图片加载也会被阻止，但我们可以尝试特殊处理
-    console.log(`混合内容静态资源检测: ${baseUrl} (可能被浏览器阻止)`);
-
-    // 返回一个特殊状态，表明这是混合内容问题
-    const responseTime = Date.now() - startTime;
-    return {
-      id: environment.id,
-      status: 'mixed-content',
-      responseTime,
-      lastChecked: new Date().toISOString(),
-      error: '混合内容限制：HTTPS页面无法访问HTTP资源',
-      method: 'mixed-content-blocked',
-      statusCode: null
-    };
-  }
+  // 注意：混合内容检查已在主函数中处理，这里不应该到达混合内容的情况
 
   // 尝试多种静态资源
   for (const staticPath of config.staticPaths) {
@@ -307,23 +358,7 @@ const tryEnhancedStaticProbe = async (environment, startTime) => {
 
 // 策略3: 智能连通性检测（最后备用）
 const trySmartConnectivityCheck = async (environment, startTime) => {
-  // 检查是否是混合内容问题
-  const isMixedContent = window.location.protocol === 'https:' && environment.url.startsWith('http:');
-
-  if (isMixedContent) {
-    // 对于混合内容，即使是 no-cors 模式也会被阻止
-    console.log(`混合内容连通性检测被跳过: ${environment.url}`);
-    const responseTime = Date.now() - startTime;
-    return {
-      id: environment.id,
-      status: 'mixed-content',
-      responseTime,
-      lastChecked: new Date().toISOString(),
-      error: '混合内容限制：HTTPS页面无法访问HTTP资源',
-      method: 'mixed-content-blocked',
-      statusCode: null
-    };
-  }
+  // 注意：混合内容检查已在主函数中处理，这里不应该到达混合内容的情况
 
   try {
     const controller = new AbortController();

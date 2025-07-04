@@ -127,7 +127,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
       case 'offline': return "服务不可达";
       case 'timeout': return "连接超时";
       case 'blocked': return "Mixed Content阻止访问";
-      case 'mixed-content': return "混合内容限制：HTTPS页面无法访问HTTP资源";
+      case 'mixed-content': return "混合内容限制：HTTPS页面无法访问HTTP资源。建议：1) 将服务升级为HTTPS，2) 使用HTTP页面访问，3) 配置代理服务器";
       case 'cors-blocked': return "跨域访问受限";
       case 'cors-bypassed': return "通过CORS规避策略检测可达";
       case 'image-reachable': return "通过图片探测确认可达";
