@@ -134,7 +134,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         return {
           icon: CheckCircle,
           color: 'text-success-600 dark:text-success-400',
-          bg: 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-700',
+          border: 'border-success-200 dark:border-success-700',
           text: '可达',
           description: '网络可达'
         };
@@ -150,10 +150,38 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         return {
           icon: XCircle,
           color: 'text-danger-600 dark:text-danger-400',
-          bg: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-700',
+          border: 'border-danger-200 dark:border-danger-700',
           text: '不可达',
           description: '网络不可达'
         };
+    }
+  }, [status]);
+
+  // 获取状态样式类
+  const getStatusClass = useMemo(() => {
+    if (status?.isChecking) {
+      return 'status-checking';
+    }
+
+    switch (status?.status) {
+      case 'available':
+      case 'online':
+      case 'cors-bypassed':
+      case 'image-reachable':
+      case 'port-reachable':
+      case 'assumed-reachable':
+      case 'reachable-unverified':
+      case 'mixed-content-service-reachable':
+        return 'status-available';
+      case 'unreachable':
+      case 'offline':
+      case 'error':
+      case 'server-error':
+      case 'timeout':
+      case 'unknown':
+      case 'mixed-content-service-unreachable':
+      default:
+        return 'status-unreachable';
     }
   }, [status]);
 
@@ -191,7 +219,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className={`card card-hover animate-fade-in border-l-4 ${statusBorderColor} ${
+    <div className={`card card-hover liquid-hover inner-glow animate-fade-in border-l-4 ${statusBorderColor} ${
       isChecking ? 'animate-pulse' : ''
     }`}>
       <div className="p-6">
@@ -204,7 +232,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
                 {environment.name}
               </h3>
               {environment.version && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 px-1.5 py-0.5 rounded font-mono flex-shrink-0">
+                <span className="text-xs text-gray-500 dark:text-gray-400 liquid-glass-surface px-2 py-1 rounded-xl font-mono flex-shrink-0 backdrop-blur-sm">
                   v{environment.version}
                 </span>
               )}
@@ -243,7 +271,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
 
         {/* 状态信息区 */}
         <div className="mb-4">
-          <div className={`flex items-start gap-3 px-4 py-2.5 rounded-xl border ${statusInfo.bg}`}>
+          <div className={`flex items-start gap-3 px-4 py-2.5 rounded-2xl status-glass-surface ${getStatusClass}`}>
             <StatusIcon className={`w-5 h-5 ${statusInfo.color} flex-shrink-0 mt-0.5 ${isChecking ? 'animate-spin' : ''}`} />
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between">

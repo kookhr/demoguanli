@@ -40,12 +40,18 @@ const SimpleTag = ({ tag, size = 'sm', onClick, className = '', index = 0, remov
   return (
     <span
       className={`
-        inline-flex items-center rounded-full border font-medium transition-all duration-200
+        inline-flex items-center font-medium transition-all duration-300 backdrop-blur-sm
         ${getTagColorWithIndex(tag, index)}
         ${sizeClasses[size]}
-        ${onClick ? 'cursor-pointer hover:opacity-80 hover:scale-105' : ''}
+        ${onClick ? 'cursor-pointer hover:opacity-90 hover:scale-105 hover:backdrop-blur-md' : ''}
         ${className}
       `}
+      style={{
+        borderRadius: '12px',
+        border: '1px solid rgba(255, 255, 255, 0.2)',
+        backdropFilter: 'blur(8px) saturate(150%)',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 0 rgba(255, 255, 255, 0.3) inset'
+      }}
       onClick={onClick}
     >
       <Tag className="w-3 h-3 mr-1" />
@@ -105,7 +111,14 @@ const SimpleTagList = ({
       {expandable && !showAll && hiddenCount > 0 && (
         <button
           onClick={() => setShowAll(true)}
-          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-1.5 py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 transition-all duration-300 hover:scale-105"
+          style={{
+            borderRadius: '12px',
+            border: '1px dashed rgba(156, 163, 175, 0.5)',
+            background: 'rgba(249, 250, 251, 0.8)',
+            backdropFilter: 'blur(8px) saturate(150%)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+          }}
         >
           +{hiddenCount} 更多
         </button>
@@ -114,7 +127,14 @@ const SimpleTagList = ({
       {expandable && showAll && hiddenCount > 0 && (
         <button
           onClick={() => setShowAll(false)}
-          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-1.5 py-0.5 rounded border border-dashed border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 transition-all duration-300 hover:scale-105"
+          style={{
+            borderRadius: '12px',
+            border: '1px dashed rgba(156, 163, 175, 0.5)',
+            background: 'rgba(249, 250, 251, 0.8)',
+            backdropFilter: 'blur(8px) saturate(150%)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+          }}
         >
           收起
         </button>

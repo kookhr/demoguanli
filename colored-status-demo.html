@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>彩色状态液态玻璃效果演示</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        /* 状态信息专用液态玻璃样式 - 带颜色区分 */
+        .status-glass-surface {
+            backdrop-filter: blur(12px) saturate(160%) brightness(102%);
+            box-shadow: 
+                0 2px 12px rgba(0, 0, 0, 0.08),
+                0 1px 0 rgba(255, 255, 255, 0.7) inset,
+                0 -1px 0 rgba(0, 0, 0, 0.04) inset;
+            position: relative;
+            border-radius: 16px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+
+        /* 可用状态 - 绿色背景 */
+        .status-glass-surface.status-available {
+            background: rgba(240, 253, 244, 0.9);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        /* 不可达状态 - 红色背景 */
+        .status-glass-surface.status-unreachable {
+            background: rgba(254, 242, 242, 0.9);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* 检测中状态 - 蓝色背景 */
+        .status-glass-surface.status-checking {
+            background: rgba(239, 246, 255, 0.9);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* 悬停效果 */
+        .status-glass-surface:hover {
+            backdrop-filter: blur(16px) saturate(180%) brightness(105%);
+            transform: translateY(-2px);
+        }
+
+        /* 状态图标 */
+        .status-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-icon.available {
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+        }
+
+        .status-icon.unreachable {
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+        }
+
+        .status-icon.checking {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+
+        /* 暗黑模式 */
+        .dark .status-glass-surface {
+            backdrop-filter: blur(12px) saturate(160%) brightness(110%);
+            box-shadow: 
+                0 2px 12px rgba(0, 0, 0, 0.15),
+                0 1px 0 rgba(255, 255, 255, 0.15) inset,
+                0 -1px 0 rgba(0, 0, 0, 0.05) inset;
+        }
+
+        .dark .status-glass-surface.status-available {
+            background: rgba(6, 78, 59, 0.4);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+
+        .dark .status-glass-surface.status-unreachable {
+            background: rgba(127, 29, 29, 0.4);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .dark .status-glass-surface.status-checking {
+            background: rgba(30, 58, 138, 0.4);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        /* 切换按钮 */
+        .toggle-btn {
+            background: rgba(59, 130, 246, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: white;
+            padding: 8px 16px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(37, 99, 235, 0.95);
+            transform: translateY(-1px);
+        }
+
+        /* 旋转动画 */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-4">
+                彩色状态液态玻璃效果演示
+            </h1>
+            <button onclick="toggleDarkMode()" class="toggle-btn">
+                切换暗黑模式
+            </button>
+        </div>
+        
+        <!-- 状态信息示例 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- 可达状态 -->
+            <div class="status-glass-surface status-available">
+                <div class="flex items-start gap-3">
+                    <div class="status-icon available">✓</div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-green-700">可达</span>
+                            <span class="text-xs text-gray-500">刚刚</span>
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">网络可达</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-mono text-gray-700">12ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 不可达状态 -->
+            <div class="status-glass-surface status-unreachable">
+                <div class="flex items-start gap-3">
+                    <div class="status-icon unreachable">✕</div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-red-700">不可达</span>
+                            <span class="text-xs text-gray-500">2分钟前</span>
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">网络不可达</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-mono text-gray-700">超时</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 检测中状态 -->
+            <div class="status-glass-surface status-checking">
+                <div class="flex items-start gap-3">
+                    <div class="status-icon checking">
+                        <div class="animate-spin w-3 h-3 border border-white border-t-transparent rounded-full"></div>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-blue-700">检测中</span>
+                            <span class="text-xs text-gray-500">正在检测</span>
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">正在检测网络状态</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-mono text-gray-700">...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 更多示例 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- 可达状态示例2 -->
+            <div class="status-glass-surface status-available">
+                <div class="flex items-start gap-3">
+                    <div class="status-icon available">✓</div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-green-700">可达</span>
+                            <span class="text-xs text-gray-500">30秒前</span>
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">网络可达</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-mono text-gray-700">245ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 不可达状态示例2 -->
+            <div class="status-glass-surface status-unreachable">
+                <div class="flex items-start gap-3">
+                    <div class="status-icon unreachable">✕</div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-red-700">不可达</span>
+                            <span class="text-xs text-gray-500">5分钟前</span>
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">连接超时</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-mono text-gray-700">5000ms</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 说明文档 -->
+        <div class="status-glass-surface status-available">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">彩色状态设计特性</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                <div>
+                    <h3 class="font-semibold text-green-700 mb-2">可达状态 (绿色)</h3>
+                    <ul class="space-y-1 text-gray-600">
+                        <li>• 浅绿色半透明背景</li>
+                        <li>• 绿色边框和图标</li>
+                        <li>• 表示网络可正常访问</li>
+                        <li>• 清晰的视觉反馈</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-red-700 mb-2">不可达状态 (红色)</h3>
+                    <ul class="space-y-1 text-gray-600">
+                        <li>• 浅红色半透明背景</li>
+                        <li>• 红色边框和图标</li>
+                        <li>• 表示网络无法访问</li>
+                        <li>• 明确的错误提示</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-blue-700 mb-2">检测中状态 (蓝色)</h3>
+                    <ul class="space-y-1 text-gray-600">
+                        <li>• 浅蓝色半透明背景</li>
+                        <li>• 蓝色边框和动画图标</li>
+                        <li>• 表示正在检测中</li>
+                        <li>• 动态加载效果</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        // 模拟状态变化动画
+        setInterval(() => {
+            const statusElements = document.querySelectorAll('.status-glass-surface');
+            statusElements.forEach(el => {
+                if (Math.random() > 0.9) {
+                    el.style.transform = 'translateY(-4px) scale(1.02)';
+                    setTimeout(() => {
+                        el.style.transform = 'translateY(0) scale(1)';
+                    }, 300);
+                }
+            });
+        }, 2000);
+    </script>
+</body>
+</html>
