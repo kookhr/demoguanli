@@ -76,12 +76,6 @@ const UserManagementPage = () => {
       setUsers(usersData);
       setUserStats(userStatsData);
       setSystemSettings(settingsData);
-
-      console.log('📊 用户管理数据加载完成:', {
-        用户数量: usersData.length,
-        统计数据: userStatsData,
-        系统设置: settingsData
-      });
     } catch (error) {
       console.error('❌ 加载用户管理数据失败:', error);
       setError('加载数据失败: ' + error.message);

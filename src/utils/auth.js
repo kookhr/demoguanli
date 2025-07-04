@@ -74,7 +74,7 @@ class AuthManager {
       if (payload) {
         this.token = token;
         this.currentUser = JSON.parse(userStr);
-        console.log('🔐 自动登录成功:', this.currentUser.username);
+
       } else {
         this.clearAuth();
       }
@@ -91,7 +91,6 @@ class AuthManager {
       const existingAdmin = await this.getUserFromKV(adminUsername);
 
       if (!existingAdmin) {
-        console.log('🔧 创建默认管理员账户...');
         const defaultPassword = 'admin123';
         const hashedPassword = await hashPassword(defaultPassword);
 
@@ -163,8 +162,6 @@ class AuthManager {
   // 用户注册
   async register(username, password, email = '') {
     try {
-      console.log('📝 用户注册:', username);
-
       // 检查注册是否被禁用
       const registrationDisabled = await this.isRegistrationDisabled();
       if (registrationDisabled) {
@@ -197,7 +194,6 @@ class AuthManager {
       const { userManager } = await import('./userManagement');
       await userManager.addUser(username, userData);
 
-      console.log('✅ 用户注册成功:', username);
       return { success: true, message: '注册成功' };
     } catch (error) {
       console.error('❌ 用户注册失败:', error);
@@ -208,8 +204,6 @@ class AuthManager {
   // 用户登录
   async login(username, password, rememberMe = false) {
     try {
-      console.log('🔐 用户登录:', username);
-
       // 从KV存储获取用户数据
       const userData = await this.getUserFromKV(username);
       if (!userData) {
@@ -365,8 +359,6 @@ class AuthManager {
   // 修改密码
   async changePassword(username, currentPassword, newPassword) {
     try {
-      console.log('🔑 修改密码:', username);
-
       // 获取用户数据
       const userData = await this.getUserFromKV(username);
       if (!userData) {
@@ -392,7 +384,6 @@ class AuthManager {
         this.currentUser.passwordChangedAt = userData.passwordChangedAt;
       }
 
-      console.log('✅ 密码修改成功:', username);
       return { success: true, message: '密码修改成功' };
     } catch (error) {
       console.error('❌ 密码修改失败:', error);

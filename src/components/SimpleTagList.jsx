@@ -1,36 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import { Tag, Plus, X } from 'lucide-react';
-
-// 标签颜色配置 - 支持深色模式
-const tagColors = {
-  // 英文环境类型
-  'production': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700',
-  'staging': 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-700',
-  'development': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-700',
-  'testing': 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-300 border-cyan-200 dark:border-cyan-700',
-  'demo': 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-700',
-
-  // 中文环境类型
-  '生产环境': 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700',
-  '预生产环境': 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-700',
-  '测试环境': 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-800 dark:text-cyan-300 border-cyan-200 dark:border-cyan-700',
-  '开发环境': 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-700',
-  '演示环境': 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-700',
-
-  // 其他标签类型
-  'frontend': 'bg-pink-100 dark:bg-pink-900/30 text-pink-800 dark:text-pink-300 border-pink-200 dark:border-pink-700',
-  'backend': 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700',
-  'database': 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-600',
-  'external': 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-700',
-  'internal': 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-700',
-  'stable': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700',
-  'local': 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-600',
-  'api': 'bg-violet-100 dark:bg-violet-900/30 text-violet-800 dark:text-violet-300 border-violet-200 dark:border-violet-700',
-  'web': 'bg-rose-100 dark:bg-rose-900/30 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-700',
-  'mobile': 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-700',
-  'default': 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600'
-};
-
+import { getTagColor } from '../utils/common';
 // 预定义颜色数组，用于基于位置分配颜色
 const colorPalette = [
   'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700',
@@ -47,16 +17,16 @@ const colorPalette = [
   'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-700'
 ];
 
-// 获取标签颜色
-const getTagColor = (tag, index = 0) => {
+// 获取标签颜色（增强版，支持位置分配）
+const getTagColorWithIndex = (tag, index = 0) => {
   // 首先尝试根据标签内容匹配
-  const contentBasedColor = tagColors[tag.toLowerCase()];
-  if (contentBasedColor) {
+  const contentBasedColor = getTagColor(tag);
+  if (contentBasedColor !== 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-600') {
     return contentBasedColor;
   }
 
   // 如果没有匹配，根据位置分配颜色
-  return colorPalette[index % colorPalette.length] || tagColors.default;
+  return colorPalette[index % colorPalette.length] || 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600';
 };
 
 // 简单标签组件
@@ -71,7 +41,7 @@ const SimpleTag = ({ tag, size = 'sm', onClick, className = '', index = 0, remov
     <span
       className={`
         inline-flex items-center rounded-full border font-medium transition-all duration-200
-        ${getTagColor(tag, index)}
+        ${getTagColorWithIndex(tag, index)}
         ${sizeClasses[size]}
         ${onClick ? 'cursor-pointer hover:opacity-80 hover:scale-105' : ''}
         ${className}
@@ -317,5 +287,10 @@ const TagEditor = ({
   );
 };
 
-export { SimpleTag, SimpleTagList, TagEditor };
-export default SimpleTagList;
+// 使用memo优化组件
+const MemoizedSimpleTag = memo(SimpleTag);
+const MemoizedSimpleTagList = memo(SimpleTagList);
+const MemoizedTagEditor = memo(TagEditor);
+
+export { MemoizedSimpleTag as SimpleTag, MemoizedSimpleTagList as SimpleTagList, MemoizedTagEditor as TagEditor };
+export default MemoizedSimpleTagList;

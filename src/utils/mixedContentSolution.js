@@ -67,8 +67,6 @@ export const detectMixedContentService = async (environment) => {
     };
   }
 
-  console.log(`开始混合内容检测: ${environment.url}`);
-
   // 执行多种检测方法
   const detectionResults = await Promise.allSettled([
     MIXED_CONTENT_CONFIG.detectionMethods.image ? detectViaImageProbe(environment.url) : Promise.resolve(null),

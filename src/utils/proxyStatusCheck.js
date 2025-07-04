@@ -140,8 +140,9 @@ const categorizeStatus = (statusCode) => {
   }
 };
 
-// 导入混合内容解决方案
+// 导入混合内容解决方案和公共工具
 import { detectMixedContentService } from './mixedContentSolution.js';
+import { isMixedContentScenario } from './common.js';
 
 // 主要检测函数 - 简化版（移除健康检查、WebSocket、JSONP策略）
 export const checkEnvironmentStatusWithProxy = async (environment) => {
@@ -153,7 +154,6 @@ export const checkEnvironmentStatusWithProxy = async (environment) => {
 
     if (isMixedContent) {
       // 对于混合内容，使用专门的检测方案
-      console.log(`检测到混合内容场景，启用专用检测方案: ${environment.url}`);
       return await detectMixedContentService(environment);
     }
 
@@ -216,7 +216,6 @@ const tryStandardRequest = async (environment, startTime) => {
 
   if (isMixedContent) {
     // 对于混合内容，浏览器会阻止请求，直接跳过标准请求
-    console.log(`跳过混合内容检测: ${environment.url} (HTTPS页面无法访问HTTP资源)`);
     return null;
   }
 
@@ -417,52 +416,7 @@ const trySmartConnectivityCheck = async (environment, startTime) => {
   }
 };
 
-// 旧的连通性检测（保留兼容性）
-const tryConnectivityCheck = async (environment, startTime) => {
-  try {
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    // 使用 no-cors 模式进行基本连通性检测
-    await fetch(environment.url, {
-      method: 'GET',
-      mode: 'no-cors',
-      signal: controller.signal,
-      cache: 'no-cache',
-      credentials: 'omit'
-    });
-
-    clearTimeout(timeoutId);
-    const responseTime = Date.now() - startTime;
-
-    return {
-      id: environment.id,
-      status: 'cors-blocked',
-      responseTime,
-      lastChecked: new Date().toISOString(),
-      error: 'CORS限制阻止获取状态码，服务可能正常但无法确认',
-      method: 'connectivity-check',
-      statusCode: null
-    };
-
-  } catch (error) {
-
-    if (error.name === 'AbortError') {
-      const responseTime = Date.now() - startTime;
-      return {
-        id: environment.id,
-        status: 'timeout',
-        responseTime,
-        lastChecked: new Date().toISOString(),
-        error: '连接超时',
-        method: 'connectivity-timeout'
-      };
-    }
-
-    return null;
-  }
-};
 
 // 获取基础 URL（去掉路径、查询参数和锚点）
 const getBaseUrl = (url) => {
@@ -503,13 +457,12 @@ const checkImageLoad = (imageUrl, timeout) => {
 
 // 批量检测 - 精确版
 export const checkMultipleEnvironmentsWithProxy = async (environments, onProgress) => {
-
   const results = {};
   const total = environments.length;
   let completed = 0;
 
-  // 限制并发数量为 3，平衡速度和准确性
-  const concurrency = 3;
+  // 限制并发数量为 4，优化性能
+  const concurrency = 4;
   const chunks = [];
 
   for (let i = 0; i < environments.length; i += concurrency) {

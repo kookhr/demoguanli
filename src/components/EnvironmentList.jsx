@@ -1,41 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Activity, Star, BarChart3 } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
-import EnvironmentFilter from './EnvironmentFilter';
-import EnvironmentCard from './EnvironmentCard';
-import StatusHistoryChart from './StatusHistoryChart';
-import ContextMenu, { useContextMenu } from './ContextMenu';
-
-import {
-  checkEnvironmentStatusWithProxy as checkEnvironmentStatus,
-  checkMultipleEnvironmentsWithProxy as checkMultipleEnvironments
-} from '../utils/proxyStatusCheck';
-
-// 格式化最后检测时间
-const formatLastChecked = (timestamp) => {
-  if (!timestamp) return '';
-
-  const now = new Date();
-  const lastChecked = new Date(timestamp);
-  const diffMs = now - lastChecked;
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-  if (diffMinutes < 1) return '刚刚';
-  if (diffMinutes < 60) return `${diffMinutes}分钟前`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}小时前`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}天前`;
-};
 import { addStatusRecord } from '../utils/statusHistory';
+import { formatLastChecked } from '../utils/common';
 import {
   getFavorites,
   toggleFavorite,
   isFavorite,
   sortEnvironments
 } from '../utils/favorites';
+import {
+  checkEnvironmentStatusWithProxy as checkEnvironmentStatus,
+  checkMultipleEnvironmentsWithProxy as checkMultipleEnvironments
+} from '../utils/proxyStatusCheck';
+import EnvironmentFilter from './EnvironmentFilter';
+import EnvironmentCard from './EnvironmentCard';
+import StatusHistoryChart from './StatusHistoryChart';
+import ContextMenu, { useContextMenu } from './ContextMenu';
 
 const EnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
@@ -177,13 +158,13 @@ const EnvironmentList = () => {
     }
   };
 
-  // 获取环境状态
-  const getEnvironmentStatus = (envId) => {
+  // 获取环境状态 - 使用useCallback优化
+  const getEnvironmentStatus = useCallback((envId) => {
     return environmentStatuses[envId] || { status: 'unknown', isChecking: false };
-  };
+  }, [environmentStatuses]);
 
-  // 获取状态统计
-  const getStatusSummary = () => {
+  // 获取状态统计 - 使用useMemo优化
+  const statusSummary = useMemo(() => {
     const summary = {
       total: environments.length,
       online: 0,
@@ -204,10 +185,10 @@ const EnvironmentList = () => {
     });
 
     return summary;
-  };
+  }, [environments, environmentStatuses, getEnvironmentStatus]);
 
-  // 右键菜单操作处理
-  const handleContextMenuAction = (action, environment) => {
+  // 右键菜单操作处理 - 使用useCallback优化
+  const handleContextMenuAction = useCallback((action, environment) => {
     switch (action) {
       case 'check_status':
         handleCheckSingle(environment);
@@ -226,12 +207,12 @@ const EnvironmentList = () => {
       default:
         break;
     }
-  };
+  }, [handleCheckSingle]);
 
-  // 应用排序和收藏
-  const getSortedEnvironments = () => {
+  // 应用排序和收藏 - 使用useMemo优化
+  const sortedEnvironments = useMemo(() => {
     return sortEnvironments(filteredEnvironments, sortBy);
-  };
+  }, [filteredEnvironments, sortBy]);
 
   if (loading) {
     return (
@@ -363,31 +344,30 @@ const EnvironmentList = () => {
           {/* 状态统计 */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             {(() => {
-              const summary = getStatusSummary();
               return (
                 <>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.total}</div>
+                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{statusSummary.total}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">总计</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.online}</div>
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{statusSummary.online}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">在线</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{summary.offline + summary.error}</div>
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statusSummary.offline + statusSummary.error}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">离线</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{summary.timeout}</div>
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{statusSummary.timeout}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">超时</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{summary.checking}</div>
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statusSummary.checking}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">检测中</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{summary.unknown}</div>
+                    <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{statusSummary.unknown}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">未知</div>
                   </div>
                 </>
@@ -414,7 +394,7 @@ const EnvironmentList = () => {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {getSortedEnvironments().map(env => (
+          {sortedEnvironments.map(env => (
             <div
               key={env.id}
               onContextMenu={(e) => openContextMenu(e, env)}

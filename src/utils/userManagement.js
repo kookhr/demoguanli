@@ -65,7 +65,6 @@ class UserManager {
         const userData = await authManager.getUserFromKV(username);
         if (userData) {
           this.users.set(username, userData);
-          console.log(`✅ 发现用户: ${username}`);
         }
       } catch (error) {
         console.warn(`⚠️ 无法加载用户 ${username}:`, error);
@@ -75,7 +74,6 @@ class UserManager {
     // 重建用户列表
     if (this.users.size > 0) {
       await this.saveUserList();
-      console.log(`📝 重建用户列表，包含 ${this.users.size} 个用户`);
     }
   }
 
@@ -214,8 +212,7 @@ class UserManager {
         results.push({ username, success: false, error: error.message });
       }
     }
-    
-    console.log('📦 批量用户操作完成:', results.length, '个用户');
+
     return results;
   }
 
@@ -233,8 +230,7 @@ class UserManager {
         results.push({ username, success: false, error: error.message });
       }
     }
-    
-    console.log('🗑️ 批量用户删除完成:', results.length, '个用户');
+
     return results;
   }
 

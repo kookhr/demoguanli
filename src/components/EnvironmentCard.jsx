@@ -1,4 +1,4 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import {
   Globe,
   Shield,
@@ -16,40 +16,15 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { SimpleTagList } from './SimpleTagList';
-
-// 格式化响应时间
-const formatResponseTime = (time) => {
-  if (!time) return '';
-  if (time < 1000) return `${time}ms`;
-  return `${(time / 1000).toFixed(2)}s`;
-};
-
-// 格式化最后检测时间
-const formatLastChecked = (timestamp) => {
-  if (!timestamp) return '';
-
-  const now = new Date();
-  const lastChecked = new Date(timestamp);
-  const diffMs = now - lastChecked;
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-  if (diffMinutes < 1) return '刚刚';
-  if (diffMinutes < 60) return `${diffMinutes}分钟前`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}小时前`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}天前`;
-};
+import { formatResponseTime, formatLastChecked } from '../utils/common';
 
 const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
 
 
-  // 合并环境类型和现有标签
-  const getAllTags = () => {
+  // 合并环境类型和现有标签 - 使用useMemo优化
+  const allTags = useMemo(() => {
     const tags = [];
 
     // 添加环境类型作为第一个标签
@@ -63,7 +38,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
     }
 
     return tags;
-  };
+  }, [environment.type, environment.tags]);
 
   // 根据HTTP状态码和检测结果获取详细状态描述
   const getDetailedStatusDescription = (status) => {
@@ -145,8 +120,8 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
     }
   };
 
-  // 获取状态信息
-  const getStatusInfo = (status) => {
+  // 获取状态信息 - 使用useMemo优化
+  const statusInfo = useMemo(() => {
     switch (status?.status) {
       case 'online':
         return {
@@ -310,12 +285,12 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           description: '状态未知'
         };
     }
-  };
+  }, [status]);
 
 
 
-  // 获取状态边框颜色
-  const getStatusBorderColor = (status) => {
+  // 获取状态边框颜色 - 使用useMemo优化
+  const statusBorderColor = useMemo(() => {
     if (status?.isChecking) {
       return 'border-blue-400 dark:border-blue-500';
     }
@@ -361,14 +336,13 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
       default:
         return 'border-gray-300 dark:border-gray-600';
     }
-  };
+  }, [status]);
 
   const isChecking = status?.isChecking || false;
-  const statusInfo = getStatusInfo(status);
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className={`card card-hover animate-fade-in border-l-4 ${getStatusBorderColor(status)} ${
+    <div className={`card card-hover animate-fade-in border-l-4 ${statusBorderColor} ${
       isChecking ? 'animate-pulse' : ''
     }`}>
       <div className="p-6">
@@ -469,9 +443,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         </div>
 
         {/* 标签区域 */}
-        {(() => {
-          const allTags = getAllTags();
-          return allTags.length > 0 ? (
+        {allTags.length > 0 ? (
             <div className="mb-4">
               <SimpleTagList
                 tags={allTags}
@@ -479,8 +451,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
                 size="sm"
               />
             </div>
-          ) : null;
-        })()}
+          ) : null}
 
 
 

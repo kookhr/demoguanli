@@ -106,7 +106,6 @@ const LoginPage = ({ onLoginSuccess }) => {
       if (isLogin) {
         // 登录
         const result = await login(formData.username, formData.password, formData.rememberMe);
-        console.log('✅ 登录成功:', result);
         setSuccess('登录成功！');
         
         // 延迟一下再跳转，让用户看到成功消息

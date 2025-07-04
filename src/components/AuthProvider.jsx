@@ -16,14 +16,11 @@ export const AuthProvider = ({ children }) => {
       const currentUser = authManager.getCurrentUser();
       setUser(currentUser);
       setLoading(false);
-      
-      console.log('🔐 认证状态初始化:', currentUser ? '已登录' : '未登录');
     };
 
     // 添加认证状态监听器
     const removeListener = addAuthListener((newUser) => {
       setUser(newUser);
-      console.log('🔐 认证状态变化:', newUser ? '已登录' : '已登出');
     });
 
     initAuth();
