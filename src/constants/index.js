@@ -18,28 +18,11 @@ export const NETWORK_TYPES = {
   EXTERNAL: 'external'
 };
 
-// 状态类型
+// 状态类型 - 极简版
 export const STATUS_TYPES = {
-  ONLINE: 'online',
-  OFFLINE: 'offline',
-  TIMEOUT: 'timeout',
-  ERROR: 'error',
-  UNKNOWN: 'unknown',
-  CHECKING: 'checking',
-  BLOCKED: 'blocked',
-  MIXED_CONTENT: 'mixed-content',
-  MIXED_CONTENT_SERVICE_REACHABLE: 'mixed-content-service-reachable',
-  MIXED_CONTENT_SERVICE_RESTRICTED: 'mixed-content-service-restricted',
-  MIXED_CONTENT_SERVICE_UNREACHABLE: 'mixed-content-service-unreachable',
-  MIXED_CONTENT_DETECTION_FAILED: 'mixed-content-detection-failed',
-  CORS_BLOCKED: 'cors-blocked',
-  CORS_BYPASSED: 'cors-bypassed',
-  IMAGE_REACHABLE: 'image-reachable',
-  PORT_REACHABLE: 'port-reachable',
-  ASSUMED_REACHABLE: 'assumed-reachable',
-  CLIENT_ERROR: 'client-error',
-  SERVER_ERROR: 'server-error',
-  REACHABLE_UNVERIFIED: 'reachable-unverified'
+  AVAILABLE: 'available',     // 网络可达
+  UNREACHABLE: 'unreachable', // 网络不可达
+  CHECKING: 'checking'        // 检测中
 };
 
 // 用户角色
@@ -56,36 +39,21 @@ export const PERMISSIONS = {
   ENVIRONMENT_CHECK: 'environment_check'
 };
 
-// 检测配置
+// 检测配置 - 简化版
 export const DETECTION_CONFIG = {
-  TIMEOUT: 12000,
-  QUICK_TIMEOUT: 5000,
-  IMAGE_TIMEOUT: 3000,
-  RETRY_MAX_ATTEMPTS: 2,
-  RETRY_DELAY: 1000,
-  CONCURRENCY: 4,
-  METHODS: ['HEAD', 'GET', 'OPTIONS']
+  TIMEOUT: 5000,              // 统一5秒超时
+  RETRY_COUNT: 1,             // 重试次数
+  CONCURRENCY: 4,             // 并发数
+  METHODS: ['HEAD', 'GET'],   // 简化的检测方法
+  CACHE_DURATION: 30000       // 缓存时间30秒
 };
 
-// 混合内容检测配置
-export const MIXED_CONTENT_CONFIG = {
-  TIMEOUT: 5000,
-  RETRY_COUNT: 2,
-  TIMING_TEST_COUNT: 3,
-  FAST_FAILURE_THRESHOLD: 100,
-  STATIC_PATHS: [
-    'favicon.ico',
-    'favicon.png', 
-    'robots.txt',
-    'manifest.json',
-    'apple-touch-icon.png'
-  ],
-  WEBSOCKET_PATHS: [
-    '/',
-    '/ws',
-    '/websocket',
-    '/socket.io'
-  ]
+// 简化网络检测配置
+export const SIMPLE_NETWORK_CONFIG = {
+  TIMEOUT: 5000,              // 检测超时时间
+  RETRY_COUNT: 1,             // 重试次数
+  CONCURRENCY: 4,             // 并发数
+  CACHE_DURATION: 30000       // 缓存时间
 };
 
 // 标签颜色配置
@@ -117,32 +85,17 @@ export const TAG_COLORS = {
   'mobile': 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-700'
 };
 
-// 状态颜色配置
+// 状态颜色配置 - 极简版
 export const STATUS_COLORS = {
-  [STATUS_TYPES.ONLINE]: {
+  [STATUS_TYPES.AVAILABLE]: {
     text: 'text-success-600 dark:text-success-400',
     bg: 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-700',
     border: 'border-success-500 dark:border-success-400'
   },
-  [STATUS_TYPES.OFFLINE]: {
-    text: 'text-danger-600 dark:text-danger-400', 
-    bg: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-700',
-    border: 'border-danger-500 dark:border-danger-400'
-  },
-  [STATUS_TYPES.TIMEOUT]: {
-    text: 'text-warning-600 dark:text-warning-400',
-    bg: 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-700', 
-    border: 'border-warning-500 dark:border-warning-400'
-  },
-  [STATUS_TYPES.ERROR]: {
+  [STATUS_TYPES.UNREACHABLE]: {
     text: 'text-danger-600 dark:text-danger-400',
     bg: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-700',
     border: 'border-danger-500 dark:border-danger-400'
-  },
-  [STATUS_TYPES.UNKNOWN]: {
-    text: 'text-gray-500 dark:text-gray-400',
-    bg: 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600',
-    border: 'border-gray-300 dark:border-gray-600'
   },
   [STATUS_TYPES.CHECKING]: {
     text: 'text-blue-600 dark:text-blue-400',

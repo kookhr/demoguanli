@@ -10,9 +10,9 @@ import {
   sortEnvironments
 } from '../utils/favorites';
 import {
-  checkEnvironmentStatusWithProxy as checkEnvironmentStatus,
-  checkMultipleEnvironmentsWithProxy as checkMultipleEnvironments
-} from '../utils/proxyStatusCheck';
+  checkEnvironmentStatus,
+  checkMultipleEnvironments
+} from '../utils/simpleNetworkCheck';
 import EnvironmentFilter from './EnvironmentFilter';
 import EnvironmentCard from './EnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
@@ -163,15 +163,12 @@ const EnvironmentList = () => {
     return environmentStatuses[envId] || { status: 'unknown', isChecking: false };
   }, [environmentStatuses]);
 
-  // 获取状态统计 - 使用useMemo优化
+  // 获取状态统计 - 极简版
   const statusSummary = useMemo(() => {
     const summary = {
       total: environments.length,
-      online: 0,
-      offline: 0,
-      timeout: 0,
-      error: 0,
-      unknown: 0,
+      available: 0,
+      unreachable: 0,
       checking: 0
     };
 
@@ -180,7 +177,29 @@ const EnvironmentList = () => {
       if (status.isChecking) {
         summary.checking++;
       } else {
-        summary[status.status] = (summary[status.status] || 0) + 1;
+        // 只有两种状态：可达或不可达
+        switch (status.status) {
+          case 'available':
+          case 'online':
+          case 'cors-bypassed':
+          case 'image-reachable':
+          case 'port-reachable':
+          case 'assumed-reachable':
+          case 'reachable-unverified':
+          case 'mixed-content-service-reachable':
+            summary.available++;
+            break;
+          case 'unreachable':
+          case 'offline':
+          case 'error':
+          case 'server-error':
+          case 'timeout':
+          case 'unknown':
+          case 'mixed-content-service-unreachable':
+          default:
+            summary.unreachable++;
+            break;
+        }
       }
     });
 
@@ -341,38 +360,24 @@ const EnvironmentList = () => {
             </div>
           )}
 
-          {/* 状态统计 */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-            {(() => {
-              return (
-                <>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{statusSummary.total}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">总计</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{statusSummary.online}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">在线</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statusSummary.offline + statusSummary.error}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">离线</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{statusSummary.timeout}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">超时</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statusSummary.checking}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">检测中</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-600 dark:text-gray-400">{statusSummary.unknown}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">未知</div>
-                  </div>
-                </>
-              );
-            })()}
+          {/* 状态统计 - 极简版 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{statusSummary.total}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">总计</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{statusSummary.available}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">可达</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statusSummary.unreachable}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">不可达</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statusSummary.checking}</div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">检测中</div>
+            </div>
           </div>
         </div>
 

@@ -96,245 +96,94 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
       }
     }
 
-    // 根据检测状态返回描述
+    // 根据检测状态返回描述 - 极简版
     switch (status.status) {
-      case 'online': return "服务正常运行";
-      case 'offline': return "服务不可达";
-      case 'timeout': return "连接超时";
-      case 'blocked': return "Mixed Content阻止访问";
-      case 'mixed-content': return "混合内容限制：HTTPS页面无法访问HTTP资源。建议：1) 将服务升级为HTTPS，2) 使用HTTP页面访问，3) 配置代理服务器";
-      case 'mixed-content-service-reachable': return "通过间接检测发现服务可达，但受混合内容限制无法直接访问";
-      case 'mixed-content-service-restricted': return "服务可能在线但拒绝HTTP连接，建议检查服务配置";
-      case 'mixed-content-service-unreachable': return "服务不可达或离线，请检查服务状态和网络连接";
-      case 'mixed-content-detection-failed': return "混合内容检测失败，无法确定服务状态";
-      case 'cors-blocked': return "跨域访问受限";
-      case 'cors-bypassed': return "通过CORS规避策略检测可达";
-      case 'image-reachable': return "通过图片探测确认可达";
-      case 'port-reachable': return "通过端口探测确认可达";
-      case 'assumed-reachable': return "基于网络响应假设可达";
-      case 'client-error': return "客户端请求错误";
-      case 'server-error': return "服务器响应错误";
-      case 'reachable-unverified': return "服务响应正常";
-      case 'error': return "检测过程出现错误";
-      default: return null; // 不显示未知状态
+      case 'available':
+      case 'online':
+      case 'cors-bypassed':
+      case 'image-reachable':
+      case 'port-reachable':
+      case 'assumed-reachable':
+      case 'reachable-unverified':
+      case 'mixed-content-service-reachable':
+        return "网络可达";
+      case 'unreachable':
+      case 'offline':
+      case 'error':
+      case 'server-error':
+      case 'timeout':
+      case 'unknown':
+      case 'mixed-content-service-unreachable':
+      default:
+        return "网络不可达";
     }
   };
 
-  // 获取状态信息 - 使用useMemo优化
+  // 获取状态信息 - 极简版
   const statusInfo = useMemo(() => {
     switch (status?.status) {
+      case 'available':
+      // 兼容旧状态类型
       case 'online':
+      case 'cors-bypassed':
+      case 'image-reachable':
+      case 'port-reachable':
+      case 'assumed-reachable':
+      case 'reachable-unverified':
+      case 'mixed-content-service-reachable':
         return {
           icon: CheckCircle,
           color: 'text-success-600 dark:text-success-400',
           bg: 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-700',
-          text: '在线',
-          description: '服务正常运行'
-        };
-      case 'offline':
-        return {
-          icon: XCircle,
-          color: 'text-danger-600 dark:text-danger-400',
-          bg: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-700',
-          text: '离线',
-          description: '服务无法访问'
-        };
-      case 'timeout':
-        return {
-          icon: AlertTriangle,
-          color: 'text-warning-600 dark:text-warning-400',
-          bg: 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-700',
-          text: '超时',
-          description: '响应超时'
-        };
-      case 'blocked':
-        return {
-          icon: Shield,
-          color: 'text-purple-600 dark:text-purple-400',
-          bg: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700',
-          text: '被阻止',
-          description: 'Mixed Content阻止'
-        };
-      case 'mixed-content':
-        return {
-          icon: Shield,
-          color: 'text-amber-600 dark:text-amber-400',
-          bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700',
-          text: '混合内容限制',
-          description: 'HTTPS页面无法访问HTTP资源'
-        };
-      case 'mixed-content-service-reachable':
-        return {
-          icon: CheckCircle,
-          color: 'text-green-600 dark:text-green-400',
-          bg: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700',
-          text: '间接检测可达',
-          description: '通过间接方法检测到服务可达'
-        };
-      case 'mixed-content-service-restricted':
-        return {
-          icon: AlertTriangle,
-          color: 'text-orange-600 dark:text-orange-400',
-          bg: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700',
-          text: '服务受限',
-          description: '服务在线但拒绝连接'
-        };
-      case 'mixed-content-service-unreachable':
-        return {
-          icon: XCircle,
-          color: 'text-red-600 dark:text-red-400',
-          bg: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700',
-          text: '服务不可达',
-          description: '服务离线或网络不可达'
-        };
-      case 'mixed-content-detection-failed':
-        return {
-          icon: HelpCircle,
-          color: 'text-gray-600 dark:text-gray-400',
-          bg: 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-700',
-          text: '检测失败',
-          description: '无法确定服务状态'
-        };
-
-      case 'cors-bypassed':
-        return {
-          icon: CheckCircle,
-          color: 'text-emerald-600 dark:text-emerald-400',
-          bg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700',
-          text: '可达(CORS规避)',
-          description: '通过CORS规避策略检测到服务可达'
-        };
-      case 'image-reachable':
-        return {
-          icon: CheckCircle,
-          color: 'text-teal-600 dark:text-teal-400',
-          bg: 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-700',
-          text: '可达(图片探测)',
-          description: '通过图片探测确认服务可达'
-        };
-      case 'port-reachable':
-        return {
-          icon: CheckCircle,
-          color: 'text-cyan-600 dark:text-cyan-400',
-          bg: 'bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-700',
-          text: '可达(端口探测)',
-          description: '通过端口探测确认服务可达'
-        };
-      case 'assumed-reachable':
-        return {
-          icon: CheckCircle,
-          color: 'text-indigo-600 dark:text-indigo-400',
-          bg: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-700',
-          text: '可达(假设)',
-          description: '基于网络响应假设服务可达'
-        };
-      case 'client-error':
-        return {
-          icon: AlertTriangle,
-          color: 'text-orange-600 dark:text-orange-400',
-          bg: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700',
-          text: '客户端错误',
-          description: '请求错误'
-        };
-      case 'server-error':
-        return {
-          icon: XCircle,
-          color: 'text-red-600 dark:text-red-400',
-          bg: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700',
-          text: '服务器错误',
-          description: '服务器异常'
-        };
-      case 'reachable-unverified':
-        return {
-          icon: CheckCircle,
-          color: 'text-blue-600 dark:text-blue-400',
-          bg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700',
           text: '可达',
-          description: '服务响应正常'
+          description: '网络可达'
         };
-      case 'cors-blocked':
-        return {
-          icon: Shield,
-          color: 'text-yellow-600 dark:text-yellow-400',
-          bg: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700',
-          text: '受限',
-          description: '访问受限'
-        };
-      case 'unknown-status':
-        return {
-          icon: HelpCircle,
-          color: 'text-purple-600 dark:text-purple-400',
-          bg: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700',
-          text: '未知',
-          description: '状态未知'
-        };
+      case 'unreachable':
+      // 兼容旧状态类型
+      case 'offline':
       case 'error':
-        return {
-          icon: XCircle,
-          color: 'text-danger-600 dark:text-danger-400',
-          bg: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-700',
-          text: '错误',
-          description: '检测出错'
-        };
+      case 'server-error':
+      case 'timeout':
+      case 'unknown':
+      case 'mixed-content-service-unreachable':
       default:
         return {
-          icon: AlertCircle,
-          color: 'text-gray-500 dark:text-gray-400',
-          bg: 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600',
-          text: '未知',
-          description: '状态未知'
+          icon: XCircle,
+          color: 'text-danger-600 dark:text-danger-400',
+          bg: 'bg-danger-50 dark:bg-danger-900/20 border-danger-200 dark:border-danger-700',
+          text: '不可达',
+          description: '网络不可达'
         };
     }
   }, [status]);
 
 
 
-  // 获取状态边框颜色 - 使用useMemo优化
+  // 获取状态边框颜色 - 极简版
   const statusBorderColor = useMemo(() => {
     if (status?.isChecking) {
       return 'border-blue-400 dark:border-blue-500';
     }
 
     switch (status?.status) {
+      case 'available':
       case 'online':
-        return 'border-success-500 dark:border-success-400';
       case 'cors-bypassed':
-        return 'border-emerald-500 dark:border-emerald-400';
       case 'image-reachable':
-        return 'border-teal-500 dark:border-teal-400';
       case 'port-reachable':
-        return 'border-cyan-500 dark:border-cyan-400';
       case 'assumed-reachable':
-        return 'border-indigo-500 dark:border-indigo-400';
-      case 'client-error':
-        return 'border-orange-500 dark:border-orange-400';
-      case 'server-error':
-        return 'border-red-500 dark:border-red-400';
       case 'reachable-unverified':
-        return 'border-blue-500 dark:border-blue-400';
-      case 'cors-blocked':
-        return 'border-yellow-500 dark:border-yellow-400';
-      case 'unknown-status':
-        return 'border-purple-500 dark:border-purple-400';
+      case 'mixed-content-service-reachable':
+        return 'border-success-500 dark:border-success-400';
+      case 'unreachable':
       case 'offline':
       case 'error':
-        return 'border-danger-500 dark:border-danger-400';
+      case 'server-error':
       case 'timeout':
-        return 'border-warning-500 dark:border-warning-400';
-      case 'blocked':
-        return 'border-purple-500 dark:border-purple-400';
-      case 'mixed-content':
-        return 'border-amber-500 dark:border-amber-400';
-      case 'mixed-content-service-reachable':
-        return 'border-green-500 dark:border-green-400';
-      case 'mixed-content-service-restricted':
-        return 'border-orange-500 dark:border-orange-400';
+      case 'unknown':
       case 'mixed-content-service-unreachable':
-        return 'border-red-500 dark:border-red-400';
-      case 'mixed-content-detection-failed':
-        return 'border-gray-500 dark:border-gray-400';
       default:
-        return 'border-gray-300 dark:border-gray-600';
+        return 'border-danger-500 dark:border-danger-400';
     }
   }, [status]);
 
