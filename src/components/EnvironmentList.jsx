@@ -104,7 +104,7 @@ const EnvironmentList = () => {
   }, []);
 
   // 检测单个环境状态
-  const handleCheckSingle = async (environment) => {
+  const handleCheckSingle = useCallback(async (environment) => {
 
     setEnvironmentStatuses(prev => ({
       ...prev,
@@ -134,10 +134,10 @@ const EnvironmentList = () => {
         }
       }));
     }
-  };
+  }, []);
 
   // 批量检测所有环境状态
-  const handleCheckAll = async () => {
+  const handleCheckAll = useCallback(async () => {
     if (isChecking || environments.length === 0) return;
     setIsChecking(true);
     setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
@@ -156,7 +156,7 @@ const EnvironmentList = () => {
       setIsChecking(false);
       setCheckProgress(null);
     }
-  };
+  }, [environments]);
 
   // 获取环境状态 - 使用useCallback优化
   const getEnvironmentStatus = useCallback((envId) => {
