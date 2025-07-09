@@ -391,25 +391,21 @@ class AuthManager {
   // 获取系统设置
   async getSystemSettings() {
     try {
-      return await kvApi.get('system_settings') || {};
-    } catch (error) {
-      // KV存储不可用时，从本地存储获取
-      try {
-        const settings = localStorage.getItem('env_mgmt_system_settings');
-        return settings ? JSON.parse(settings) : {};
-      } catch {
-        return {};
-      }
+      // 从本地存储获取（简化版本）
+      const settings = localStorage.getItem('env_mgmt_system_settings');
+      return settings ? JSON.parse(settings) : {};
+    } catch {
+      return {};
     }
   }
 
   // 保存系统设置
   async saveSystemSettings(settings) {
     try {
-      await kvApi.put('system_settings', settings);
-    } catch (error) {
-      // KV存储不可用时，保存到本地存储
+      // 保存到本地存储（简化版本）
       localStorage.setItem('env_mgmt_system_settings', JSON.stringify(settings));
+    } catch (error) {
+      console.warn('保存系统设置失败:', error);
     }
   }
 

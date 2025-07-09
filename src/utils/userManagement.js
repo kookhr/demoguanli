@@ -1,5 +1,5 @@
-// 用户管理工具
-import { kvApi } from './kvApi';
+// 用户管理工具 - Serv00 数据库版本
+import databaseAPI from './databaseApi.js';
 import { authManager } from './auth';
 
 // 用户管理类
@@ -32,15 +32,14 @@ class UserManager {
   // 加载所有用户数据
   async loadAllUsers() {
     try {
-      // 尝试从KV存储获取用户列表
-      const userList = await kvApi.get('user_list');
-      if (userList && Array.isArray(userList)) {
+      // 尝试从数据库获取用户列表
+      const users = await databaseAPI.getUsers();
+      if (users && Array.isArray(users)) {
         // 加载每个用户的详细数据
-        for (const username of userList) {
+        for (const userData of users) {
           try {
-            const userData = await authManager.getUserFromKV(username);
-            if (userData) {
-              this.users.set(username, userData);
+            if (userData && userData.username) {
+              this.users.set(userData.username, userData);
             }
           } catch (error) {
             // 静默处理错误
@@ -51,7 +50,7 @@ class UserManager {
         await this.scanExistingUsers();
       }
     } catch (error) {
-      // KV存储不可用时，从本地存储加载
+      // 数据库不可用时，从本地存储加载
       this.loadUsersFromLocalStorage();
     }
   }
@@ -94,12 +93,12 @@ class UserManager {
 
   // 保存用户列表到存储
   async saveUserList() {
-    const userList = Array.from(this.users.keys());
-    
+    // 在数据库版本中，用户列表通过数据库自动维护，无需单独保存
     try {
-      await kvApi.put('user_list', userList);
+      // 可以在这里添加一些缓存逻辑，但通常不需要
+      console.log('用户列表已通过数据库自动维护');
     } catch (error) {
-      console.warn('⚠️ 无法保存用户列表到KV存储:', error);
+      console.warn('⚠️ 用户列表维护警告:', error);
     }
   }
 
@@ -174,9 +173,12 @@ class UserManager {
       throw new Error('用户不存在');
     }
 
-    // 从KV存储删除
+    // 从数据库删除
     try {
-      await kvApi.delete(`user_${username}`);
+      const user = this.users.get(username);
+      if (user && user.id) {
+        await databaseAPI.deleteUser(user.id);
+      }
     } catch (error) {
       // 静默处理错误
     }
