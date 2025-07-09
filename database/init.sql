@@ -1,0 +1,181 @@
+-- Serv00 环境管理系统数据库初始化脚本
+-- 创建数据库
+CREATE DATABASE IF NOT EXISTS environment_manager 
+DEFAULT CHARACTER SET utf8mb4 
+DEFAULT COLLATE utf8mb4_unicode_ci;
+
+USE environment_manager;
+
+-- 创建环境表
+CREATE TABLE IF NOT EXISTS environments (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  url VARCHAR(500) NOT NULL,
+  description TEXT,
+  version VARCHAR(50),
+  network_type ENUM('internal', 'external') DEFAULT 'external',
+  environment_type ENUM('development', 'testing', 'staging', 'production') DEFAULT 'development',
+  tags JSON,
+  group_id VARCHAR(36),
+  created_by VARCHAR(36),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  is_active BOOLEAN DEFAULT TRUE,
+  INDEX idx_name (name),
+  INDEX idx_type (environment_type),
+  INDEX idx_network (network_type),
+  INDEX idx_group (group_id),
+  INDEX idx_created_by (created_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建用户表
+CREATE TABLE IF NOT EXISTS users (
+  id VARCHAR(36) PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin', 'user') DEFAULT 'user',
+  is_active BOOLEAN DEFAULT TRUE,
+  last_login TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_username (username),
+  INDEX idx_email (email),
+  INDEX idx_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建状态历史表
+CREATE TABLE IF NOT EXISTS status_history (
+  id VARCHAR(36) PRIMARY KEY,
+  environment_id VARCHAR(36) NOT NULL,
+  status ENUM('available', 'unreachable', 'checking') NOT NULL,
+  response_time INT,
+  status_code INT,
+  error_message TEXT,
+  detection_method VARCHAR(50),
+  checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  checked_by VARCHAR(36),
+  FOREIGN KEY (environment_id) REFERENCES environments(id) ON DELETE CASCADE,
+  INDEX idx_env_id (environment_id),
+  INDEX idx_status (status),
+  INDEX idx_checked_at (checked_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建用户会话表
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL,
+  session_token VARCHAR(255) UNIQUE NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_token (session_token),
+  INDEX idx_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建环境分组表
+CREATE TABLE IF NOT EXISTS environment_groups (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  color VARCHAR(7) DEFAULT '#3B82F6',
+  sort_order INT DEFAULT 0,
+  created_by VARCHAR(36),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  is_active BOOLEAN DEFAULT TRUE,
+  INDEX idx_name (name),
+  INDEX idx_sort_order (sort_order),
+  INDEX idx_created_by (created_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 插入默认管理员用户
+INSERT IGNORE INTO users (id, username, email, password_hash, role, is_active) VALUES 
+('admin-001', 'admin', 'admin@localhost', '$2b$10$rQJ5qJ5qJ5qJ5qJ5qJ5qJOqJ5qJ5qJ5qJ5qJ5qJ5qJ5qJ5qJ5qJ5q', 'admin', TRUE);
+
+-- 插入默认环境分组
+INSERT IGNORE INTO environment_groups (id, name, description, color, sort_order) VALUES 
+('group-dev', '开发环境', '开发和测试环境', '#10B981', 1),
+('group-prod', '生产环境', '生产和预发布环境', '#EF4444', 2),
+('group-staging', '预发布环境', '预发布和集成测试环境', '#F59E0B', 3);
+
+-- 插入示例环境数据
+INSERT IGNORE INTO environments (id, name, url, description, version, network_type, environment_type, tags, group_id, created_by) VALUES 
+('env-001', '开发环境API', 'https://dev-api.example.com', '主要开发API服务', 'v2.1.0', 'external', 'development', '["API", "开发"]', 'group-dev', 'admin-001'),
+('env-002', '测试数据库', 'https://test-db.example.com', '测试环境数据库', 'v1.8.5', 'internal', 'testing', '["数据库", "测试"]', 'group-dev', 'admin-001'),
+('env-003', '生产环境', 'https://api.example.com', '生产环境主服务', 'v2.0.3', 'external', 'production', '["生产", "API"]', 'group-prod', 'admin-001'),
+('env-004', '监控服务', 'https://monitor.example.com', '系统监控服务', 'v1.5.2', 'internal', 'production', '["监控", "运维"]', 'group-prod', 'admin-001');
+
+-- 创建视图：环境状态概览
+CREATE OR REPLACE VIEW environment_status_overview AS
+SELECT 
+  e.id,
+  e.name,
+  e.url,
+  e.environment_type,
+  e.network_type,
+  g.name as group_name,
+  g.color as group_color,
+  sh.status as current_status,
+  sh.response_time,
+  sh.checked_at as last_checked,
+  (SELECT COUNT(*) FROM status_history sh2 
+   WHERE sh2.environment_id = e.id 
+   AND sh2.checked_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) as checks_24h
+FROM environments e
+LEFT JOIN environment_groups g ON e.group_id = g.id
+LEFT JOIN (
+  SELECT DISTINCT environment_id,
+    FIRST_VALUE(status) OVER (PARTITION BY environment_id ORDER BY checked_at DESC) as status,
+    FIRST_VALUE(response_time) OVER (PARTITION BY environment_id ORDER BY checked_at DESC) as response_time,
+    FIRST_VALUE(checked_at) OVER (PARTITION BY environment_id ORDER BY checked_at DESC) as checked_at
+  FROM status_history
+) sh ON e.id = sh.environment_id
+WHERE e.is_active = TRUE
+ORDER BY g.sort_order, e.name;
+
+-- 创建存储过程：清理过期会话
+DELIMITER //
+CREATE PROCEDURE CleanExpiredSessions()
+BEGIN
+  DELETE FROM user_sessions WHERE expires_at < NOW();
+END //
+DELIMITER ;
+
+-- 创建存储过程：清理旧的状态历史记录（保留30天）
+DELIMITER //
+CREATE PROCEDURE CleanOldStatusHistory()
+BEGIN
+  DELETE FROM status_history 
+  WHERE checked_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+END //
+DELIMITER ;
+
+-- 创建事件调度器（如果支持）
+-- SET GLOBAL event_scheduler = ON;
+
+-- 每小时清理过期会话
+-- CREATE EVENT IF NOT EXISTS clean_expired_sessions
+-- ON SCHEDULE EVERY 1 HOUR
+-- DO CALL CleanExpiredSessions();
+
+-- 每天清理旧的状态历史
+-- CREATE EVENT IF NOT EXISTS clean_old_status_history
+-- ON SCHEDULE EVERY 1 DAY
+-- STARTS TIMESTAMP(CURRENT_DATE, '02:00:00')
+-- DO CALL CleanOldStatusHistory();
+
+-- 创建用户和权限（根据实际需要调整）
+-- CREATE USER IF NOT EXISTS 'env_manager'@'localhost' IDENTIFIED BY 'your_secure_password';
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON environment_manager.* TO 'env_manager'@'localhost';
+-- FLUSH PRIVILEGES;
+
+-- 显示创建结果
+SELECT 'Database initialization completed successfully!' as message;
+SELECT COUNT(*) as total_tables FROM information_schema.tables WHERE table_schema = 'environment_manager';
+SELECT COUNT(*) as total_users FROM users;
+SELECT COUNT(*) as total_groups FROM environment_groups;
+SELECT COUNT(*) as total_environments FROM environments;

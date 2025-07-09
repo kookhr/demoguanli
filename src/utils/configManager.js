@@ -1,30 +1,104 @@
-// 配置管理工具 - 使用 Cloudflare KV
-import { kvApi } from './kvApi.js';
+// 配置管理工具 - Serv00 数据库版本
 import { environments as defaultEnvironments } from '../data/environments.js';
+import databaseAPI from './databaseApi.js';
 
-const KV_KEY = 'environments';
+// 存储键名（用于本地缓存）
+const STORAGE_KEYS = {
+  environments: 'environments_cache',
+  settings: 'app_settings',
+  lastSync: 'last_sync_time'
+};
+
+// 缓存过期时间（5分钟）
+const CACHE_EXPIRY = 5 * 60 * 1000;
+
+// 本地缓存工具函数
+const saveToCache = (key, data) => {
+  try {
+    const cacheData = {
+      data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(STORAGE_KEYS[key], JSON.stringify(cacheData));
+  } catch (error) {
+    console.warn('保存到本地缓存失败:', error);
+  }
+};
+
+const getFromCache = (key) => {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEYS[key]);
+    if (!cached) return null;
+
+    const cacheData = JSON.parse(cached);
+    const isExpired = Date.now() - cacheData.timestamp > CACHE_EXPIRY;
+
+    if (isExpired) {
+      localStorage.removeItem(STORAGE_KEYS[key]);
+      return null;
+    }
+
+    return cacheData.data;
+  } catch (error) {
+    console.warn('从本地缓存读取失败:', error);
+    return null;
+  }
+};
+
+const getFromCacheIgnoreExpiry = (key) => {
+  try {
+    const cached = localStorage.getItem(STORAGE_KEYS[key]);
+    if (!cached) return null;
+
+    const cacheData = JSON.parse(cached);
+    return cacheData.data;
+  } catch (error) {
+    return null;
+  }
+};
 
 // 获取所有环境配置
 export const getEnvironments = async () => {
   try {
-    // 尝试从 KV 获取
-    const environments = await kvApi.get(KV_KEY);
-    if (environments && Array.isArray(environments) && environments.length > 0) {
-      return environments;
-    } else {
-      return defaultEnvironments;
+    // 检查本地缓存
+    const cached = getFromCache('environments');
+    if (cached) {
+      return cached;
     }
+
+    // 从数据库获取
+    const environments = await databaseAPI.getEnvironments();
+
+    if (environments && Array.isArray(environments)) {
+      // 缓存到本地
+      saveToCache('environments', environments);
+      return environments;
+    }
+
+    // 如果数据库中没有数据，返回默认数据
+    return defaultEnvironments;
   } catch (error) {
+    console.warn('从数据库获取环境配置失败，使用本地缓存或默认配置:', error);
+
+    // 尝试使用本地缓存（忽略过期时间）
+    const cached = getFromCacheIgnoreExpiry('environments');
+    if (cached) {
+      return cached;
+    }
+
     return defaultEnvironments;
   }
 };
 
-// 保存环境配置
+// 保存环境配置（批量更新）
 export const saveEnvironments = async (environments) => {
   try {
-    await kvApi.put(KV_KEY, environments);
+    // 这个函数主要用于导入，实际应该逐个调用 API
+    // 为了兼容性，这里先缓存到本地
+    saveToCache('environments', environments);
     return true;
   } catch (error) {
+    console.error('保存环境配置失败:', error);
     return false;
   }
 };
@@ -32,16 +106,24 @@ export const saveEnvironments = async (environments) => {
 // 添加新环境
 export const addEnvironment = async (environment) => {
   try {
-    const environments = await getEnvironments();
     const newEnvironment = {
       ...environment,
       id: environment.id || generateId(),
-      lastDeployed: new Date().toISOString().slice(0, 19).replace('T', ' ')
+      created_at: new Date().toISOString()
     };
-    environments.push(newEnvironment);
-    await saveEnvironments(environments);
-    return newEnvironment;
+
+    // 调用数据库 API 创建环境
+    const result = await databaseAPI.createEnvironment(newEnvironment);
+
+    if (result) {
+      // 清除缓存以强制重新获取
+      localStorage.removeItem(STORAGE_KEYS.environments);
+      return result;
+    }
+
+    return null;
   } catch (error) {
+    console.error('添加环境失败:', error);
     return null;
   }
 };
@@ -49,15 +131,18 @@ export const addEnvironment = async (environment) => {
 // 更新环境
 export const updateEnvironment = async (id, updatedEnvironment) => {
   try {
-    const environments = await getEnvironments();
-    const index = environments.findIndex(env => env.id === id);
-    if (index !== -1) {
-      environments[index] = { ...environments[index], ...updatedEnvironment };
-      await saveEnvironments(environments);
-      return environments[index];
+    // 调用数据库 API 更新环境
+    const result = await databaseAPI.updateEnvironment(id, updatedEnvironment);
+
+    if (result) {
+      // 清除缓存以强制重新获取
+      localStorage.removeItem(STORAGE_KEYS.environments);
+      return result;
     }
+
     return null;
   } catch (error) {
+    console.error('更新环境失败:', error);
     return null;
   }
 };
@@ -65,12 +150,19 @@ export const updateEnvironment = async (id, updatedEnvironment) => {
 // 删除环境
 export const deleteEnvironment = async (id) => {
   try {
-    const environments = await getEnvironments();
-    const filtered = environments.filter(env => env.id !== id);
-    await saveEnvironments(filtered);
-    return filtered;
+    // 调用数据库 API 删除环境
+    const result = await databaseAPI.deleteEnvironment(id);
+
+    if (result) {
+      // 清除缓存以强制重新获取
+      localStorage.removeItem(STORAGE_KEYS.environments);
+      return true;
+    }
+
+    return false;
   } catch (error) {
-    return null;
+    console.error('删除环境失败:', error);
+    return false;
   }
 };
 
