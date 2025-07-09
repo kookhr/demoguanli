@@ -14,13 +14,18 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 配置变量
-SERV00_USER=""          # 您的 Serv00 用户名
-SERV00_DOMAIN=""        # 您的域名，如: username.serv00.net
-DB_NAME="environment_manager"
-DB_USER=""              # 数据库用户名
-DB_PASSWORD=""          # 数据库密码
+# 配置变量 - 请根据您的实际情况修改
+SERV00_USER=""                    # 您的 Serv00 用户名
+SERV00_DOMAIN=""                  # 您的域名，如: username.serv00.net
+DB_NAME="environment_manager"     # 数据库名称
+DB_USER=""                        # 数据库用户名
+DB_PASSWORD=""                    # 数据库密码
 PROJECT_NAME="environment-manager"
+
+# 高级配置（通常不需要修改）
+BACKUP_ENABLED=true               # 是否启用备份
+CLEANUP_ENABLED=true              # 是否清理临时文件
+VERIFY_DEPLOYMENT=true            # 是否验证部署结果
 
 # 检查配置
 check_config() {
