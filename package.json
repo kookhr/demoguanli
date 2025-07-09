@@ -7,9 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "deploy:serv00": "chmod +x deploy-serv00.sh && ./deploy-serv00.sh",
-    "build:analyze": "vite build --mode analyze"
+    "preview": "vite preview"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",
@@ -29,7 +27,6 @@
     "globals": "^16.0.0",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
-    "terser": "^5.43.1",
     "vite": "^6.3.5"
   }
 }
