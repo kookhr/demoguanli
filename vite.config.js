@@ -19,9 +19,7 @@ export default defineConfig({
           // 将 React 相关库打包到单独的 chunk
           vendor: ['react', 'react-dom'],
           // 将图标库打包到单独的 chunk
-          icons: ['lucide-react'],
-          // 将工具库打包到单独的 chunk
-          utils: ['date-fns']
+          icons: ['lucide-react']
         },
 
         // 文件命名优化
@@ -45,13 +43,7 @@ export default defineConfig({
     },
 
     // 压缩优化
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // 生产环境移除 console
-        drop_debugger: true // 生产环境移除 debugger
-      }
-    },
+    minify: true,
 
     // 资源内联阈值
     assetsInlineLimit: 4096, // 小于 4kb 的资源内联为 base64
