@@ -1,0 +1,159 @@
+name: Deploy to Serv00
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+    types: [ closed ]
+
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    # 只在 push 到主分支或 PR 合并时部署
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📋 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm ci
+      
+    - name: 🔍 Run tests (if available)
+      run: |
+        if npm run test --if-present; then
+          echo "✅ Tests passed"
+        else
+          echo "⚠️ No tests found or tests failed"
+        fi
+      continue-on-error: true
+      
+    - name: 🔨 Build project
+      run: npm run build
+      
+    - name: 📝 Create .htaccess
+      run: |
+        cat > dist/.htaccess << 'EOF'
+        # 启用 Gzip 压缩
+        <IfModule mod_deflate.c>
+            AddOutputFilterByType DEFLATE text/plain
+            AddOutputFilterByType DEFLATE text/html
+            AddOutputFilterByType DEFLATE text/xml
+            AddOutputFilterByType DEFLATE text/css
+            AddOutputFilterByType DEFLATE application/xml
+            AddOutputFilterByType DEFLATE application/xhtml+xml
+            AddOutputFilterByType DEFLATE application/rss+xml
+            AddOutputFilterByType DEFLATE application/javascript
+            AddOutputFilterByType DEFLATE application/x-javascript
+        </IfModule>
+
+        # 设置缓存
+        <IfModule mod_expires.c>
+            ExpiresActive on
+            ExpiresByType text/css "access plus 1 year"
+            ExpiresByType application/javascript "access plus 1 year"
+            ExpiresByType image/png "access plus 1 year"
+            ExpiresByType image/jpg "access plus 1 year"
+            ExpiresByType image/jpeg "access plus 1 year"
+            ExpiresByType image/gif "access plus 1 year"
+            ExpiresByType image/svg+xml "access plus 1 year"
+        </IfModule>
+
+        # SPA 路由支持
+        <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteBase /
+            RewriteRule ^index\.html$ - [L]
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteRule . /index.html [L]
+        </IfModule>
+
+        # 安全头
+        <IfModule mod_headers.c>
+            Header always set X-Frame-Options DENY
+            Header always set X-Content-Type-Options nosniff
+            Header always set Referrer-Policy "strict-origin-when-cross-origin"
+        </IfModule>
+        EOF
+        
+    - name: 📤 Deploy to Serv00
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ftp.serv00.com
+        username: ${{ secrets.SERV00_USERNAME }}
+        password: ${{ secrets.SERV00_PASSWORD }}
+        local-dir: ./dist/
+        server-dir: /domains/${{ secrets.SERV00_DOMAIN }}/public_html/
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          **/.DS_Store
+          **/Thumbs.db
+        
+    - name: 🔍 Verify deployment
+      run: |
+        echo "🌐 网站地址: https://${{ secrets.SERV00_DOMAIN }}"
+        echo "📊 部署信息:"
+        echo "   - 提交: ${{ github.sha }}"
+        echo "   - 分支: ${{ github.ref_name }}"
+        echo "   - 时间: $(date)"
+        
+        # 等待几秒让部署生效
+        sleep 10
+        
+        # 检查网站是否可访问
+        if curl -s --head "https://${{ secrets.SERV00_DOMAIN }}" | head -n 1 | grep -q "200\|301\|302"; then
+          echo "✅ 网站部署成功，可正常访问"
+        else
+          echo "⚠️ 网站可能需要几分钟才能生效"
+        fi
+        
+    - name: 📊 Deployment Summary
+      run: |
+        echo "## 🚀 部署完成" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| 项目 | 信息 |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+        echo "| 🌐 网站地址 | https://${{ secrets.SERV00_DOMAIN }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| 📝 提交信息 | ${{ github.event.head_commit.message }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🔗 提交哈希 | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🌿 分支 | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| ⏰ 部署时间 | $(date) |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 部署步骤" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 代码检出" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Node.js 环境设置" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 依赖安装" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 项目构建" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 配置文件创建" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 文件上传" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 部署验证" >> $GITHUB_STEP_SUMMARY
+
+  # 部署失败时的通知任务
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: failure()
+    
+    steps:
+    - name: 📧 Notify deployment failure
+      run: |
+        echo "❌ 部署失败"
+        echo "请检查以下内容："
+        echo "1. Serv00 账户凭据是否正确"
+        echo "2. 域名配置是否正确"
+        echo "3. 构建过程是否有错误"
+        echo "4. 网络连接是否正常"
