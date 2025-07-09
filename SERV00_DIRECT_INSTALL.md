@@ -19,14 +19,14 @@
 在 Serv00 主机的 SSH 终端中执行：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/your-username/your-repo/serv00/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/install.sh | bash
 ```
 
 ### 方法二：下载脚本后执行
 
 ```bash
 # 下载脚本
-wget https://raw.githubusercontent.com/your-username/your-repo/serv00/serv00-auto-deploy.sh
+wget https://raw.githubusercontent.com/kookhr/demoguanli/serv00/serv00-auto-deploy.sh
 
 # 添加执行权限
 chmod +x serv00-auto-deploy.sh
@@ -39,10 +39,10 @@ chmod +x serv00-auto-deploy.sh
 
 ```bash
 # 克隆项目
-git clone -b serv00 https://github.com/your-username/your-repo.git
+git clone -b serv00 https://github.com/kookhr/demoguanli.git
 
 # 进入目录
-cd your-repo
+cd demoguanli
 
 # 执行安装脚本
 ./serv00-auto-deploy.sh
@@ -169,7 +169,7 @@ https://your_domain.serv00.net
 ping github.com
 
 # 手动下载
-wget --no-check-certificate https://raw.githubusercontent.com/...
+wget --no-check-certificate https://raw.githubusercontent.com/kookhr/demoguanli/serv00/serv00-auto-deploy.sh
 ```
 
 **2. 依赖缺失**
@@ -224,7 +224,7 @@ tail -f ~/domains/*/logs/error.log
 ### 更新到最新版本
 ```bash
 # 重新运行安装脚本即可
-curl -sSL https://raw.githubusercontent.com/your-username/your-repo/serv00/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/install.sh | bash
 ```
 
 ### 备份数据

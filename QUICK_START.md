@@ -5,10 +5,8 @@
 在您的 Serv00 主机 SSH 终端中执行以下命令：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/your-username/your-repo/serv00/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/install.sh | bash
 ```
-
-> 💡 **提示**：请将 `your-username/your-repo` 替换为您的实际 GitHub 仓库地址
 
 ## 📋 安装过程
 

@@ -2,7 +2,7 @@
 
 # Serv00 环境管理系统自动部署脚本
 # 在 Serv00 主机上直接执行，无需预配置
-# 使用方法: curl -sSL https://raw.githubusercontent.com/your-repo/demo/serv00/serv00-auto-deploy.sh | bash
+# 使用方法: curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/serv00-auto-deploy.sh | bash
 
 set -e
 
@@ -16,7 +16,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # 项目配置
-REPO_URL="https://github.com/your-username/your-repo.git"  # 请替换为您的实际仓库地址
+REPO_URL="https://github.com/kookhr/demoguanli.git"
 BRANCH="serv00"
 PROJECT_NAME="environment-manager"
 DB_NAME="environment_manager"

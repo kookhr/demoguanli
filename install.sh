@@ -3,8 +3,8 @@
 # 环境管理系统一行安装脚本
 # 使用方法: curl -sSL https://raw.githubusercontent.com/your-repo/demo/serv00/install.sh | bash
 
-# 设置脚本 URL（请替换为您的实际仓库地址）
-SCRIPT_URL="https://raw.githubusercontent.com/your-username/your-repo/serv00/serv00-auto-deploy.sh"
+# 设置脚本 URL
+SCRIPT_URL="https://raw.githubusercontent.com/kookhr/demoguanli/serv00/serv00-auto-deploy.sh"
 
 # 颜色定义
 GREEN='\033[0;32m'
