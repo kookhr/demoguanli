@@ -1,5 +1,5 @@
-// 用户认证管理工具
-import { kvApi } from './kvApi';
+// 用户认证管理工具 - Serv00 数据库版本
+import databaseAPI from './databaseApi.js';
 
 const AUTH_STORAGE_KEY = 'auth_token';
 const USER_STORAGE_KEY = 'current_user';
@@ -146,16 +146,11 @@ class AuthManager {
   // 检查注册是否被禁用
   async isRegistrationDisabled() {
     try {
-      const settings = await kvApi.get('system_settings');
-      return settings?.registrationDisabled || false;
-    } catch (error) {
-      // KV存储不可用时，从本地存储检查
-      try {
-        const settings = localStorage.getItem('env_mgmt_system_settings');
-        return settings ? JSON.parse(settings).registrationDisabled || false : false;
-      } catch {
-        return false;
-      }
+      // 从本地存储检查（简化版本）
+      const settings = localStorage.getItem('env_mgmt_system_settings');
+      return settings ? JSON.parse(settings).registrationDisabled || false : false;
+    } catch {
+      return false;
     }
   }
 
@@ -303,28 +298,30 @@ class AuthManager {
     return this.token;
   }
 
-  // 从KV存储获取用户数据（带本地存储备用）
+  // 从数据库获取用户数据（带本地存储备用）
   async getUserFromKV(username) {
     try {
-      const userKey = `user_${username}`;
-      return await kvApi.get(userKey);
+      // 尝试从数据库获取用户
+      const users = await databaseAPI.getUsers();
+      const user = users.find(u => u.username === username);
+      return user || null;
     } catch (error) {
-      if (error.message.includes('not found') || error.message.includes('404')) {
-        return null;
-      }
-
-      // KV存储不可用时，尝试从本地存储获取
+      // 数据库不可用时，尝试从本地存储获取
       return this.getUserFromLocalStorage(username);
     }
   }
 
-  // 保存用户数据到KV存储（带本地存储备用）
+  // 保存用户数据到数据库（带本地存储备用）
   async saveUserToKV(username, userData) {
     try {
-      const userKey = `user_${username}`;
-      await kvApi.put(userKey, userData);
+      // 尝试保存到数据库
+      if (userData.id) {
+        await databaseAPI.updateUser(userData.id, userData);
+      } else {
+        await databaseAPI.createUser(userData);
+      }
     } catch (error) {
-      // KV存储不可用时，保存到本地存储
+      // 数据库不可用时，保存到本地存储
       this.saveUserToLocalStorage(username, userData);
     }
   }

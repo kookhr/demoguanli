@@ -210,6 +210,15 @@ build_project() {
     echo -e "   🧹 清理 npm 缓存..."
     npm cache clean --force 2>/dev/null || true
 
+    # 修复 Node.js 18 兼容性问题
+    echo -e "   🔧 修复 Node.js 兼容性..."
+    if [ "$NODE_MAJOR" -lt 20 ]; then
+        echo -e "   📝 降级 Vite 版本以兼容 Node.js $NODE_VERSION"
+        # 修复 package.json 中的版本
+        sed -i 's/"vite": "\^6\.[0-9]*\.[0-9]*"/"vite": "^5.4.10"/' package.json 2>/dev/null || true
+        sed -i 's/"@vitejs\/plugin-react": "\^4\.[4-9]\.[0-9]*"/"@vitejs\/plugin-react": "^4.3.3"/' package.json 2>/dev/null || true
+    fi
+
     # 安装 npm 依赖（包括开发依赖，因为需要 vite 构建）
     echo -e "   📦 安装 npm 依赖..."
     if npm install; then
