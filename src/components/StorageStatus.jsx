@@ -48,12 +48,12 @@ const StorageStatus = () => {
         {/* 存储类型 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Cloud className="w-4 h-4 text-gray-500" />
+            <Database className="w-4 h-4 text-gray-500" />
             <span className="text-sm text-gray-600">存储类型</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-primary-600">
-              Cloudflare KV
+              Serv00 MySQL
             </span>
             <CheckCircle className="w-4 h-4 text-success-500" />
           </div>

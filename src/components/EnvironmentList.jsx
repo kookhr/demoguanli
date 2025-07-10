@@ -103,8 +103,9 @@ const EnvironmentList = () => {
     setFilteredEnvironments(filtered);
   }, []);
 
-  // 检测单个环境状态
+  // 检测单个环境状态 - 改进错误处理和用户反馈
   const handleCheckSingle = useCallback(async (environment) => {
+    console.log('🔍 开始检测单个环境:', environment.name, environment.url);
 
     setEnvironmentStatuses(prev => ({
       ...prev,
@@ -112,8 +113,9 @@ const EnvironmentList = () => {
     }));
 
     try {
-      // 使用精确检测方法
+      // 使用改进的检测方法
       const result = await checkEnvironmentStatus(environment);
+      console.log('✅ 单个检测完成:', environment.name, result.status);
 
       setEnvironmentStatuses(prev => ({
         ...prev,
@@ -122,36 +124,65 @@ const EnvironmentList = () => {
 
       // 记录状态历史
       addStatusRecord(environment.id, result);
+
     } catch (error) {
+      console.error('❌ 单个检测失败:', environment.name, error);
+
+      const errorResult = {
+        id: environment.id,
+        status: 'unreachable',
+        error: `检测异常: ${error.message}`,
+        lastChecked: new Date().toISOString(),
+        isChecking: false,
+        responseTime: 0,
+        method: 'error'
+      };
+
       setEnvironmentStatuses(prev => ({
         ...prev,
-        [environment.id]: {
-          id: environment.id,
-          status: 'error',
-          error: error.message,
-          lastChecked: new Date().toISOString(),
-          isChecking: false
-        }
+        [environment.id]: errorResult
       }));
+
+      // 也记录错误状态到历史
+      addStatusRecord(environment.id, errorResult);
     }
   }, []);
 
-  // 批量检测所有环境状态
+  // 批量检测所有环境状态 - 改进错误处理和用户反馈
   const handleCheckAll = useCallback(async () => {
     if (isChecking || environments.length === 0) return;
+
+    console.log('🔍 开始批量检测', environments.length, '个环境');
     setIsChecking(true);
-    setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
+    setCheckProgress({
+      completed: 0,
+      total: environments.length,
+      percentage: 0,
+      errors: 0,
+      status: 'starting'
+    });
 
     try {
-      // 使用精确检测方法
+      // 使用改进的检测方法
       const results = await checkMultipleEnvironments(environments, (progress) => {
+        console.log('📊 检测进度:', progress);
         setCheckProgress(progress);
       });
 
+      console.log('✅ 批量检测完成，结果:', Object.keys(results).length);
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
+
+      // 记录状态历史
+      Object.values(results).forEach(result => {
+        if (result.id) {
+          addStatusRecord(result.id, result);
+        }
+      });
+
     } catch (error) {
-      // 批量检测失败，保持静默
+      console.error('❌ 批量检测失败:', error);
+      setError(`批量检测失败: ${error.message}`);
     } finally {
       setIsChecking(false);
       setCheckProgress(null);
@@ -344,19 +375,36 @@ const EnvironmentList = () => {
             </div>
           </div>
 
-          {/* 进度条 */}
+          {/* 进度条 - 改进显示 */}
           {isChecking && checkProgress && (
-            <div className="mb-4">
-              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                <span>检测进度: {checkProgress.current || '准备中...'}</span>
-                <span>{checkProgress.completed}/{checkProgress.total}</span>
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex justify-between text-sm text-blue-700 dark:text-blue-300 mb-2">
+                <span>
+                  检测进度: {checkProgress.current || '准备中...'}
+                  {checkProgress.errors > 0 && (
+                    <span className="ml-2 text-red-600 dark:text-red-400">
+                      (失败: {checkProgress.errors})
+                    </span>
+                  )}
+                </span>
+                <span>{checkProgress.completed}/{checkProgress.total} ({checkProgress.percentage || 0}%)</span>
               </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+
+              <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2 mb-2">
                 <div
-                  className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${checkProgress.percentage || 0}%` }}
                 ></div>
               </div>
+
+              {checkProgress.status && (
+                <div className="text-xs text-blue-600 dark:text-blue-400">
+                  状态: {checkProgress.status === 'starting' ? '准备中...' :
+                         checkProgress.status === 'checking' ? '检测中...' :
+                         checkProgress.status === 'completed' ? '完成' :
+                         checkProgress.status === 'error' ? '出现错误' : checkProgress.status}
+                </div>
+              )}
             </div>
           )}
 
