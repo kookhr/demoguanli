@@ -510,9 +510,12 @@ build_project() {
     # 修复 package.json 构建脚本（解决权限问题）
     print_info "修复构建脚本..."
     if [ -f "package.json" ]; then
-        sed -i 's/"build": "vite build"/"build": "npx vite build"/g' package.json
-        sed -i 's/"dev": "vite"/"dev": "npx vite"/g' package.json
-        sed -i 's/"preview": "vite preview"/"preview": "npx vite preview"/g' package.json
+        # FreeBSD sed 需要备份文件扩展名
+        sed -i.bak 's/"build": "vite build"/"build": "npx vite build"/g' package.json
+        sed -i.bak 's/"dev": "vite"/"dev": "npx vite"/g' package.json
+        sed -i.bak 's/"preview": "vite preview"/"preview": "npx vite preview"/g' package.json
+        # 删除备份文件
+        rm -f package.json.bak
     fi
 
     # 安装依赖
@@ -542,7 +545,8 @@ build_project() {
     # 修复构建后的文件（解决 MIME 类型问题）
     if [ -f "dist/index.html" ]; then
         print_info "修复模块类型问题..."
-        sed -i 's/type="module"//g' dist/index.html
+        sed -i.bak 's/type="module"//g' dist/index.html
+        rm -f dist/index.html.bak
     fi
 
     print_success "项目构建完成"
