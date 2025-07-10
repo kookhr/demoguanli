@@ -20,7 +20,7 @@ bash -i <(curl -SL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/se
 系统会提示您输入以下信息：
 
 ```
-请输入安装目录 [默认: ~/domains/用户名.serv00.net/public_html]:
+请输入安装目录 [默认: ~/domains/do.kandy.dpdns.org/public_html]:
 请输入自定义端口 [默认: 62595]:
 数据库主机 [默认: mysql14.serv00.com]:
 数据库名称 [默认: em9785_environment_manager]:

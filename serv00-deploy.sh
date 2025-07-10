@@ -147,10 +147,10 @@ interactive_config() {
     print_title "交互式配置"
     
     # 安装目录
-    echo -n "请输入安装目录 [默认: ~/domains/$(whoami).serv00.net/public_html]: "
+    echo -n "请输入安装目录 [默认: ~/domains/do.kandy.dpdns.org/public_html]: "
     read INSTALL_DIR
     if [ -z "$INSTALL_DIR" ]; then
-        INSTALL_DIR="$HOME/domains/$(whoami).serv00.net/public_html"
+        INSTALL_DIR="$HOME/domains/do.kandy.dpdns.org/public_html"
     fi
     
     # 创建安装目录
@@ -699,12 +699,26 @@ verify_installation() {
     
     # 测试 API 健康检查
     if command_exists curl; then
-        local api_url="http://$DOMAIN_NAME/api/health"
-        if curl -s "$api_url" >/dev/null 2>&1; then
-            print_success "API 健康检查通过"
-        else
-            print_warning "API 健康检查失败，请检查配置"
-        fi
+        local api_url="https://$DOMAIN_NAME/api/health"
+        print_step "测试 API 访问: $api_url"
+
+        local response=$(curl -s -o /dev/null -w "%{http_code}" "$api_url" 2>/dev/null || echo "000")
+        case $response in
+            200)
+                print_success "✓ API 健康检查通过 (HTTP $response)"
+                ;;
+            502)
+                print_error "✗ API 访问失败 (HTTP 502 - 网关错误)"
+                print_warning "可能的原因："
+                echo "   1. 文件部署到错误的目录"
+                echo "   2. .htaccess 配置问题"
+                echo "   3. PHP 执行错误"
+                echo "   4. 数据库连接失败"
+                ;;
+            *)
+                print_warning "⚠ API 访问异常 (HTTP $response)"
+                ;;
+        esac
     fi
     
     print_success "安装验证完成"
