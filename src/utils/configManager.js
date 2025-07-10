@@ -190,12 +190,48 @@ export const exportConfig = async () => {
 export const importConfig = async (configString) => {
   try {
     const config = JSON.parse(configString);
-    if (config.environments && Array.isArray(config.environments)) {
-      await saveEnvironments(config.environments);
-      return config.environments;
+    if (!config.environments || !Array.isArray(config.environments)) {
+      throw new Error('配置文件格式不正确：缺少 environments 数组');
     }
-    return false;
+
+    // 验证配置数据格式
+    const validEnvironments = config.environments.filter(env => {
+      return env.name && env.url && typeof env.name === 'string' && typeof env.url === 'string';
+    });
+
+    if (validEnvironments.length === 0) {
+      throw new Error('配置文件中没有有效的环境数据');
+    }
+
+    console.log(`准备导入 ${validEnvironments.length} 个环境配置`);
+
+    // 调用数据库API进行导入
+    const importData = {
+      environments: validEnvironments.map(env => ({
+        id: env.id || generateId(),
+        name: env.name,
+        url: env.url,
+        description: env.description || '',
+        version: env.version || '',
+        network_type: env.network_type || 'external',
+        environment_type: env.environment_type || 'development',
+        tags: env.tags || [],
+        group_id: env.group_id || null
+      }))
+    };
+
+    const result = await databaseAPI.importData(importData);
+
+    if (result) {
+      // 清除缓存以强制重新获取
+      localStorage.removeItem(STORAGE_KEYS.environments);
+      console.log('配置导入成功，已清除本地缓存');
+      return validEnvironments;
+    }
+
+    throw new Error('数据库导入失败');
   } catch (error) {
+    console.error('配置导入失败:', error);
     throw error;
   }
 };
@@ -233,4 +269,64 @@ export const validateEnvironment = (environment) => {
   }
   
   return errors;
+};
+
+// 生成唯一ID
+const generateId = () => {
+  return 'env_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+};
+
+// 验证导入结果
+export const verifyImportResult = async () => {
+  try {
+    console.log('开始验证导入结果...');
+
+    // 从数据库重新获取环境列表
+    const environments = await databaseAPI.getEnvironments();
+
+    if (environments && environments.length > 0) {
+      console.log(`验证成功：数据库中有 ${environments.length} 个环境`);
+
+      // 更新本地缓存
+      localStorage.setItem(STORAGE_KEYS.environments, JSON.stringify(environments));
+
+      return {
+        success: true,
+        count: environments.length,
+        environments: environments
+      };
+    } else {
+      console.warn('验证失败：数据库中没有环境数据');
+      return {
+        success: false,
+        count: 0,
+        error: '数据库中没有找到环境数据'
+      };
+    }
+  } catch (error) {
+    console.error('验证导入结果失败:', error);
+    return {
+      success: false,
+      count: 0,
+      error: error.message
+    };
+  }
+};
+
+// 调试数据库连接
+export const debugDatabaseConnection = async () => {
+  try {
+    console.log('测试数据库连接...');
+
+    const result = await databaseAPI.healthCheck();
+    console.log('数据库连接测试结果:', result);
+
+    return result;
+  } catch (error) {
+    console.error('数据库连接测试失败:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 };

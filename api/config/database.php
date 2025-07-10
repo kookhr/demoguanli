@@ -220,12 +220,34 @@ define('DB_NAME', $_ENV['DB_NAME'] ?? 'environment_manager');
 define('DB_USER', $_ENV['DB_USER'] ?? 'root');
 define('DB_PASSWORD', $_ENV['DB_PASSWORD'] ?? '');
 
-// CORS 配置
+// CORS 配置 - 增强版
 function setCorsHeaders() {
-    header("Access-Control-Allow-Origin: *");
-    header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-    
+    // 允许的源
+    $allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'https://' . $_SERVER['HTTP_HOST'],
+        'http://' . $_SERVER['HTTP_HOST']
+    ];
+
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+    if (in_array($origin, $allowedOrigins) || $origin === '') {
+        header("Access-Control-Allow-Origin: " . ($origin ?: '*'));
+    } else {
+        header("Access-Control-Allow-Origin: *");
+    }
+
+    header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin");
+    header("Access-Control-Allow-Credentials: true");
+    header("Access-Control-Max-Age: 86400"); // 24小时
+
+    // 添加安全头部
+    header("X-Content-Type-Options: nosniff");
+    header("X-Frame-Options: SAMEORIGIN");
+    header("X-XSS-Protection: 1; mode=block");
+
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(200);
         exit();

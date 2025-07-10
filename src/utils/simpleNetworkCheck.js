@@ -57,40 +57,84 @@ const cleanExpiredCache = () => {
 };
 
 /**
- * 智能网络可达性检测 - 修复公网IP误报问题
+ * 简化的网络可达性检测 - 修复检测失败问题
  */
 const checkNetworkReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeout) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // 检测URL类型
-    const urlObj = new URL(url);
-    const isIP = /^\d+\.\d+\.\d+\.\d+$/.test(urlObj.hostname);
-    const isPublicIP = isIP && !isPrivateIP(urlObj.hostname);
+    console.log(`开始检测网络可达性: ${url}`);
 
-    // 对于公网IP，使用多种策略检测
-    if (isPublicIP) {
-      return await checkPublicIPReachability(url, controller.signal, timeout);
-    }
+    // 首先尝试 HEAD 请求
+    try {
+      const response = await fetch(url, {
+        method: 'HEAD',
+        signal: controller.signal,
+        cache: 'no-cache',
+        credentials: 'omit',
+        headers: {
+          'Accept': '*/*',
+          'User-Agent': 'Environment-Monitor/1.0'
+        }
+      });
 
-    // 对于域名，使用标准检测
-    const response = await fetch(url, {
-      method: 'HEAD',
-      signal: controller.signal,
-      cache: 'no-cache',
-      credentials: 'omit',
-      headers: {
-        'Accept': '*/*',
-        'User-Agent': 'Environment-Monitor/1.0'
+      clearTimeout(timeoutId);
+      console.log(`HEAD 请求成功: ${url}, 状态码: ${response.status}`);
+
+      // 2xx-3xx状态码都认为是可达的
+      if (response.status >= 200 && response.status < 500) {
+        return { reachable: true, status: response.status, method: 'head' };
       }
-    });
 
-    clearTimeout(timeoutId);
+      // 4xx 客户端错误也认为是可达的（服务存在但拒绝访问）
+      if (response.status >= 400 && response.status < 500) {
+        return { reachable: true, status: response.status, method: 'head-client-error' };
+      }
 
-    // 2xx-3xx状态码都认为是可达的
-    if (response.status >= 200 && response.status < 400) {
-      return { reachable: true, status: response.status, method: 'head' };
+    } catch (headError) {
+      console.log(`HEAD 请求失败: ${url}, 尝试 GET 请求`, headError.message);
+
+      // 如果 HEAD 失败，尝试 GET 请求
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          signal: controller.signal,
+          cache: 'no-cache',
+          credentials: 'omit',
+          headers: {
+            'Accept': 'text/html,*/*',
+            'User-Agent': 'Environment-Monitor/1.0'
+          }
+        });
+
+        clearTimeout(timeoutId);
+        console.log(`GET 请求成功: ${url}, 状态码: ${response.status}`);
+
+        return { reachable: true, status: response.status, method: 'get' };
+
+      } catch (getError) {
+        console.log(`GET 请求失败: ${url}, 尝试 no-cors 模式`, getError.message);
+
+        // 最后尝试 no-cors 模式
+        try {
+          await fetch(url, {
+            method: 'GET',
+            mode: 'no-cors',
+            signal: controller.signal,
+            cache: 'no-cache',
+            credentials: 'omit'
+          });
+
+          clearTimeout(timeoutId);
+          console.log(`no-cors 请求成功: ${url}`);
+          return { reachable: true, method: 'no-cors' };
+
+        } catch (noCorsError) {
+          console.log(`no-cors 请求失败: ${url}`, noCorsError.message);
+          throw noCorsError;
+        }
+      }
     }
 
     // 4xx状态码表示服务可达但资源不存在
@@ -237,64 +281,60 @@ const fallbackNoCorsCheck = async (url, timeout) => {
 
 
 /**
- * 智能环境检测 - 支持多种检测策略
+ * 简化的环境检测 - 修复检测失败问题
  */
 export const checkEnvironmentStatus = async (environment) => {
   const startTime = Date.now();
 
+  console.log(`开始检测环境状态: ${environment.name} (${environment.url})`);
+
   // 检查缓存
   const cached = getCachedResult(environment.id);
   if (cached) {
+    console.log(`使用缓存结果: ${environment.name}`);
     return cached;
   }
 
-  // 添加重试机制
-  let lastError = null;
-  for (let attempt = 0; attempt <= SIMPLE_CHECK_CONFIG.retryCount; attempt++) {
-    try {
-      const reachabilityResult = await checkNetworkReachability(environment.url);
+  try {
+    const reachabilityResult = await checkNetworkReachability(environment.url);
 
-      const result = {
-        id: environment.id,
-        status: reachabilityResult.reachable ? 'available' : 'unreachable',
-        responseTime: Date.now() - startTime,
-        lastChecked: new Date().toISOString(),
-        error: reachabilityResult.error || null,
-        method: reachabilityResult.method || 'unknown',
-        statusCode: reachabilityResult.status || null,
-        attempt: attempt + 1
-      };
+    const result = {
+      id: environment.id,
+      status: reachabilityResult.reachable ? 'available' : 'unreachable',
+      responseTime: Date.now() - startTime,
+      lastChecked: new Date().toISOString(),
+      error: reachabilityResult.error || null,
+      method: reachabilityResult.method || 'unknown',
+      statusCode: reachabilityResult.status || null,
+      url: environment.url
+    };
 
-      // 只有成功的结果才缓存
-      if (reachabilityResult.reachable) {
-        setCachedResult(environment.id, result);
-      }
+    console.log(`检测完成: ${environment.name}, 状态: ${result.status}, 方法: ${result.method}`);
 
-      return result;
+    // 缓存结果（无论成功失败都缓存，避免频繁检测）
+    setCachedResult(environment.id, result);
 
-    } catch (error) {
-      lastError = error;
+    return result;
 
-      // 如果不是最后一次尝试，等待一下再重试
-      if (attempt < SIMPLE_CHECK_CONFIG.retryCount) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-      }
-    }
+  } catch (error) {
+    console.error(`检测失败: ${environment.name}`, error);
+
+    const result = {
+      id: environment.id,
+      status: 'unreachable',
+      responseTime: Date.now() - startTime,
+      lastChecked: new Date().toISOString(),
+      error: `检测异常: ${error.message}`,
+      method: 'error',
+      statusCode: null,
+      url: environment.url
+    };
+
+    // 缓存失败结果，但时间较短
+    setCachedResult(environment.id, result);
+
+    return result;
   }
-
-  // 所有重试都失败了
-  const result = {
-    id: environment.id,
-    status: 'unreachable',
-    responseTime: Date.now() - startTime,
-    lastChecked: new Date().toISOString(),
-    error: `检测失败 (${SIMPLE_CHECK_CONFIG.retryCount + 1}次尝试): ${lastError?.message || '未知错误'}`,
-    method: 'failed',
-    statusCode: null,
-    attempt: SIMPLE_CHECK_CONFIG.retryCount + 1
-  };
-
-  return result;
 };
 
 /**
