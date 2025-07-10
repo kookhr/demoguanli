@@ -1,5 +1,10 @@
 <?php
 // Serv00 环境管理系统 API 入口文件
+// 加载 .env 文件
+require_once __DIR__ . '/vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/models/Environment.php';
 require_once __DIR__ . '/models/User.php';
@@ -102,6 +107,7 @@ function handleHealthCheck() {
 
 // 环境路由处理
 function handleEnvironmentRoutes($controller, $method, $id, $action) {
+    global $path;
     switch ($method) {
         case 'GET':
             if ($id && $action === 'status') {
