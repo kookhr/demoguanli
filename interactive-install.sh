@@ -2531,17 +2531,28 @@ detect_domain_access_issues() {
     local issue_count=0
     local issue_details=""
 
-    # 检查是否在根目录有前端文件
-    if [ ! -f "$INSTALL_DIR/index.html" ]; then
-        if [ -f "$INSTALL_DIR/dist/index.html" ]; then
+    # 检查前端文件位置和类型
+    if [ -f "$INSTALL_DIR/dist/index.html" ]; then
+        # dist 目录有构建文件
+        if [ ! -f "$INSTALL_DIR/index.html" ]; then
+            # 情况1: dist 有文件，根目录没有
             has_issues=true
             issue_count=$((issue_count + 1))
-            issue_details="• 前端文件在 dist 目录中，域名访问无法找到入口文件"
+            issue_details="• 前端文件在 dist 目录中，需要移动到根目录"
+        elif grep -q "src/main.jsx" "$INSTALL_DIR/index.html" 2>/dev/null; then
+            # 情况2: 根目录有开发模板文件，需要用构建文件覆盖
+            has_issues=true
+            issue_count=$((issue_count + 1))
+            issue_details="• 根目录是开发模板文件，需要用构建后的文件覆盖"
         else
-            has_issues=true
-            issue_count=$((issue_count + 1))
-            issue_details="• 未找到前端入口文件 index.html"
+            # 情况3: 根目录已经是构建文件，检查是否需要更新
+            print_info "根目录已有构建文件，检查是否需要更新..."
         fi
+    elif [ ! -f "$INSTALL_DIR/index.html" ]; then
+        # 情况4: 两个地方都没有文件
+        has_issues=true
+        issue_count=$((issue_count + 1))
+        issue_details="• 未找到前端入口文件 index.html"
     fi
 
     # 检查静态资源位置
@@ -2583,27 +2594,50 @@ fix_domain_access_issues() {
     local fixed_issues=0
 
     # 检查是否需要移动 dist 内容
-    if [ -d "$INSTALL_DIR/dist" ] && [ -f "$INSTALL_DIR/dist/index.html" ] && [ ! -f "$INSTALL_DIR/index.html" ]; then
+    if [ -d "$INSTALL_DIR/dist" ] && [ -f "$INSTALL_DIR/dist/index.html" ]; then
         print_info "移动 dist 内容到根目录..."
 
-        # 创建备份
-        if [ -f "$INSTALL_DIR/index.html" ] || [ -d "$INSTALL_DIR/assets" ]; then
-            local backup_dir="$INSTALL_DIR/backup_$(date +%Y%m%d_%H%M%S)"
-            mkdir -p "$backup_dir"
-            [ -f "$INSTALL_DIR/index.html" ] && mv "$INSTALL_DIR/index.html" "$backup_dir/"
-            [ -d "$INSTALL_DIR/assets" ] && mv "$INSTALL_DIR/assets" "$backup_dir/"
-            print_info "已备份现有文件到: $backup_dir"
+        # 创建备份（备份开发环境的文件）
+        local backup_needed=false
+        local backup_dir="$INSTALL_DIR/backup_$(date +%Y%m%d_%H%M%S)"
+
+        # 检查是否需要备份根目录的开发文件
+        if [ -f "$INSTALL_DIR/index.html" ]; then
+            # 检查是否是开发模板文件（包含 src/main.jsx 引用）
+            if grep -q "src/main.jsx" "$INSTALL_DIR/index.html" 2>/dev/null; then
+                backup_needed=true
+                mkdir -p "$backup_dir"
+                cp "$INSTALL_DIR/index.html" "$backup_dir/index.html.dev"
+                print_info "已备份开发模板文件到: $backup_dir/index.html.dev"
+            fi
         fi
 
-        # 移动 dist 内容到根目录
+        # 备份其他可能冲突的文件
+        if [ -d "$INSTALL_DIR/assets" ] && [ -d "$INSTALL_DIR/dist/assets" ]; then
+            backup_needed=true
+            [ ! -d "$backup_dir" ] && mkdir -p "$backup_dir"
+            mv "$INSTALL_DIR/assets" "$backup_dir/assets.old"
+            print_info "已备份现有 assets 目录到: $backup_dir/assets.old"
+        fi
+
+        # 移动 dist 内容到根目录（覆盖现有文件）
         cd "$INSTALL_DIR/dist"
-        find . -mindepth 1 -maxdepth 1 -exec mv {} ../ \; 2>/dev/null || {
-            # 如果 find 不支持 -exec，使用传统方法
-            for item in * .*; do
-                [ "$item" = "." ] || [ "$item" = ".." ] && continue
-                [ -e "$item" ] && mv "$item" ../
-            done
-        }
+
+        # 使用 cp 然后 rm 来确保覆盖成功
+        for item in * .*; do
+            [ "$item" = "." ] || [ "$item" = ".." ] && continue
+            if [ -e "$item" ]; then
+                if [ -d "$item" ]; then
+                    # 目录：先删除目标，再移动
+                    [ -d "../$item" ] && rm -rf "../$item"
+                    mv "$item" ../
+                else
+                    # 文件：直接覆盖
+                    mv "$item" ../
+                fi
+            fi
+        done
+
         cd "$INSTALL_DIR"
 
         # 删除空的 dist 目录
@@ -2612,7 +2646,7 @@ fix_domain_access_issues() {
             print_success "已删除空的 dist 目录"
         fi
 
-        print_success "已移动 dist 内容到根目录"
+        print_success "已移动 dist 内容到根目录（覆盖开发文件）"
         fixed_issues=$((fixed_issues + 1))
 
         # 更新启动脚本中的路径
