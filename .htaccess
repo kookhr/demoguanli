@@ -1,7 +1,10 @@
+# 环境管理系统 - 简化路由配置
+# 基于现有解决方案的渐进式改进
+
 <IfModule mod_rewrite.c>
 RewriteEngine On
 
-# CORS headers for API requests
+# 基础CORS配置
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
@@ -9,15 +12,27 @@ RewriteEngine On
     Header always set Access-Control-Max-Age "3600"
 </IfModule>
 
-# Handle preflight OPTIONS requests for CORS
+# API路由处理 - 保持简单
+# 处理预检请求
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteCond %{REQUEST_URI} ^/api/
 RewriteRule ^(.*)$ api/index.php [L]
 
-# API requests to api/index.php with query string preservation
-RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+# API请求路由
+RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
-# Frontend (single page application)
+# 生产环境优先 - 如果dist文件存在则使用
+RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
+RewriteRule ^(.+)$ dist/$1 [L]
+
+# SPA路由处理 - 优先使用dist，回退到根目录
+RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^(.*)$ dist/index.html [L]
+
+# 开发环境回退
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
@@ -25,13 +40,15 @@ RewriteRule ^(.*)$ index.html [L]
 
 </IfModule>
 
-# 确保API目录可访问
+# 基础目录配置
 <Directory "api">
     Require all granted
-    AllowOverride All
+    <Files "*.php">
+        Require all granted
+    </Files>
 </Directory>
 
-# 设置正确的MIME类型
+# 基础MIME类型
 <IfModule mod_mime.c>
     AddType application/json .json
     AddType application/javascript .js

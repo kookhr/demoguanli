@@ -1,48 +1,37 @@
-# API路由配置 - Serv00/nginx兼容
+# API目录配置 - 简化版本
+# 主要路由逻辑由根目录.htaccess处理
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
-    # 允许所有HTTP方法
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-API-Key"
-    Header always set Access-Control-Allow-Origin "*"
-    
-    # 处理预检请求
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ index.php [L]
-    
-    # 所有API请求都路由到index.php
+
+    # 确保直接访问PHP文件时正常工作
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{REQUEST_FILENAME} \.php$
+    RewriteRule ^(.*)$ $1 [L]
+
+    # 其他请求路由到index.php
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.*)$ index.php [QSA,L]
-    
-    # 确保index.php可以被访问
-    <Files "index.php">
-        Require all granted
-    </Files>
-    
-    # 允许JSON文件类型
+</IfModule>
+
+# 文件访问权限
+<Files "*.php">
+    Require all granted
+</Files>
+
+<Files "*.json">
+    Require all granted
+</Files>
+
+# 禁用目录浏览
+Options -Indexes
+
+# MIME类型
+<IfModule mod_mime.c>
     AddType application/json .json
-    
-    # 禁用目录浏览
-    Options -Indexes
-    
-    # 设置正确的MIME类型
-    <IfModule mod_mime.c>
-        AddType application/json .json
-        AddType text/plain .log
-    </IfModule>
+    AddType text/plain .log
 </IfModule>
 
-# nginx特定配置（如果支持）
-<IfModule mod_headers.c>
-    # 确保POST请求被正确处理
-    Header always set X-Content-Type-Options nosniff
-    Header always set X-Frame-Options DENY
-    Header always set X-XSS-Protection "1; mode=block"
-</IfModule>
-
-# 错误页面
-ErrorDocument 403 "API Access Forbidden - Check permissions"
+# 简化的错误处理
 ErrorDocument 404 "API Endpoint Not Found"
-ErrorDocument 500 "API Internal Server Error"
