@@ -48,6 +48,34 @@
 
 ## 🚀 快速开始
 
+### 一键部署到 Serv00（推荐）
+
+```bash
+# 唯一需要的命令 - 完全集成的部署解决方案
+bash -i <(curl -SL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/interactive-install.sh)
+```
+
+**自动完成所有部署步骤**：
+- ✅ 环境检测和依赖安装（5种重试策略）
+- ✅ 项目构建和优化（智能重试机制）
+- ✅ 域名访问问题自动修复
+- ✅ Apache 配置自动生成
+- ✅ 数据库初始化和配置
+- ✅ 服务脚本创建（集成所有管理功能）
+- ✅ 部署结果验证
+
+**部署后管理**：
+```bash
+# 所有功能都集成在启动脚本中
+./start-server.sh           # 启动服务
+./start-server.sh stop      # 停止服务
+./start-server.sh status    # 查看状态
+./start-server.sh helper    # 交互式管理界面
+./start-server.sh manage-logs view all  # 日志管理
+```
+
+📖 **详细使用指南**: 查看 [USAGE_GUIDE.md](USAGE_GUIDE.md) 了解完整功能
+
 ### 环境要求
 - Node.js 18+
 - npm 或 yarn

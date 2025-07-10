@@ -500,14 +500,54 @@ install_dependencies() {
     if command -v composer >/dev/null 2>&1 && [ -f "$INSTALL_DIR/api/composer.json" ]; then
         print_info "安装 PHP 依赖 (Composer)..."
         cd "$INSTALL_DIR/api"
-        composer install --no-dev --optimize-autoloader --quiet
+        if composer install --no-dev --optimize-autoloader --quiet; then
+            print_success "PHP 依赖安装完成"
+        else
+            print_warning "PHP 依赖安装失败，但不影响基本功能"
+        fi
         cd "$INSTALL_DIR"
-        print_success "PHP 依赖安装完成"
     else
         print_warning "跳过 PHP 依赖安装（Composer 不可用或无 composer.json）"
     fi
 
-    # 2. 安装 Node.js 依赖
+    # 2. 检查 Node.js 环境
+    check_nodejs_environment
+
+    # 3. 安装 Node.js 依赖
+    install_nodejs_dependencies_robust
+}
+
+# 检查 Node.js 环境
+check_nodejs_environment() {
+    print_info "检查 Node.js 环境..."
+
+    # 检查 Node.js
+    if ! command -v node >/dev/null 2>&1; then
+        print_error "Node.js 未安装，请先安装 Node.js 16+"
+        exit 1
+    fi
+
+    # 检查 npm
+    if ! command -v npm >/dev/null 2>&1; then
+        print_error "npm 不可用，请检查 Node.js 安装"
+        exit 1
+    fi
+
+    local node_version=$(node --version 2>/dev/null | sed 's/v//')
+    local npm_version=$(npm --version 2>/dev/null)
+
+    print_info "Node.js 版本: $node_version"
+    print_info "npm 版本: $npm_version"
+
+    # 检查版本兼容性
+    local major_version=$(echo "$node_version" | cut -d. -f1)
+    if [ "$major_version" -lt 16 ]; then
+        print_warning "Node.js 版本较低 ($node_version)，推荐使用 16+ 版本"
+    fi
+}
+
+# 增强的 Node.js 依赖安装
+install_nodejs_dependencies_robust() {
     print_info "安装 Node.js 依赖..."
 
     # 清理可能的缓存问题
@@ -516,14 +556,107 @@ install_dependencies() {
         rm -rf node_modules package-lock.json
     fi
 
-    # 使用 npm ci 如果有 package-lock.json，否则使用 npm install
-    if [ -f "package-lock.json" ]; then
-        npm ci --silent
-    else
-        npm install --legacy-peer-deps --silent
+    # 设置 npm 配置
+    npm config set fund false 2>/dev/null || true
+    npm config set audit false 2>/dev/null || true
+
+    local install_success=false
+    local install_method=""
+
+    # 方法 1: 使用 npm ci（如果有 lock 文件）
+    if [ -f "package-lock.json" ] && [ "$install_success" = false ]; then
+        print_info "尝试使用 npm ci..."
+        if timeout 300 npm ci --silent 2>/dev/null; then
+            install_success=true
+            install_method="npm ci"
+        else
+            print_warning "npm ci 失败，删除 lock 文件重试..."
+            rm -f package-lock.json
+        fi
     fi
 
-    print_success "Node.js 依赖安装完成"
+    # 方法 2: 标准 npm install
+    if [ "$install_success" = false ]; then
+        print_info "尝试标准 npm install..."
+        if timeout 300 npm install --silent 2>/dev/null; then
+            install_success=true
+            install_method="npm install"
+        fi
+    fi
+
+    # 方法 3: 使用 legacy-peer-deps
+    if [ "$install_success" = false ]; then
+        print_info "尝试使用 --legacy-peer-deps..."
+        if timeout 300 npm install --legacy-peer-deps --silent 2>/dev/null; then
+            install_success=true
+            install_method="npm install --legacy-peer-deps"
+        fi
+    fi
+
+    # 方法 4: 强制安装
+    if [ "$install_success" = false ]; then
+        print_info "尝试强制安装..."
+        if timeout 300 npm install --force --silent 2>/dev/null; then
+            install_success=true
+            install_method="npm install --force"
+        fi
+    fi
+
+    # 方法 5: 清理缓存后重试
+    if [ "$install_success" = false ]; then
+        print_info "清理缓存后重试..."
+        npm cache clean --force 2>/dev/null || true
+        rm -rf node_modules package-lock.json 2>/dev/null || true
+
+        if timeout 300 npm install --legacy-peer-deps --silent 2>/dev/null; then
+            install_success=true
+            install_method="npm install --legacy-peer-deps (after cache clean)"
+        fi
+    fi
+
+    if [ "$install_success" = true ]; then
+        print_success "Node.js 依赖安装完成 ($install_method)"
+
+        # 验证关键依赖
+        if [ -d "node_modules/react" ] && [ -d "node_modules/vite" ]; then
+            print_success "关键依赖验证通过"
+        else
+            print_warning "部分依赖可能有问题，但继续构建"
+        fi
+    else
+        print_error "Node.js 依赖安装失败"
+        echo ""
+        print_info "可能的解决方案："
+        echo -e "  ${YELLOW}1.${NC} 检查网络连接: ${CYAN}ping registry.npmjs.org${NC}"
+        echo -e "  ${YELLOW}2.${NC} 更新 Node.js: ${CYAN}node --version${NC} (推荐 16+)"
+        echo -e "  ${YELLOW}3.${NC} 清理 npm 缓存: ${CYAN}npm cache clean --force${NC}"
+        echo -e "  ${YELLOW}4.${NC} 手动安装: ${CYAN}npm install --legacy-peer-deps${NC}"
+        echo ""
+
+        echo -e "  ${YELLOW}5.${NC} 下载修复脚本: ${CYAN}curl -O https://raw.githubusercontent.com/kookhr/demoguanli/serv00/fix-deployment-issues.sh${NC}"
+        echo -e "  ${YELLOW}6.${NC} 运行修复脚本: ${CYAN}chmod +x fix-deployment-issues.sh && ./fix-deployment-issues.sh -d${NC}"
+        echo ""
+
+        read -p "依赖安装失败，是否继续部署？[y/N]: " continue_deploy
+        if [[ $continue_deploy =~ ^[Yy]$ ]]; then
+            print_warning "跳过依赖安装，继续部署（可能影响功能）"
+
+            # 下载修复脚本供后续使用
+            print_info "下载修复脚本供后续使用..."
+            curl -s -o fix-deployment-issues.sh https://raw.githubusercontent.com/kookhr/demoguanli/serv00/fix-deployment-issues.sh 2>/dev/null || true
+            chmod +x fix-deployment-issues.sh 2>/dev/null || true
+
+            if [ -f "fix-deployment-issues.sh" ]; then
+                print_success "修复脚本已下载，稍后可运行: ./fix-deployment-issues.sh"
+            fi
+        else
+            print_error "部署已取消"
+            print_info "您可以稍后运行以下命令修复问题："
+            echo -e "  ${CYAN}curl -O https://raw.githubusercontent.com/kookhr/demoguanli/serv00/fix-deployment-issues.sh${NC}"
+            echo -e "  ${CYAN}chmod +x fix-deployment-issues.sh && ./fix-deployment-issues.sh${NC}"
+            exit 1
+        fi
+    fi
 }
 
 build_project() {
@@ -535,27 +668,139 @@ build_project() {
     print_step "$step_num" "构建项目"
     cd "$INSTALL_DIR"
 
-    print_info "修复 vite 执行权限..."
-    chmod +x node_modules/.bin/vite 2>/dev/null || true
+    # 检查构建环境
+    check_build_environment
 
     print_info "构建前端静态文件..."
     export NODE_ENV=production
 
-    # 构建项目
-    if npm run build > build.log 2>&1; then
-        print_success "前端构建完成"
-        rm -f build.log
-    else
-        print_error "前端构建失败，查看详细日志:"
-        tail -20 build.log
+    # 尝试构建项目
+    build_with_retry
+}
+
+# 检查构建环境
+check_build_environment() {
+    print_info "检查构建环境..."
+
+    # 检查 package.json 中的构建脚本
+    if [ ! -f "package.json" ]; then
+        print_error "package.json 不存在"
+        exit 1
+    fi
+
+    if ! grep -q '"build"' package.json; then
+        print_error "package.json 中未找到 build 脚本"
+        exit 1
+    fi
+
+    # 检查 node_modules
+    if [ ! -d "node_modules" ]; then
+        print_error "node_modules 目录不存在，请先安装依赖"
+        exit 1
+    fi
+
+    # 检查关键依赖
+    if [ ! -d "node_modules/vite" ]; then
+        print_warning "Vite 依赖缺失，可能影响构建"
+    fi
+
+    # 修复可能的权限问题
+    print_info "修复构建工具权限..."
+    chmod +x node_modules/.bin/* 2>/dev/null || true
+
+    print_success "构建环境检查完成"
+}
+
+# 带重试的构建函数
+build_with_retry() {
+    local build_success=false
+    local build_attempts=0
+    local max_attempts=3
+
+    while [ "$build_attempts" -lt "$max_attempts" ] && [ "$build_success" = false ]; do
+        build_attempts=$((build_attempts + 1))
+
+        if [ "$build_attempts" -gt 1 ]; then
+            print_info "构建重试 ($build_attempts/$max_attempts)..."
+
+            # 清理可能的构建缓存
+            rm -rf dist .vite node_modules/.vite 2>/dev/null || true
+        fi
+
+        print_info "执行构建命令..."
+
+        # 使用 timeout 防止构建卡死
+        if timeout 600 npm run build > build.log 2>&1; then
+            build_success=true
+            print_success "前端构建完成"
+            rm -f build.log
+        else
+            print_warning "构建失败 (尝试 $build_attempts/$max_attempts)"
+
+            if [ -f "build.log" ]; then
+                print_info "构建错误日志："
+                tail -20 build.log
+            fi
+
+            # 如果不是最后一次尝试，等待一下
+            if [ "$build_attempts" -lt "$max_attempts" ]; then
+                print_info "等待 5 秒后重试..."
+                sleep 5
+            fi
+        fi
+    done
+
+    if [ "$build_success" = false ]; then
+        print_error "构建失败，已尝试 $max_attempts 次"
+
+        if [ -f "build.log" ]; then
+            echo ""
+            print_info "完整构建日志："
+            cat build.log
+        fi
+
+        echo ""
+        print_info "可能的解决方案："
+        echo -e "  ${YELLOW}1.${NC} 检查 Node.js 版本: ${CYAN}node --version${NC}"
+        echo -e "  ${YELLOW}2.${NC} 重新安装依赖: ${CYAN}rm -rf node_modules && npm install${NC}"
+        echo -e "  ${YELLOW}3.${NC} 检查磁盘空间: ${CYAN}df -h${NC}"
+        echo -e "  ${YELLOW}4.${NC} 手动构建: ${CYAN}npm run build${NC}"
+
         exit 1
     fi
 
     # 验证构建结果
-    if [ ! -d "dist" ] || [ ! -f "dist/index.html" ]; then
-        print_error "构建验证失败：dist 目录或 index.html 不存在"
+    verify_build_result
+}
+
+# 验证构建结果
+verify_build_result() {
+    print_info "验证构建结果..."
+
+    # 检查 dist 目录
+    if [ ! -d "dist" ]; then
+        print_error "构建验证失败：dist 目录不存在"
         exit 1
     fi
+
+    # 检查主要文件
+    if [ ! -f "dist/index.html" ]; then
+        print_error "构建验证失败：dist/index.html 不存在"
+        exit 1
+    fi
+
+    # 检查静态资源
+    if [ ! -d "dist/assets" ]; then
+        print_warning "dist/assets 目录不存在，可能影响样式和脚本"
+    else
+        local js_files=$(find dist/assets -name "*.js" | wc -l)
+        local css_files=$(find dist/assets -name "*.css" | wc -l)
+        print_info "构建产物: $js_files 个 JS 文件, $css_files 个 CSS 文件"
+    fi
+
+    # 检查文件大小
+    local dist_size=$(du -sh dist 2>/dev/null | cut -f1)
+    print_info "构建产物大小: $dist_size"
 
     print_success "构建验证通过"
 }
@@ -596,6 +841,293 @@ test_database_connection() {
     fi
 
     unset MYSQL_PWD
+}
+
+# 集成的日志管理功能
+create_log_management_functions() {
+    cat >> "$INSTALL_DIR/start-server.sh" << 'EOF'
+
+# 日志管理功能
+manage_logs() {
+    local action="$1"
+    local log_type="$2"
+    local lines="${3:-50}"
+
+    case "$action" in
+        "view")
+            case "$log_type" in
+                "server") [ -f "logs/server.log" ] && tail -n "$lines" logs/server.log ;;
+                "error") [ -f "logs/error.log" ] && tail -n "$lines" logs/error.log ;;
+                "access") [ -f "logs/access.log" ] && tail -n "$lines" logs/access.log ;;
+                "all")
+                    echo "=== Server Log ==="
+                    [ -f "logs/server.log" ] && tail -n "$lines" logs/server.log
+                    echo -e "\n=== Error Log ==="
+                    [ -f "logs/error.log" ] && tail -n "$lines" logs/error.log
+                    echo -e "\n=== Access Log ==="
+                    [ -f "logs/access.log" ] && tail -n "$lines" logs/access.log
+                    ;;
+                *) echo "用法: $0 manage-logs view [server|error|access|all] [lines]" ;;
+            esac
+            ;;
+        "tail")
+            case "$log_type" in
+                "server") [ -f "logs/server.log" ] && tail -f logs/server.log ;;
+                "error") [ -f "logs/error.log" ] && tail -f logs/error.log ;;
+                "access") [ -f "logs/access.log" ] && tail -f logs/access.log ;;
+                "all") tail -f logs/*.log 2>/dev/null ;;
+                *) echo "用法: $0 manage-logs tail [server|error|access|all]" ;;
+            esac
+            ;;
+        "rotate")
+            rotate_logs
+            ;;
+        "clean")
+            clean_old_logs
+            ;;
+        "stats")
+            show_log_stats
+            ;;
+        *)
+            echo "日志管理用法:"
+            echo "  $0 manage-logs view [server|error|access|all] [lines]"
+            echo "  $0 manage-logs tail [server|error|access|all]"
+            echo "  $0 manage-logs rotate"
+            echo "  $0 manage-logs clean"
+            echo "  $0 manage-logs stats"
+            ;;
+    esac
+}
+
+# 日志轮转
+rotate_logs() {
+    local max_size=10485760  # 10MB
+
+    for log_file in logs/server.log logs/error.log logs/access.log; do
+        if [ -f "$log_file" ]; then
+            local file_size=$(stat -f%z "$log_file" 2>/dev/null || stat -c%s "$log_file" 2>/dev/null || echo 0)
+
+            if [ "$file_size" -gt "$max_size" ]; then
+                local timestamp=$(date +%Y%m%d_%H%M%S)
+                local rotated_file="${log_file}.${timestamp}"
+
+                mv "$log_file" "$rotated_file"
+                gzip "$rotated_file" 2>/dev/null || true
+                touch "$log_file"
+
+                echo "已轮转日志: $log_file -> ${rotated_file}.gz"
+            fi
+        fi
+    done
+}
+
+# 清理旧日志
+clean_old_logs() {
+    # 删除 7 天前的压缩日志
+    find logs/ -name "*.gz" -mtime +7 -delete 2>/dev/null || true
+    echo "已清理 7 天前的旧日志"
+}
+
+# 显示日志统计
+show_log_stats() {
+    echo "=== 日志统计 ==="
+    for log_file in logs/server.log logs/error.log logs/access.log; do
+        if [ -f "$log_file" ]; then
+            local lines=$(wc -l < "$log_file" 2>/dev/null || echo 0)
+            local size=$(du -h "$log_file" 2>/dev/null | cut -f1)
+            echo "$(basename "$log_file"): $lines 行, $size"
+        fi
+    done
+
+    local gz_count=$(find logs/ -name "*.gz" 2>/dev/null | wc -l)
+    echo "归档日志: $gz_count 个文件"
+}
+EOF
+}
+
+# 集成的服务助手功能
+create_service_helper_functions() {
+    cat >> "$INSTALL_DIR/start-server.sh" << 'EOF'
+
+# 服务助手功能
+service_helper() {
+    while true; do
+        clear
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║              🚀 环境管理系统服务助手                         ║"
+        echo "║                                                              ║"
+        echo "║  简化的服务管理界面，提供一键操作和状态监控                   ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+        echo ""
+
+        # 显示当前状态
+        echo "🔍 当前状态:"
+        if [ -f "logs/server.pid" ] && kill -0 "$(cat logs/server.pid)" 2>/dev/null; then
+            local pid=$(cat logs/server.pid)
+            echo "  服务状态: 运行中 (PID: $pid)"
+
+            if [ -f "demo-config.json" ]; then
+                local domain=$(grep '"domain"' demo-config.json | sed 's/.*: *"\([^"]*\)".*/\1/' 2>/dev/null)
+                local port=$(grep '"port"' demo-config.json | sed 's/.*: *\([0-9]*\).*/\1/' 2>/dev/null)
+                [ -n "$domain" ] && echo "  访问地址: https://$domain/"
+                [ -n "$port" ] && echo "  带端口访问: https://$domain:$port/"
+            fi
+        else
+            echo "  服务状态: 未运行"
+        fi
+
+        echo ""
+        echo "📋 可用操作:"
+        echo "  1. 🚀 启动服务 (前台)"
+        echo "  2. 🌙 启动服务 (后台)"
+        echo "  3. 🛑 停止服务"
+        echo "  4. 🔄 重启服务"
+        echo "  5. 📊 查看状态"
+        echo "  6. 📋 查看日志"
+        echo "  7. 🔧 故障排除"
+        echo "  8. ⚙️  系统信息"
+        echo "  9. 📖 帮助文档"
+        echo "  0. 🚪 退出"
+        echo ""
+
+        read -p "请选择操作 [0-9]: " choice
+
+        case $choice in
+            1)
+                echo "启动前台服务..."
+                exec "$0"
+                ;;
+            2)
+                echo "启动后台服务..."
+                exec "$0" -d
+                ;;
+            3)
+                echo "停止服务..."
+                exec "$0" stop
+                ;;
+            4)
+                echo "重启服务..."
+                exec "$0" restart -d
+                ;;
+            5)
+                echo "查看服务状态..."
+                exec "$0" status -v
+                ;;
+            6)
+                echo "选择日志类型:"
+                echo "  1. 服务日志"
+                echo "  2. 错误日志"
+                echo "  3. 访问日志"
+                echo "  4. 所有日志"
+                read -p "请选择 [1-4]: " log_choice
+                case $log_choice in
+                    1) manage_logs view server ;;
+                    2) manage_logs view error ;;
+                    3) manage_logs view access ;;
+                    4) manage_logs view all ;;
+                    *) echo "无效选择" ;;
+                esac
+                read -p "按回车键继续..."
+                ;;
+            7)
+                troubleshoot_service
+                read -p "按回车键继续..."
+                ;;
+            8)
+                show_system_info
+                read -p "按回车键继续..."
+                ;;
+            9)
+                show_help_info
+                read -p "按回车键继续..."
+                ;;
+            0)
+                echo "退出服务助手"
+                exit 0
+                ;;
+            *)
+                echo "无效选择，请重新输入"
+                sleep 1
+                ;;
+        esac
+    done
+}
+
+# 故障排除功能
+troubleshoot_service() {
+    echo "🔧 故障排除"
+    echo ""
+
+    # 检查端口占用
+    if [ -f "demo-config.json" ]; then
+        local port=$(grep '"port"' demo-config.json | sed 's/.*: *\([0-9]*\).*/\1/' 2>/dev/null)
+        if [ -n "$port" ]; then
+            echo "检查端口 $port 占用情况:"
+            if command -v netstat >/dev/null 2>&1; then
+                netstat -tuln | grep ":$port " || echo "  端口未被占用"
+            fi
+            if command -v sockstat >/dev/null 2>&1; then
+                sockstat -l | grep ":$port " || echo "  端口未被占用 (FreeBSD)"
+            fi
+        fi
+    fi
+
+    echo ""
+    echo "常见问题解决方案:"
+    echo "  1. 端口被占用: 修改配置文件中的端口"
+    echo "  2. 权限问题: chmod +x start-server.sh"
+    echo "  3. 依赖缺失: npm install"
+    echo "  4. 构建失败: npm run build"
+    echo "  5. 配置错误: 检查 demo-config.json"
+}
+
+# 显示系统信息
+show_system_info() {
+    echo "⚙️  系统信息"
+    echo ""
+    echo "操作系统: $(uname -s)"
+    echo "架构: $(uname -m)"
+    echo "主机名: $(hostname)"
+    echo ""
+
+    if command -v node >/dev/null 2>&1; then
+        echo "Node.js: $(node --version)"
+    fi
+
+    if command -v npm >/dev/null 2>&1; then
+        echo "npm: $(npm --version)"
+    fi
+
+    if command -v php >/dev/null 2>&1; then
+        echo "PHP: $(php --version | head -1)"
+    fi
+
+    echo ""
+    echo "磁盘使用:"
+    df -h . | tail -1
+}
+
+# 显示帮助信息
+show_help_info() {
+    echo "📖 帮助文档"
+    echo ""
+    echo "启动脚本用法:"
+    echo "  $0                    # 前台运行"
+    echo "  $0 -d                 # 后台运行"
+    echo "  $0 stop               # 停止服务"
+    echo "  $0 restart            # 重启服务"
+    echo "  $0 status             # 查看状态"
+    echo "  $0 helper             # 服务助手"
+    echo "  $0 manage-logs <cmd>  # 日志管理"
+    echo ""
+    echo "日志管理命令:"
+    echo "  view [type] [lines]   # 查看日志"
+    echo "  tail [type]           # 实时查看"
+    echo "  rotate                # 轮转日志"
+    echo "  clean                 # 清理旧日志"
+    echo "  stats                 # 日志统计"
+}
+EOF
 }
 
 create_service_scripts() {
@@ -914,14 +1446,148 @@ main() {
     fi
 }
 
+# 停止服务功能
+stop_service() {
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            print_info "正在停止服务 (PID: $pid)..."
+            kill "$pid"
+
+            # 等待进程结束
+            local count=0
+            while kill -0 "$pid" 2>/dev/null && [ $count -lt 10 ]; do
+                sleep 1
+                count=$((count + 1))
+            done
+
+            if kill -0 "$pid" 2>/dev/null; then
+                print_warning "正常停止失败，强制终止..."
+                kill -9 "$pid" 2>/dev/null
+            fi
+
+            rm -f "$PID_FILE"
+            print_success "服务已停止"
+        else
+            print_warning "进程不存在，清理 PID 文件"
+            rm -f "$PID_FILE"
+        fi
+    else
+        print_info "服务未运行"
+    fi
+}
+
+# 重启服务功能
+restart_service() {
+    print_info "重启服务..."
+    stop_service
+    sleep 2
+    exec "$0" "$@"
+}
+
+# 显示状态功能
+show_status() {
+    local verbose=false
+    local show_logs=false
+
+    for arg in "$@"; do
+        case $arg in
+            -v|--verbose) verbose=true ;;
+            -l|--logs) show_logs=true ;;
+        esac
+    done
+
+    print_header "🔍 服务状态检查"
+
+    # 检查服务状态
+    if [ -f "$PID_FILE" ]; then
+        local pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            print_success "服务正在运行 (PID: $pid)"
+
+            if [ "$verbose" = true ]; then
+                # 显示进程信息
+                if command -v ps >/dev/null 2>&1; then
+                    echo ""
+                    print_info "进程信息:"
+                    ps -p "$pid" -o pid,ppid,cmd,etime,pcpu,pmem 2>/dev/null || true
+                fi
+
+                # 显示端口监听
+                if [ -f "demo-config.json" ]; then
+                    local port=$(grep '"port"' demo-config.json | sed 's/.*: *\([0-9]*\).*/\1/' 2>/dev/null)
+                    if [ -n "$port" ]; then
+                        echo ""
+                        print_info "端口监听状态:"
+                        if command -v netstat >/dev/null 2>&1; then
+                            netstat -tuln | grep ":$port " || echo "  端口 $port 未在监听"
+                        fi
+                    fi
+                fi
+            fi
+        else
+            print_warning "PID 文件存在但进程未运行"
+            rm -f "$PID_FILE"
+        fi
+    else
+        print_info "服务未运行"
+    fi
+
+    # 显示访问信息
+    if [ -f "demo-config.json" ]; then
+        echo ""
+        print_info "访问信息:"
+        local domain=$(grep '"domain"' demo-config.json | sed 's/.*: *"\([^"]*\)".*/\1/' 2>/dev/null)
+        local port=$(grep '"port"' demo-config.json | sed 's/.*: *\([0-9]*\).*/\1/' 2>/dev/null)
+
+        [ -n "$domain" ] && echo "  域名访问: https://$domain/"
+        [ -n "$port" ] && echo "  带端口访问: https://$domain:$port/"
+    fi
+
+    # 显示日志
+    if [ "$show_logs" = true ]; then
+        echo ""
+        print_info "最近日志:"
+        manage_logs view all 10
+    fi
+}
+
+# 处理特殊命令
+case "${1:-}" in
+    "stop")
+        stop_service
+        exit $?
+        ;;
+    "restart")
+        restart_service "${@:2}"
+        exit $?
+        ;;
+    "status")
+        show_status "${@:2}"
+        exit $?
+        ;;
+    "helper")
+        service_helper
+        exit $?
+        ;;
+    "manage-logs")
+        manage_logs "${@:2}"
+        exit $?
+        ;;
+esac
+
 # 脚本入口
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
 EOF
 
+    # 添加集成功能到启动脚本
+    create_log_management_functions
+    create_service_helper_functions
+
     chmod +x "$INSTALL_DIR/start-server.sh"
-    print_success "启动脚本已创建: start-server.sh"
+    print_success "集成启动脚本已创建: start-server.sh"
 
     # 创建停止服务脚本
     cat > "$INSTALL_DIR/stop-server.sh" << 'EOF'
