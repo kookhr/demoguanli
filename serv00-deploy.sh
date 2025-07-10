@@ -73,6 +73,11 @@ print_error() {
     print_message $RED "❌ $1"
 }
 
+# 打印信息消息
+print_info() {
+    print_message $PURPLE "ℹ️  $1"
+}
+
 # 检查命令是否存在
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -159,7 +164,7 @@ interactive_config() {
         if [ -z "$CUSTOM_PORT" ]; then
             CUSTOM_PORT=$DEFAULT_PORT
         fi
-        
+
         if validate_port $CUSTOM_PORT; then
             if check_port_available $CUSTOM_PORT; then
                 print_success "端口 $CUSTOM_PORT 可用"
@@ -173,26 +178,36 @@ interactive_config() {
     done
     
     # 数据库配置
-    echo -n "数据库主机 [默认: localhost]: "
-    read DB_HOST
-    if [ -z "$DB_HOST" ]; then
-        DB_HOST="localhost"
+    echo -n "数据库主机 [默认: mysql14.serv00.com]: "
+    read input_db_host
+    if [ -z "$input_db_host" ]; then
+        DB_HOST="mysql14.serv00.com"
+    else
+        DB_HOST="$input_db_host"
     fi
-    
-    echo -n "数据库名称 [默认: environment_manager]: "
-    read DB_NAME
-    if [ -z "$DB_NAME" ]; then
-        DB_NAME="environment_manager"
+
+    echo -n "数据库名称 [默认: em9785_environment_manager]: "
+    read input_db_name
+    if [ -z "$input_db_name" ]; then
+        DB_NAME="em9785_environment_manager"
+    else
+        DB_NAME="$input_db_name"
     fi
-    
-    echo -n "数据库用户名: "
-    read DB_USER
+
+    echo -n "数据库用户名 [默认: m9785_s14kook]: "
+    read input_db_user
+    if [ -z "$input_db_user" ]; then
+        DB_USER="m9785_s14kook"
+    else
+        DB_USER="$input_db_user"
+    fi
+
     while [ -z "$DB_USER" ]; do
         print_error "数据库用户名不能为空"
         echo -n "数据库用户名: "
         read DB_USER
     done
-    
+
     echo -n "数据库密码: "
     read -s DB_PASS
     echo
@@ -204,13 +219,177 @@ interactive_config() {
     done
     
     # 域名配置
-    echo -n "域名 [默认: $(whoami).serv00.net]: "
-    read DOMAIN_NAME
-    if [ -z "$DOMAIN_NAME" ]; then
-        DOMAIN_NAME="$(whoami).serv00.net"
+    echo -n "域名 [默认: do.kandy.dpdns.org]: "
+    read input_domain
+    if [ -z "$input_domain" ]; then
+        DOMAIN_NAME="do.kandy.dpdns.org"
+    else
+        DOMAIN_NAME="$input_domain"
     fi
     
     print_success "配置完成"
+}
+
+# 创建 index.html 入口文件
+create_index_html() {
+    cat > index.html << 'EOF'
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/K.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>环境管理系统</title>
+    <meta name="description" content="现代化的环境管理系统，支持多环境配置、状态监控和用户权限管理" />
+
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        background-color: #f8fafc;
+        color: #1e293b;
+      }
+
+      .loading-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        z-index: 9999;
+      }
+
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+
+      .loading-text {
+        color: white;
+        margin-top: 20px;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .app-loaded .loading-container {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading-container">
+      <div style="text-align: center;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">环境管理系统加载中...</div>
+      </div>
+    </div>
+
+    <div id="root"></div>
+
+    <script type="module" src="/src/main.jsx"></script>
+
+    <script>
+      setTimeout(() => {
+        document.body.classList.add('app-loaded');
+      }, 5000);
+
+      window.addEventListener('DOMContentLoaded', () => {
+        const checkAppMount = () => {
+          const root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            document.body.classList.add('app-loaded');
+          } else {
+            setTimeout(checkAppMount, 100);
+          }
+        };
+        setTimeout(checkAppMount, 1000);
+      });
+    </script>
+  </body>
+</html>
+EOF
+    print_success "index.html 入口文件已创建"
+}
+
+# 检查和修复 Vite 配置
+check_and_fix_vite_config() {
+    print_step "检查 Vite 配置..."
+
+    if [ ! -f "vite.config.js" ]; then
+        print_warning "未找到 vite.config.js，正在创建优化配置..."
+        cat > vite.config.js << 'EOF'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  base: './',
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom']
+        }
+      }
+    }
+  },
+  server: {
+    port: 5173,
+    host: true
+  }
+})
+EOF
+        print_success "vite.config.js 已创建"
+    else
+        print_success "vite.config.js 存在"
+    fi
+}
+
+# 修复构建问题
+fix_build_issues() {
+    print_step "尝试修复构建问题..."
+
+    # 清理缓存
+    if [ -d "node_modules/.vite" ]; then
+        print_step "清理 Vite 缓存..."
+        rm -rf node_modules/.vite
+    fi
+
+    # 检查关键文件
+    if [ ! -f "src/main.jsx" ]; then
+        print_error "未找到 src/main.jsx 入口文件"
+        return 1
+    fi
+
+    # 重新创建 index.html
+    print_step "重新创建 index.html..."
+    create_index_html
+
+    # 检查 package.json 中的脚本
+    if ! grep -q '"build"' package.json; then
+        print_error "package.json 中缺少 build 脚本"
+        return 1
+    fi
+
+    print_success "构建问题修复完成"
 }
 
 # 下载项目文件
@@ -255,24 +434,83 @@ build_frontend() {
         return
     fi
 
+    # 检查项目结构
+    if [ ! -f "package.json" ]; then
+        print_error "未找到 package.json，项目结构不完整"
+        exit 1
+    fi
+
+    if [ ! -d "src" ]; then
+        print_error "未找到 src 目录，项目结构不完整"
+        exit 1
+    fi
+
+    # 检查并创建 index.html 入口文件
+    if [ ! -f "index.html" ]; then
+        print_warning "未找到 index.html 入口文件，正在创建..."
+        create_index_html
+    fi
+
+    # 检查并修复 Vite 配置
+    check_and_fix_vite_config
+
     # 如果有 Node.js，尝试构建
     if command_exists npm; then
-        print_step "使用 npm 构建前端..."
-        npm install
-        npm run build
+        print_step "检查 Node.js 版本..."
+        local node_version=$(node --version | sed 's/v//')
+        print_info "当前 Node.js 版本: $node_version"
 
-        # 将构建结果移动到根目录
+        # 清理旧的构建文件
         if [ -d "dist" ]; then
-            cp -r dist/* .
-            print_success "前端构建和部署完成"
+            print_step "清理旧的构建文件..."
+            rm -rf dist
+        fi
+
+        print_step "安装依赖包..."
+        npm install --no-audit --no-fund
+
+        print_step "构建前端项目..."
+        if npm run build; then
+            print_success "前端构建成功"
+
+            # 验证构建结果
+            if [ -f "dist/index.html" ]; then
+                print_success "构建产物验证通过"
+
+                # 将构建结果移动到根目录
+                print_step "部署前端文件到根目录..."
+                cp -r dist/* .
+                print_success "前端文件部署完成"
+
+                # 显示部署结果
+                print_info "部署文件列表:"
+                ls -la index.html assets/ 2>/dev/null || ls -la index.html
+            else
+                print_error "构建失败：未生成 index.html"
+                exit 1
+            fi
         else
-            print_error "前端构建失败"
-            exit 1
+            print_error "前端构建失败，正在尝试修复..."
+
+            # 尝试修复构建问题
+            fix_build_issues
+
+            # 重新尝试构建
+            print_step "重新尝试构建..."
+            if npm run build; then
+                print_success "修复后构建成功"
+                cp -r dist/* .
+                print_success "前端文件部署完成"
+            else
+                print_error "构建修复失败，请检查项目配置"
+                exit 1
+            fi
         fi
     elif command_exists node; then
-        print_step "使用 node 构建前端..."
+        print_step "检测到 Node.js 但未找到 npm..."
         node --version
-        # 这里可以添加其他构建方法
+        print_error "请安装 npm 或确保项目包含预构建的 dist 目录"
+        exit 1
     else
         print_error "未找到 Node.js，请确保项目包含预构建的 dist 目录"
         exit 1
@@ -445,12 +683,14 @@ show_results() {
     print_message $CYAN "📋 安装信息:"
     echo "   安装目录: $INSTALL_DIR/$PROJECT_NAME"
     echo "   自定义端口: $CUSTOM_PORT"
-    echo "   数据库: $DB_NAME"
+    echo "   数据库主机: $DB_HOST"
+    echo "   数据库名称: $DB_NAME"
+    echo "   数据库用户: $DB_USER"
     echo "   域名: $DOMAIN_NAME"
     echo
     print_message $CYAN "🌐 访问地址:"
-    echo "   前端: http://$DOMAIN_NAME"
-    echo "   API: http://$DOMAIN_NAME/api/health"
+    echo "   前端: https://$DOMAIN_NAME"
+    echo "   API健康检查: https://$DOMAIN_NAME/api/health"
     echo
     print_message $CYAN "👤 默认账户:"
     echo "   用户名: admin"

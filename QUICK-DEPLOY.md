@@ -20,17 +20,20 @@ bash -i <(curl -SL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/se
 系统会提示您输入以下信息：
 
 ```
-请输入安装目录 [默认: ~/domains/用户名.serv00.net/public_html]: 
-请输入自定义端口 [默认: 3000]: 
-数据库主机 [默认: localhost]: 
-数据库名称 [默认: environment_manager]: 
-数据库用户名: 
-数据库密码: 
-域名 [默认: 用户名.serv00.net]: 
+请输入安装目录 [默认: ~/domains/用户名.serv00.net/public_html]:
+请输入自定义端口 [默认: 62595]:
+数据库主机 [默认: mysql14.serv00.com]:
+数据库名称 [默认: em9785_environment_manager]:
+数据库用户名 [默认: m9785_s14kook]:
+数据库密码:
+域名 [默认: do.kandy.dpdns.org]:
 ```
 
 ### 3. 自动部署
 - ✅ 下载项目文件
+- ✅ 检查并修复项目结构
+- ✅ 创建 index.html 入口文件
+- ✅ 优化 Vite 配置
 - ✅ 构建前端项目
 - ✅ 部署到根目录
 - ✅ 配置数据库连接
@@ -41,8 +44,8 @@ bash -i <(curl -SL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/se
 ## 部署完成后
 
 ### 访问地址
-- **前端**: `https://yourdomain.serv00.net`
-- **API**: `https://yourdomain.serv00.net/api/health`
+- **前端**: `https://do.kandy.dpdns.org`
+- **API**: `https://do.kandy.dpdns.org/api/health`
 
 ### 默认账户
 - **用户名**: `admin`
