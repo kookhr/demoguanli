@@ -11,37 +11,12 @@
   <body>
     <div id="root"></div>
 
-    <!-- 智能重定向脚本 -->
-    <script>
-      // 检查是否存在生产构建文件
-      async function checkProductionBuild() {
-        try {
-          const response = await fetch('/dist/index.html', { method: 'HEAD' });
-          return response.ok;
-        } catch {
-          return false;
-        }
-      }
+    <!-- 开发环境加载脚本 -->
+    <script type="module" src="/src/main.jsx"></script>
 
-      // 如果生产构建存在且当前不在dist路径，则重定向
-      checkProductionBuild().then(hasProduction => {
-        if (hasProduction && !window.location.pathname.includes('/dist/')) {
-          console.log('检测到生产构建，重定向到生产版本...');
-          window.location.replace('/dist/index.html');
-        } else {
-          // 加载开发版本
-          console.log('加载开发版本...');
-          const script = document.createElement('script');
-          script.type = 'module';
-          script.src = '/src/main.jsx';
-          document.body.appendChild(script);
-        }
-      });
-    </script>
-
-    <!-- 备用加载提示 -->
+    <!-- 错误处理和备用提示 -->
     <script>
-      // 3秒后如果页面仍未加载，显示提示
+      // 检测应用是否正常加载
       setTimeout(() => {
         const root = document.getElementById('root');
         if (!root.innerHTML.trim()) {
@@ -52,12 +27,17 @@
               margin: 50px auto;
               padding: 20px;
               text-align: center;
-              background: #fffbeb;
-              border: 1px solid #fbbf24;
+              background: #fef2f2;
+              border: 1px solid #fecaca;
               border-radius: 8px;
             ">
-              <h2 style="color: #92400e;">⚠️ 应用正在加载...</h2>
-              <p>如果页面长时间未加载，请尝试：</p>
+              <h2 style="color: #dc2626;">⚠️ 开发环境加载失败</h2>
+              <p>开发环境无法正常加载，这通常是因为：</p>
+              <ul style="text-align: left; max-width: 400px; margin: 0 auto;">
+                <li>源文件路径不正确</li>
+                <li>MIME类型配置问题</li>
+                <li>服务器配置限制</li>
+              </ul>
               <div style="margin: 20px 0;">
                 <a href="/dist/index.html" style="
                   background: #2563eb;
@@ -76,12 +56,12 @@
                   border-radius: 5px;
                   margin: 5px;
                   display: inline-block;
-                ">🔧 路由测试</a>
+                ">🔧 诊断工具</a>
               </div>
             </div>
           `;
         }
-      }, 3000);
+      }, 5000);
     </script>
   </body>
 </html>

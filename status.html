@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统状态检查</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        .status-ok {
+            background: #ecfdf5;
+            border-color: #10b981;
+        }
+        .status-error {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+        .status-warning {
+            background: #fffbeb;
+            border-color: #f59e0b;
+        }
+        .button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #1d4ed8;
+        }
+        .button.success {
+            background: #059669;
+        }
+        .button.warning {
+            background: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 系统状态检查</h1>
+            <p>实时检查系统各组件状态</p>
+        </div>
+
+        <div id="status-list">
+            <div class="status-item status-warning">
+                <span>正在检查系统状态...</span>
+                <span>⏳</span>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="button" onclick="checkStatus()">🔄 重新检查</button>
+            <button class="button success" onclick="window.location.href='/dist/index.html'">🚀 生产环境</button>
+            <button class="button warning" onclick="window.location.href='/index.html'">🛠️ 开发环境</button>
+        </div>
+    </div>
+
+    <script>
+        async function checkStatus() {
+            const statusList = document.getElementById('status-list');
+            statusList.innerHTML = '<div class="status-item status-warning"><span>正在检查系统状态...</span><span>⏳</span></div>';
+
+            const checks = [
+                {
+                    name: '生产构建文件',
+                    test: async () => {
+                        const response = await fetch('/dist/index.html', { method: 'HEAD' });
+                        return response.ok;
+                    }
+                },
+                {
+                    name: '生产JavaScript文件',
+                    test: async () => {
+                        const response = await fetch('/dist/assets/index-CmRkGmP_.js', { method: 'HEAD' });
+                        return response.ok && response.headers.get('content-type')?.includes('javascript');
+                    }
+                },
+                {
+                    name: '生产CSS文件',
+                    test: async () => {
+                        const response = await fetch('/dist/assets/index-CmQAOyIr.css', { method: 'HEAD' });
+                        return response.ok && response.headers.get('content-type')?.includes('css');
+                    }
+                },
+                {
+                    name: '开发环境源文件',
+                    test: async () => {
+                        const response = await fetch('/src/main.jsx', { method: 'HEAD' });
+                        return response.ok;
+                    }
+                },
+                {
+                    name: 'API端点',
+                    test: async () => {
+                        const response = await fetch('/api/health');
+                        return response.ok || response.status === 405; // 405 Method Not Allowed is OK
+                    }
+                },
+                {
+                    name: '.htaccess配置',
+                    test: async () => {
+                        // 测试重定向是否正常工作
+                        const response = await fetch('/', { method: 'HEAD', redirect: 'manual' });
+                        return response.status === 302 || response.ok;
+                    }
+                }
+            ];
+
+            let results = [];
+            
+            for (const check of checks) {
+                try {
+                    const result = await check.test();
+                    results.push({
+                        name: check.name,
+                        status: result ? 'ok' : 'error',
+                        message: result ? '正常' : '异常'
+                    });
+                } catch (error) {
+                    results.push({
+                        name: check.name,
+                        status: 'error',
+                        message: '检查失败'
+                    });
+                }
+            }
+
+            // 显示结果
+            statusList.innerHTML = '';
+            results.forEach(result => {
+                const statusClass = result.status === 'ok' ? 'status-ok' : 'status-error';
+                const icon = result.status === 'ok' ? '✅' : '❌';
+                
+                statusList.innerHTML += `
+                    <div class="status-item ${statusClass}">
+                        <span>${result.name}</span>
+                        <span>${icon} ${result.message}</span>
+                    </div>
+                `;
+            });
+
+            // 添加总结
+            const okCount = results.filter(r => r.status === 'ok').length;
+            const totalCount = results.length;
+            
+            let summaryClass, summaryIcon, summaryText;
+            if (okCount === totalCount) {
+                summaryClass = 'status-ok';
+                summaryIcon = '🎉';
+                summaryText = '所有组件正常';
+            } else if (okCount > totalCount / 2) {
+                summaryClass = 'status-warning';
+                summaryIcon = '⚠️';
+                summaryText = `部分组件异常 (${okCount}/${totalCount})`;
+            } else {
+                summaryClass = 'status-error';
+                summaryIcon = '🚨';
+                summaryText = `多个组件异常 (${okCount}/${totalCount})`;
+            }
+
+            statusList.innerHTML += `
+                <div class="status-item ${summaryClass}" style="margin-top: 20px; font-weight: bold;">
+                    <span>系统总体状态</span>
+                    <span>${summaryIcon} ${summaryText}</span>
+                </div>
+            `;
+        }
+
+        // 页面加载时自动检查
+        document.addEventListener('DOMContentLoaded', function() {
+            checkStatus();
+        });
+    </script>
+</body>
+</html>

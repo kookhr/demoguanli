@@ -83,11 +83,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔄 路由配置测试</h1>
-            <p>测试网站路由是否正确重定向到生产版本</p>
+            <h1>🔄 全面路由诊断工具</h1>
+            <p>诊断和修复网站路由配置问题</p>
         </div>
 
-        <button class="button" onclick="testRouting()">🚀 测试路由配置</button>
+        <button class="button" onclick="testRouting()">🚀 完整路由测试</button>
+        <button class="button" onclick="testResourceLoading()">📦 资源加载测试</button>
+        <button class="button" onclick="testRedirectLoop()">🔄 重定向循环检测</button>
         
         <div class="link-test">
             <strong>手动测试链接：</strong><br>
@@ -108,10 +110,97 @@
             element.textContent = typeof content === 'object' ? JSON.stringify(content, null, 2) : content;
         }
 
+        // 新增：资源加载测试
+        async function testResourceLoading() {
+            showResult('正在测试资源加载...', 'info');
+
+            let report = '📦 资源加载测试报告\n';
+            report += '=' .repeat(50) + '\n\n';
+
+            // 测试关键资源文件
+            const resources = [
+                { path: '/dist/assets/index-CmRkGmP_.js', type: 'JavaScript', expected: 'application/javascript' },
+                { path: '/dist/assets/index-CmQAOyIr.css', type: 'CSS', expected: 'text/css' },
+                { path: '/dist/K.svg', type: 'SVG', expected: 'image/svg+xml' },
+                { path: '/src/main.jsx', type: 'JSX源文件', expected: 'application/javascript' },
+                { path: '/api/health', type: 'API端点', expected: 'application/json' }
+            ];
+
+            report += '1️⃣ 关键资源检查:\n';
+
+            for (const resource of resources) {
+                try {
+                    const response = await fetch(resource.path, { method: 'HEAD' });
+                    const contentType = response.headers.get('content-type');
+
+                    if (response.ok) {
+                        if (contentType && contentType.includes(resource.expected.split('/')[1])) {
+                            report += `   ✅ ${resource.type}: ${resource.path} (${contentType})\n`;
+                        } else {
+                            report += `   ❌ ${resource.type}: ${resource.path} - 错误MIME类型: ${contentType}\n`;
+                        }
+                    } else {
+                        report += `   ❌ ${resource.type}: ${resource.path} - HTTP ${response.status}\n`;
+                    }
+                } catch (error) {
+                    report += `   ❌ ${resource.type}: ${resource.path} - 连接错误\n`;
+                }
+            }
+
+            report += '\n2️⃣ 资源加载建议:\n';
+            report += '   • 如果JavaScript文件MIME类型错误，检查.htaccess配置\n';
+            report += '   • 如果资源404，检查文件是否存在和路径是否正确\n';
+            report += '   • 如果API端点失败，检查PHP配置\n';
+
+            showResult(report, 'info');
+        }
+
+        // 新增：重定向循环检测
+        async function testRedirectLoop() {
+            showResult('正在检测重定向循环...', 'info');
+
+            let report = '🔄 重定向循环检测报告\n';
+            report += '=' .repeat(50) + '\n\n';
+
+            const testPaths = ['/', '/dist/index.html', '/some-spa-route'];
+
+            for (const path of testPaths) {
+                try {
+                    const response = await fetch(path, {
+                        method: 'GET',
+                        redirect: 'manual'  // 不自动跟随重定向
+                    });
+
+                    if (response.status >= 300 && response.status < 400) {
+                        const location = response.headers.get('location');
+                        report += `   🔄 ${path}: 重定向到 ${location} (${response.status})\n`;
+
+                        // 检查是否是循环重定向
+                        if (location === path) {
+                            report += `   ❌ 检测到循环重定向: ${path} → ${location}\n`;
+                        }
+                    } else if (response.ok) {
+                        report += `   ✅ ${path}: 正常响应 (${response.status})\n`;
+                    } else {
+                        report += `   ❌ ${path}: 错误响应 (${response.status})\n`;
+                    }
+                } catch (error) {
+                    report += `   ❌ ${path}: 检测失败 - ${error.message}\n`;
+                }
+            }
+
+            report += '\n💡 修复建议:\n';
+            report += '   • 如果检测到循环重定向，检查.htaccess重写规则\n';
+            report += '   • 确保重定向目标路径正确且可访问\n';
+            report += '   • 使用302重定向而不是内部重写避免循环\n';
+
+            showResult(report, 'info');
+        }
+
         async function testRouting() {
-            showResult('正在测试路由配置...', 'info');
-            
-            let report = '🔄 路由配置测试报告\n';
+            showResult('正在进行完整路由测试...', 'info');
+
+            let report = '🔄 完整路由配置测试报告\n';
             report += '=' .repeat(50) + '\n\n';
             
             // 1. 检测当前页面环境

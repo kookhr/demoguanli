@@ -34,22 +34,31 @@ RewriteRule ^(.*)$ api/index.php [L]
 
 RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
-# 强制根目录重定向到生产版本
+# 直接访问dist目录下的文件 - 不进行重定向
+RewriteCond %{REQUEST_URI} ^/dist/
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.*)$ $1 [L]
+
+# 根目录访问重定向到生产版本（使用302重定向而不是内部重写）
 RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
 RewriteCond %{REQUEST_URI} ^/$
-RewriteRule ^$ dist/index.html [L]
+RewriteRule ^$ /dist/index.html [R=302,L]
 
-# 生产环境静态资源优先
+# 静态资源优先使用dist版本（但不包括已经在dist路径下的请求）
+RewriteCond %{REQUEST_URI} !^/dist/
 RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
 RewriteRule ^(.+)$ dist/$1 [L]
 
-# 所有其他SPA路由重定向到生产版本
+# SPA路由处理 - 重定向到生产版本（使用302重定向）
 RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
 RewriteCond %{REQUEST_URI} !^/dist/
-RewriteRule ^(.*)$ dist/index.html [L]
+RewriteCond %{REQUEST_URI} !^/test-
+RewriteCond %{REQUEST_URI} !^/debug-
+RewriteCond %{REQUEST_URI} !^/serv00-
+RewriteRule ^(.*)$ /dist/index.html [R=302,L]
 
 # 开发环境回退（仅当dist不存在时）
 RewriteCond %{DOCUMENT_ROOT}/dist/index.html !-f
