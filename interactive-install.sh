@@ -31,6 +31,12 @@ API_PATH="/api"
 INSTALL_DIR=""
 CONFIG_FILE=""
 
+# 更新模式变量
+IS_UPDATE_MODE=false
+EXISTING_CONFIG_FILE=""
+BACKUP_CONFIG_FILE=""
+PRESERVED_CONFIG=""
+
 # 默认值
 DEFAULT_DOMAIN="do.kandy.dpdns.org"
 DEFAULT_DB_HOST="mysql14.serv00.com"
@@ -136,9 +142,88 @@ test_database_connection() {
     fi
 }
 
+# 检测安装类型（首次安装 vs 更新）
+detect_installation_type() {
+    print_step "1" "检测安装类型"
+
+    # 检查是否存在现有安装
+    local potential_domains=(
+        "do.kandy.dpdns.org"
+        "$(whoami).serv00.net"
+    )
+
+    for domain in "${potential_domains[@]}"; do
+        local install_path="$HOME/domains/$domain/public_html"
+        local config_path="$install_path/api/.env"
+
+        if [ -d "$install_path" ] && [ -f "$config_path" ]; then
+            IS_UPDATE_MODE=true
+            CUSTOM_DOMAIN="$domain"
+            INSTALL_DIR="$install_path"
+            EXISTING_CONFIG_FILE="$config_path"
+
+            print_info "检测到现有安装: $domain"
+            print_info "安装目录: $install_path"
+            break
+        fi
+    done
+
+    if [ "$IS_UPDATE_MODE" = true ]; then
+        echo -e "${BOLD}${GREEN}🔄 更新模式${NC}"
+        echo -e "${CYAN}将更新现有系统并保留所有配置和数据${NC}"
+
+        # 读取现有配置
+        read_existing_config
+
+    else
+        echo -e "${BOLD}${GREEN}🆕 首次安装模式${NC}"
+        echo -e "${CYAN}将进行全新安装${NC}"
+    fi
+
+    echo ""
+}
+
+# 读取现有配置
+read_existing_config() {
+    print_info "读取现有配置..."
+
+    if [ -f "$EXISTING_CONFIG_FILE" ]; then
+        # 创建配置备份
+        BACKUP_CONFIG_FILE="/tmp/env_backup_$(date +%Y%m%d_%H%M%S)"
+        cp "$EXISTING_CONFIG_FILE" "$BACKUP_CONFIG_FILE"
+        print_info "配置已备份到: $BACKUP_CONFIG_FILE"
+
+        # 读取关键配置项
+        DB_HOST=$(grep "^DB_HOST=" "$EXISTING_CONFIG_FILE" | cut -d'=' -f2 | tr -d '"' || echo "")
+        DB_NAME=$(grep "^DB_NAME=" "$EXISTING_CONFIG_FILE" | cut -d'=' -f2 | tr -d '"' || echo "")
+        DB_USER=$(grep "^DB_USER=" "$EXISTING_CONFIG_FILE" | cut -d'=' -f2 | tr -d '"' || echo "")
+        DB_PASSWORD=$(grep "^DB_PASSWORD=" "$EXISTING_CONFIG_FILE" | cut -d'=' -f2 | tr -d '"' || echo "")
+        CUSTOM_PORT=$(grep "^CUSTOM_PORT=" "$EXISTING_CONFIG_FILE" | cut -d'=' -f2 | tr -d '"' || echo "3000")
+
+        # 读取其他重要配置
+        local JWT_SECRET=$(grep "^JWT_SECRET=" "$EXISTING_CONFIG_FILE" | cut -d'=' -f2 | tr -d '"' || echo "")
+        local APP_URL=$(grep "^APP_URL=" "$EXISTING_CONFIG_FILE" | cut -d'=' -f2 | tr -d '"' || echo "")
+
+        # 保存完整配置内容用于后续恢复
+        PRESERVED_CONFIG=$(cat "$EXISTING_CONFIG_FILE")
+
+        print_success "现有配置读取完成"
+        print_info "数据库: $DB_HOST/$DB_NAME"
+        print_info "用户: $DB_USER"
+        print_info "端口: $CUSTOM_PORT"
+
+    else
+        print_warning "配置文件不存在，将使用默认配置"
+    fi
+}
+
 # 检查系统环境
 check_system_requirements() {
-    print_step "1" "检查系统环境"
+    if [ "$IS_UPDATE_MODE" = true ]; then
+        print_step "2" "检查系统环境（更新模式）"
+    else
+        print_step "2" "检查系统环境"
+    fi
     
     # 检查操作系统
     if [[ "$OSTYPE" == "freebsd"* ]]; then
@@ -168,10 +253,36 @@ check_system_requirements() {
 
 # 收集配置信息
 collect_configuration() {
-    print_step "2" "收集配置信息"
-    
-    echo -e "${YELLOW}请按照提示输入配置信息，按 Enter 使用默认值${NC}"
-    echo ""
+    if [ "$IS_UPDATE_MODE" = true ]; then
+        print_step "3" "确认配置信息（更新模式）"
+
+        echo -e "${YELLOW}更新模式：将保留现有配置，如需修改请手动输入${NC}"
+        echo -e "${CYAN}当前配置信息：${NC}"
+        echo -e "  域名: ${GREEN}$CUSTOM_DOMAIN${NC}"
+        echo -e "  数据库: ${GREEN}$DB_HOST/$DB_NAME${NC}"
+        echo -e "  用户: ${GREEN}$DB_USER${NC}"
+        echo -e "  端口: ${GREEN}$CUSTOM_PORT${NC}"
+        echo ""
+
+        # 在更新模式下，提供选项是否修改配置
+        read_input "是否保持现有配置？(y/n)" "y"
+        if [[ "$USER_INPUT" =~ ^[Nn] ]]; then
+            echo -e "${YELLOW}请输入新的配置信息：${NC}"
+            collect_new_configuration
+        else
+            print_info "保持现有配置"
+        fi
+    else
+        print_step "3" "收集配置信息"
+
+        echo -e "${YELLOW}请按照提示输入配置信息，按 Enter 使用默认值${NC}"
+        echo ""
+        collect_new_configuration
+    fi
+}
+
+# 收集新配置信息
+collect_new_configuration() {
     
     # 域名配置
     while true; do
@@ -297,12 +408,53 @@ download_project() {
 
 # 生成配置文件
 generate_configuration_files() {
-    print_step "6" "生成配置文件"
+    if [ "$IS_UPDATE_MODE" = true ]; then
+        print_step "6" "更新配置文件（保留现有配置）"
+    else
+        print_step "6" "生成配置文件"
+    fi
 
     # 生成 .env 文件
     CONFIG_FILE="$INSTALL_DIR/api/.env"
 
-    print_info "生成 API 配置文件: $CONFIG_FILE"
+    if [ "$IS_UPDATE_MODE" = true ]; then
+        print_info "更新 API 配置文件: $CONFIG_FILE"
+        generate_merged_config
+    else
+        print_info "生成 API 配置文件: $CONFIG_FILE"
+        generate_new_config
+    fi
+}
+
+# 生成合并的配置文件（更新模式）
+generate_merged_config() {
+    # 如果有保留的配置，则合并配置
+    if [ -n "$PRESERVED_CONFIG" ]; then
+        print_info "合并现有配置和新配置..."
+
+        # 创建临时配置文件
+        local temp_config="/tmp/merged_config_$(date +%Y%m%d_%H%M%S)"
+
+        # 写入保留的配置
+        echo "$PRESERVED_CONFIG" > "$temp_config"
+
+        # 更新时间戳注释
+        awk -v date="$(date)" '
+        /^# 自动生成于/ { print "# 配置更新于 " date; next }
+        { print }
+        ' "$temp_config" > "$CONFIG_FILE"
+
+        rm -f "$temp_config"
+
+        print_success "配置文件合并完成"
+    else
+        print_warning "没有找到现有配置，生成新配置"
+        generate_new_config
+    fi
+}
+
+# 生成新配置文件
+generate_new_config() {
 
     cat > "$CONFIG_FILE" << EOF
 # Serv00 环境管理系统配置文件
@@ -608,6 +760,16 @@ build_project() {
 
 # 初始化数据库
 initialize_database() {
+    if [ "$IS_UPDATE_MODE" = true ]; then
+        print_step "8" "跳过数据库初始化（更新模式）"
+
+        print_info "更新模式：保留现有数据库数据"
+        print_info "数据库: $DB_HOST/$DB_NAME"
+        print_success "数据库数据完整性已保持"
+        echo ""
+        return 0
+    fi
+
     print_step "8" "初始化数据库"
 
     if command -v mysql >/dev/null 2>&1; then
@@ -732,8 +894,29 @@ EOF
 # 显示安装完成信息
 show_completion_info() {
     echo ""
-    echo -e "${BOLD}${GREEN}🎉 安装完成！${NC}"
-    echo ""
+    if [ "$IS_UPDATE_MODE" = true ]; then
+        echo -e "${BOLD}${GREEN}🎉 更新完成！${NC}"
+        echo ""
+        echo -e "${BOLD}${CYAN}更新信息:${NC}"
+        echo -e "  🔄 系统已更新到最新版本"
+        echo -e "  💾 所有数据和配置已保留"
+        echo -e "  🔧 包含最新的bug修复和功能改进"
+
+        if [ -n "$BACKUP_CONFIG_FILE" ]; then
+            echo -e "  📋 配置备份: ${GREEN}$BACKUP_CONFIG_FILE${NC}"
+        fi
+
+        echo ""
+        echo -e "${BOLD}${CYAN}验证步骤:${NC}"
+        echo -e "  1. 访问网站确认功能正常"
+        echo -e "  2. 测试环境检测功能"
+        echo -e "  3. 检查用户数据完整性"
+        echo ""
+    else
+        echo -e "${BOLD}${GREEN}🎉 安装完成！${NC}"
+        echo ""
+    fi
+
     echo -e "${BOLD}${CYAN}访问信息:${NC}"
     echo -e "  🌐 网站地址: ${GREEN}https://$CUSTOM_DOMAIN${NC}"
     echo -e "  🔗 API 地址: ${GREEN}https://$CUSTOM_DOMAIN$API_PATH/health${NC}"
@@ -781,6 +964,7 @@ main() {
     trap handle_error ERR
 
     # 执行安装步骤
+    detect_installation_type
     check_system_requirements
     collect_configuration
     validate_configuration
@@ -834,6 +1018,7 @@ main_non_interactive() {
     print_info "检测到非交互环境，使用预设配置"
 
     # 执行安装步骤（非交互版本）
+    detect_installation_type
     check_system_requirements
     setup_non_interactive_config
     simple_validate_configuration
@@ -861,6 +1046,7 @@ main_interactive() {
     trap handle_error ERR
 
     # 执行安装步骤（交互版本）
+    detect_installation_type
     check_system_requirements
     collect_configuration
     validate_configuration
