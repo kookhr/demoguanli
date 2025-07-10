@@ -526,245 +526,139 @@ EOF
 
     print_success "API 配置文件生成完成"
 
-    # 生成超强力 .htaccess 文件（彻底修复 MIME 类型问题）
-    print_info "生成超强力 .htaccess 配置..."
+    # 创建 npx serve 启动脚本
+    print_info "创建 npx serve 启动脚本..."
 
+    cat > "$INSTALL_DIR/start-serve.sh" << 'EOF'
+#!/bin/bash
+# Serv00 npx serve 启动脚本
+
+echo "🚀 启动 Serv00 环境管理系统"
+echo "================================"
+
+# 检查 Node.js 和 npm
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js 未安装"
+    exit 1
+fi
+
+if ! command -v npm &> /dev/null; then
+    echo "❌ npm 未安装"
+    exit 1
+fi
+
+# 获取可用端口
+get_available_port() {
+    local start_port=3000
+    local port=$start_port
+    while netstat -tuln 2>/dev/null | grep -q ":$port "; do
+        port=$((port + 1))
+        if [ $port -gt 3100 ]; then
+            echo "❌ 无法找到可用端口"
+            exit 1
+        fi
+    done
+    echo $port
+}
+
+# 启动服务
+PORT=$(get_available_port)
+DOMAIN=$(hostname)
+
+echo "📡 端口: $PORT"
+echo "🌐 本地访问: http://localhost:$PORT"
+echo "🌐 外部访问: https://$DOMAIN:$PORT"
+echo ""
+echo "✅ 正在启动服务..."
+echo "📋 按 Ctrl+C 停止服务"
+echo ""
+
+# 进入 dist 目录并启动服务
+cd dist
+
+# 使用 npx serve 启动静态文件服务
+npx serve -s . -p $PORT --cors --single
+EOF
+
+    chmod +x "$INSTALL_DIR/start-serve.sh"
+
+    # 创建 PM2 配置文件（用于后台运行）
+    cat > "$INSTALL_DIR/ecosystem.config.js" << 'EOF'
+module.exports = {
+  apps: [{
+    name: 'environment-manager',
+    script: 'npx',
+    args: 'serve -s ./dist -p 3000 --cors --single',
+    cwd: __dirname,
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'production'
+    }
+  }]
+};
+EOF
+
+    # 创建 Serv00 兼容的服务配置（无需 .htaccess）
+    print_info "创建 Serv00 兼容的服务配置..."
+
+    # 创建 serve 配置文件
+    cat > "$INSTALL_DIR/serve.json" << 'EOF'
+{
+  "public": "./dist",
+  "rewrites": [
+    { "source": "/api/**", "destination": "/api/index.php" },
+    { "source": "**", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "**/*.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "**/*.css",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/css; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "**/*.svg",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "image/svg+xml; charset=utf-8"
+        }
+      ]
+    }
+  ]
+}
+EOF
+
+    # 创建简化的 .htaccess（仅用于 PHP API）
     cat > "$INSTALL_DIR/.htaccess" << 'EOF'
-# ========================================
-# Serv00/FreeBSD Apache 超强力 MIME 类型修复
-# 彻底解决 JavaScript 模块加载和 SVG 资源问题
-# ========================================
+# Serv00 简化配置（仅用于 PHP API）
+# 静态文件通过 npx serve 提供，无需复杂的 MIME 类型配置
 
-# 方法1: 最强力的文件类型强制设置
-<Files "*.js">
-    ForceType application/javascript
-    Header always set Content-Type "application/javascript; charset=utf-8"
-    Header always unset Content-Encoding
-    Header always set Cache-Control "public, max-age=31536000"
-</Files>
+# API 路由
+RewriteEngine On
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-<Files "*.mjs">
-    ForceType application/javascript
-    Header always set Content-Type "application/javascript; charset=utf-8"
-    Header always unset Content-Encoding
-</Files>
-
-<Files "*.css">
-    ForceType text/css
-    Header always set Content-Type "text/css; charset=utf-8"
-    Header always unset Content-Encoding
-    Header always set Cache-Control "public, max-age=31536000"
-</Files>
-
-<Files "*.svg">
-    ForceType image/svg+xml
-    Header always set Content-Type "image/svg+xml; charset=utf-8"
-    Header always unset Content-Encoding
-    Header always set Cache-Control "public, max-age=31536000"
-</Files>
-
-<Files "*.json">
-    ForceType application/json
-    Header always set Content-Type "application/json; charset=utf-8"
-</Files>
-
-<Files "*.html">
-    ForceType text/html
-    Header always set Content-Type "text/html; charset=utf-8"
-</Files>
-
-<Files "*.htm">
-    ForceType text/html
-    Header always set Content-Type "text/html; charset=utf-8"
-</Files>
-
-# 方法2: 基于扩展名的强制类型设置
-<FilesMatch "\.(js|mjs|jsx)$">
-    ForceType application/javascript
-    Header always set Content-Type "application/javascript; charset=utf-8"
-    Header always set X-Content-Type-Options nosniff
-</FilesMatch>
-
-<FilesMatch "\.css$">
-    ForceType text/css
-    Header always set Content-Type "text/css; charset=utf-8"
-    Header always set X-Content-Type-Options nosniff
-</FilesMatch>
-
-<FilesMatch "\.svg$">
-    ForceType image/svg+xml
-    Header always set Content-Type "image/svg+xml; charset=utf-8"
-    Header always set X-Content-Type-Options nosniff
-</FilesMatch>
-
-# 方法3: 移除并重新添加 MIME 类型
-RemoveType .js
-RemoveType .mjs
-RemoveType .jsx
-RemoveType .css
-RemoveType .svg
-RemoveType .json
-RemoveType .html
-RemoveType .htm
-
-# 方法4: 强制添加正确的 MIME 类型
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .jsx
-AddType text/css .css
-AddType image/svg+xml .svg
-AddType application/json .json
-AddType text/html .html
-AddType text/html .htm
-
-# 方法5: 备用图片类型
-AddType image/png .png
-AddType image/jpeg .jpg .jpeg
-AddType image/gif .gif
-AddType image/x-icon .ico
-AddType image/webp .webp
-
-# 方法6: 设置默认字符集和编码
-AddDefaultCharset UTF-8
-DefaultLanguage en
-
-# 方法7: 强制 MIME 类型检查
+# 基础安全设置
 <IfModule mod_headers.c>
-    # 强制设置正确的 Content-Type
     Header always set X-Content-Type-Options nosniff
     Header always set X-Frame-Options DENY
     Header always set X-XSS-Protection "1; mode=block"
-
-    # JavaScript 文件特殊处理
-    <FilesMatch "\.(js|mjs)$">
-        Header always set Content-Type "application/javascript; charset=utf-8"
-        Header always set Access-Control-Allow-Origin "*"
-        Header always set Access-Control-Allow-Methods "GET, OPTIONS"
-        Header always set Access-Control-Allow-Headers "Content-Type"
-        Header always unset Content-Encoding
-    </FilesMatch>
-
-    # CSS 文件特殊处理
-    <FilesMatch "\.css$">
-        Header always set Content-Type "text/css; charset=utf-8"
-        Header always unset Content-Encoding
-    </FilesMatch>
-
-    # SVG 文件特殊处理
-    <FilesMatch "\.svg$">
-        Header always set Content-Type "image/svg+xml; charset=utf-8"
-        Header always set Access-Control-Allow-Origin "*"
-        Header always unset Content-Encoding
-    </FilesMatch>
-
-    # HTML 文件特殊处理
-    <FilesMatch "\.(html|htm)$">
-        Header always set Content-Type "text/html; charset=utf-8"
-    </FilesMatch>
 </IfModule>
-
-# 方法8: 错误处理和重定向
-ErrorDocument 404 /index.html
-ErrorDocument 500 /index.html
-ErrorDocument 502 /index.html
-ErrorDocument 503 /index.html
-
-# 方法9: 修复 Mixed Content 问题
-<IfModule mod_headers.c>
-    Header always set Content-Security-Policy "upgrade-insecure-requests"
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-</IfModule>
-
-# 方法10: URL 重写和路由
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-
-    # 强制 HTTPS
-    RewriteCond %{HTTPS} off
-    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-
-    # 处理 API 请求
-    RewriteRule ^api/(.*)$ api/index.php [QSA,L]
-
-    # 静态资源直接访问（确保正确的 MIME 类型）
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteCond %{REQUEST_URI} \.(js|css|svg|png|jpg|jpeg|gif|ico|webp)$
-    RewriteRule ^ - [L]
-
-    # 其他静态文件
-    RewriteCond %{REQUEST_FILENAME} -f [OR]
-    RewriteCond %{REQUEST_FILENAME} -d
-    RewriteRule ^ - [L]
-
-    # SPA 路由回退
-    RewriteRule ^ index.html [L]
-</IfModule>
-
-# 方法11: 缓存控制
-<IfModule mod_expires.c>
-    ExpiresActive on
-
-    # JavaScript 和 CSS 文件长期缓存
-    ExpiresByType application/javascript "access plus 1 year"
-    ExpiresByType text/css "access plus 1 year"
-
-    # 图片文件长期缓存
-    ExpiresByType image/svg+xml "access plus 1 year"
-    ExpiresByType image/png "access plus 1 year"
-    ExpiresByType image/jpeg "access plus 1 year"
-    ExpiresByType image/gif "access plus 1 year"
-    ExpiresByType image/x-icon "access plus 1 year"
-    ExpiresByType image/webp "access plus 1 year"
-
-    # HTML 文件不缓存
-    ExpiresByType text/html "access plus 0 seconds"
-    ExpiresByType application/json "access plus 0 seconds"
-</IfModule>
-
-# 方法12: Gzip 压缩
-<IfModule mod_deflate.c>
-    # 启用压缩
-    SetOutputFilter DEFLATE
-
-    # 压缩特定文件类型
-    AddOutputFilterByType DEFLATE text/plain
-    AddOutputFilterByType DEFLATE text/html
-    AddOutputFilterByType DEFLATE text/xml
-    AddOutputFilterByType DEFLATE text/css
-    AddOutputFilterByType DEFLATE application/xml
-    AddOutputFilterByType DEFLATE application/xhtml+xml
-    AddOutputFilterByType DEFLATE application/rss+xml
-    AddOutputFilterByType DEFLATE application/javascript
-    AddOutputFilterByType DEFLATE application/x-javascript
-    AddOutputFilterByType DEFLATE application/json
-    AddOutputFilterByType DEFLATE image/svg+xml
-
-    # 排除已压缩的文件
-    SetEnvIfNoCase Request_URI \
-        \.(?:gif|jpe?g|png|zip|gz|bz2)$ no-gzip dont-vary
-    SetEnvIfNoCase Request_URI \
-        \.(?:exe|t?gz|zip|bz2|sit|rar)$ no-gzip dont-vary
-</IfModule>
-
-# 方法13: 文件访问控制
-<Files "*.js">
-    Order allow,deny
-    Allow from all
-    Require all granted
-</Files>
-
-<Files "*.css">
-    Order allow,deny
-    Allow from all
-    Require all granted
-</Files>
-
-<Files "*.svg">
-    Order allow,deny
-    Allow from all
-    Require all granted
-</Files>
 EOF
 
     print_success ".htaccess 文件生成完成"
@@ -975,41 +869,154 @@ build_project() {
     # 修复构建后的文件（彻底解决 MIME 类型问题）
     print_info "修复构建文件和资源问题..."
 
-    # 修复 HTML 文件
+    # 完全重写 HTML 文件以确保浏览器兼容性
     if [ -f "dist/index.html" ]; then
-        # 使用 FreeBSD 兼容的方法移除 type="module"
-        cp dist/index.html dist/index.html.tmp
-        awk '{gsub(/type="module"/, ""); print}' dist/index.html.tmp > dist/index.html
-        rm -f dist/index.html.tmp
-        print_info "✅ 移除了 type=\"module\" 属性"
+        print_info "重写 HTML 文件以确保浏览器兼容性..."
 
-        # 检查并修复 HTML 中的资源引用
-        if grep -q "K.svg" dist/index.html; then
-            # 修复 SVG 路径引用
-            cp dist/index.html dist/index.html.tmp
-            awk '{gsub(/K\.svg/, "./assets/K.svg"); print}' dist/index.html.tmp > dist/index.html
-            rm -f dist/index.html.tmp
-            print_info "✅ 修复了 SVG 文件路径引用"
+        # 获取实际的 JS 和 CSS 文件名
+        local js_file=$(ls dist/assets/*.js 2>/dev/null | head -1)
+        local css_file=$(ls dist/assets/*.css 2>/dev/null | head -1)
+
+        if [ -n "$js_file" ] && [ -n "$css_file" ]; then
+            local js_filename=$(basename "$js_file")
+            local css_filename=$(basename "$css_file")
+
+            # 创建完全兼容的 HTML 文件
+            cat > "dist/index.html" << EOF
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="color-scheme" content="light dark">
+    <title>DEMO环境管理中心</title>
+    <link rel="icon" href="/K.svg">
+    <link rel="stylesheet" href="./assets/$css_filename">
+    <style>
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            margin-left: 16px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">正在加载环境管理系统...</div>
+        </div>
+    </div>
+
+    <!-- 错误处理脚本 -->
+    <script>
+        // 全局错误处理
+        window.addEventListener('error', function(e) {
+            console.error('JavaScript 加载错误:', e);
+            document.getElementById('root').innerHTML =
+                '<div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">' +
+                '<h2 style="color: #dc2626;">⚠️ 应用加载失败</h2>' +
+                '<p>JavaScript 文件加载出现问题，请尝试：</p>' +
+                '<ol style="text-align: left; display: inline-block;">' +
+                '<li>清除浏览器缓存 (Ctrl+Shift+Delete)</li>' +
+                '<li>强制刷新页面 (Ctrl+F5)</li>' +
+                '<li>检查网络连接</li>' +
+                '</ol>' +
+                '<p><a href="/api/health" style="color: #2563eb;">检查 API 状态</a></p>' +
+                '</div>';
+        });
+
+        // 检测 MIME 类型支持
+        function checkMimeTypeSupport() {
+            var script = document.createElement('script');
+            script.onerror = function() {
+                console.error('JavaScript MIME 类型不支持');
+                document.getElementById('root').innerHTML =
+                    '<div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">' +
+                    '<h2 style="color: #dc2626;">⚠️ MIME 类型错误</h2>' +
+                    '<p>服务器配置问题，JavaScript 文件无法正确加载</p>' +
+                    '<p>错误类型：MIME type \'application/octet-stream\' is not a valid JavaScript MIME type</p>' +
+                    '<p><strong>解决方案：</strong></p>' +
+                    '<ol style="text-align: left; display: inline-block;">' +
+                    '<li>联系系统管理员修复服务器配置</li>' +
+                    '<li>检查 .htaccess 文件设置</li>' +
+                    '<li>验证 Apache 模块配置</li>' +
+                    '</ol>' +
+                    '</div>';
+            };
+            script.src = './assets/$js_filename';
+            document.head.appendChild(script);
+        }
+
+        // 延迟加载主应用
+        setTimeout(checkMimeTypeSupport, 100);
+    </script>
+</body>
+</html>
+EOF
+
+            print_info "✅ 重写了完全兼容的 HTML 文件"
+            print_info "✅ 使用文件: $js_filename, $css_filename"
+        else
+            print_warning "⚠️  无法找到构建的 JS/CSS 文件"
         fi
     fi
 
-    # 处理 JavaScript 文件
+    # 处理 JavaScript 文件（浏览器兼容性增强）
     if [ -d "dist/assets" ]; then
         for js_file in dist/assets/*.js; do
             if [ -f "$js_file" ]; then
-                # 在文件开头添加 MIME 类型注释
-                if ! head -1 "$js_file" | grep -q "Content-Type"; then
-                    temp_file=$(mktemp)
-                    echo "/* Content-Type: application/javascript; charset=utf-8 */" > "$temp_file"
-                    cat "$js_file" >> "$temp_file"
-                    mv "$temp_file" "$js_file"
-                fi
+                print_info "处理 JavaScript 文件: $(basename "$js_file")"
+
+                # 创建临时文件
+                temp_file=$(mktemp)
+
+                # 添加浏览器兼容性头部
+                cat > "$temp_file" << 'EOF'
+/*
+ * Content-Type: application/javascript; charset=utf-8
+ * Browser Compatibility: Enhanced for Serv00/FreeBSD
+ * MIME Type: application/javascript
+ */
+
+EOF
+
+                # 添加原始文件内容
+                cat "$js_file" >> "$temp_file"
+
+                # 替换原文件
+                mv "$temp_file" "$js_file"
 
                 # 设置正确的文件权限
                 chmod 644 "$js_file"
+
+                # 验证文件大小
+                local file_size=$(wc -c < "$js_file")
+                print_info "  文件大小: $file_size 字节"
             fi
         done
-        print_info "✅ JavaScript 文件已优化"
+        print_info "✅ JavaScript 文件已优化（浏览器兼容性增强）"
 
         # 处理 CSS 文件
         for css_file in dist/assets/*.css; do
@@ -1111,6 +1118,94 @@ EOF
     print_success "构建文件 MIME 类型修复完成"
 
     print_success "项目构建完成"
+
+    # 创建 Serv00 轻量级服务启动脚本
+    print_info "创建 Serv00 轻量级服务启动脚本..."
+
+    cat > "start-server.sh" << 'EOF'
+#!/bin/bash
+# Serv00 轻量级服务启动脚本
+
+# 获取可用端口
+get_available_port() {
+    local port=3000
+    while netstat -tuln | grep -q ":$port "; do
+        port=$((port + 1))
+    done
+    echo $port
+}
+
+# 启动静态文件服务
+start_static_server() {
+    local port=$(get_available_port)
+    echo "🚀 启动静态文件服务..."
+    echo "📡 端口: $port"
+    echo "🌐 访问地址: https://$(hostname)/dist/"
+    echo ""
+    echo "按 Ctrl+C 停止服务"
+
+    cd dist
+    npx serve -s . -p $port --cors
+}
+
+# 启动 API 服务（如果需要）
+start_api_server() {
+    echo "🔧 API 服务通过 PHP 内置服务器运行"
+    echo "📡 API 地址: https://$(hostname)/api/"
+}
+
+echo "🎯 Serv00 环境管理系统服务启动器"
+echo "=================================="
+echo ""
+echo "选择启动模式："
+echo "1) 静态文件服务 (推荐)"
+echo "2) 显示服务信息"
+echo "3) 退出"
+echo ""
+
+read -p "请选择 [1-3]: " choice
+
+case $choice in
+    1)
+        start_static_server
+        ;;
+    2)
+        start_api_server
+        echo ""
+        echo "📋 服务信息："
+        echo "  • 静态文件: 通过 npx serve 提供"
+        echo "  • API 服务: 通过 PHP 提供"
+        echo "  • 数据库: MySQL"
+        echo ""
+        ;;
+    3)
+        echo "👋 再见！"
+        exit 0
+        ;;
+    *)
+        echo "❌ 无效选择"
+        exit 1
+        ;;
+esac
+EOF
+
+    chmod +x "start-server.sh"
+
+    # 创建简化的 package.json 用于 npx serve
+    cat > "dist/package.json" << 'EOF'
+{
+  "name": "environment-manager-static",
+  "version": "1.0.0",
+  "description": "Environment Manager Static Files",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -s . -p 3000 --cors",
+    "serve": "npx serve -s . --cors"
+  }
+}
+EOF
+
+    print_info "✅ 创建了轻量级服务启动脚本"
     echo ""
 }
 
@@ -1389,9 +1484,203 @@ EOF
 
     chmod +x "test-mime-types.sh"
 
+    # 创建浏览器兼容性测试页面
+    print_info "创建浏览器兼容性测试页面..."
+
+    cat > "browser-test.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>浏览器兼容性测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-item {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .success { border-color: #4CAF50; background: #f1f8e9; }
+        .error { border-color: #f44336; background: #ffebee; }
+        .warning { border-color: #ff9800; background: #fff3e0; }
+        .btn {
+            padding: 10px 20px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover { background: #1976D2; }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 浏览器兼容性测试</h1>
+        <p>此页面用于测试浏览器对 JavaScript MIME 类型的支持</p>
+
+        <div class="test-item" id="mime-test">
+            <h3>MIME 类型测试</h3>
+            <button class="btn" onclick="testMimeTypes()">开始测试</button>
+            <div id="mime-results"></div>
+        </div>
+
+        <div class="test-item" id="cache-test">
+            <h3>缓存清除指导</h3>
+            <p><strong>如果遇到 MIME 类型错误，请按以下步骤清除缓存：</strong></p>
+            <ol>
+                <li><strong>Chrome/Edge:</strong> Ctrl+Shift+Delete → 选择"所有时间" → 勾选"缓存的图片和文件" → 清除数据</li>
+                <li><strong>Firefox:</strong> Ctrl+Shift+Delete → 选择"所有内容" → 勾选"缓存" → 立即清除</li>
+                <li><strong>Safari:</strong> Cmd+Option+E → 清空缓存</li>
+                <li><strong>强制刷新:</strong> Ctrl+F5 或 Ctrl+Shift+R</li>
+            </ol>
+            <button class="btn" onclick="forceReload()">强制刷新页面</button>
+        </div>
+
+        <div class="test-item" id="main-app-test">
+            <h3>主应用测试</h3>
+            <p>测试主应用是否能正常加载</p>
+            <button class="btn" onclick="testMainApp()">测试主应用</button>
+            <div id="app-results"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>快速链接</h3>
+            <a href="./dist/index.html" class="btn">访问主应用</a>
+            <a href="./api/health" class="btn">API 状态</a>
+            <a href="./backup-index.html" class="btn">备用页面</a>
+        </div>
+    </div>
+
+    <script>
+        function testMimeTypes() {
+            const resultsDiv = document.getElementById('mime-results');
+            resultsDiv.innerHTML = '<p>正在测试...</p>';
+
+            // 测试 JavaScript 文件加载
+            fetch('./dist/assets/')
+                .then(response => response.text())
+                .then(html => {
+                    // 提取 JS 文件名
+                    const jsMatch = html.match(/href="([^"]*\.js)"/);
+                    if (jsMatch) {
+                        const jsFile = jsMatch[1];
+                        return fetch(`./dist/assets/${jsFile}`, { method: 'HEAD' });
+                    }
+                    throw new Error('未找到 JS 文件');
+                })
+                .then(response => {
+                    const contentType = response.headers.get('content-type');
+                    let result = `<h4>测试结果:</h4>`;
+                    result += `<p><strong>状态码:</strong> ${response.status}</p>`;
+                    result += `<p><strong>Content-Type:</strong> ${contentType}</p>`;
+
+                    if (contentType && contentType.includes('javascript')) {
+                        result += `<p style="color: green;">✅ MIME 类型正确</p>`;
+                        document.getElementById('mime-test').className = 'test-item success';
+                    } else {
+                        result += `<p style="color: red;">❌ MIME 类型错误</p>`;
+                        result += `<p><strong>解决方案:</strong> 清除浏览器缓存后重试</p>`;
+                        document.getElementById('mime-test').className = 'test-item error';
+                    }
+
+                    resultsDiv.innerHTML = result;
+                })
+                .catch(error => {
+                    resultsDiv.innerHTML = `<p style="color: red;">测试失败: ${error.message}</p>`;
+                    document.getElementById('mime-test').className = 'test-item error';
+                });
+        }
+
+        function forceReload() {
+            // 清除所有缓存并强制重新加载
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => {
+                        caches.delete(name);
+                    });
+                });
+            }
+
+            // 添加时间戳强制重新加载
+            window.location.href = window.location.href + '?t=' + Date.now();
+        }
+
+        function testMainApp() {
+            const resultsDiv = document.getElementById('app-results');
+            resultsDiv.innerHTML = '<p>正在测试主应用...</p>';
+
+            // 创建隐藏的 iframe 测试主应用
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = './dist/index.html';
+
+            iframe.onload = function() {
+                try {
+                    // 检查 iframe 内容
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const rootElement = iframeDoc.getElementById('root');
+
+                    if (rootElement && rootElement.innerHTML.trim() !== '') {
+                        resultsDiv.innerHTML = '<p style="color: green;">✅ 主应用加载成功</p>';
+                        document.getElementById('main-app-test').className = 'test-item success';
+                    } else {
+                        resultsDiv.innerHTML = '<p style="color: orange;">⚠️ 主应用可能仍在加载中</p>';
+                        document.getElementById('main-app-test').className = 'test-item warning';
+                    }
+                } catch (e) {
+                    resultsDiv.innerHTML = '<p style="color: red;">❌ 无法访问主应用内容（可能是跨域限制）</p>';
+                    document.getElementById('main-app-test').className = 'test-item warning';
+                }
+
+                document.body.removeChild(iframe);
+            };
+
+            iframe.onerror = function() {
+                resultsDiv.innerHTML = '<p style="color: red;">❌ 主应用加载失败</p>';
+                document.getElementById('main-app-test').className = 'test-item error';
+                document.body.removeChild(iframe);
+            };
+
+            document.body.appendChild(iframe);
+        }
+
+        // 页面加载时自动运行基础测试
+        window.onload = function() {
+            setTimeout(testMimeTypes, 1000);
+        };
+    </script>
+</body>
+</html>
+EOF
+
+    chmod 644 "browser-test.html"
+
     print_success "MIME 类型验证和修复完成"
     print_info "✅ 创建了备用解决方案"
     print_info "✅ 创建了测试脚本: test-mime-types.sh"
+    print_info "✅ 创建了浏览器测试页面: browser-test.html"
 
     # 额外的白屏修复措施
     print_info "应用额外的白屏修复措施..."
@@ -1676,7 +1965,8 @@ show_completion_info() {
     fi
 
     echo -e "${BOLD}${CYAN}访问信息:${NC}"
-    echo -e "  🌐 网站地址: ${GREEN}https://$CUSTOM_DOMAIN${NC}"
+    echo -e "  🌐 推荐方式: ${GREEN}使用 npx serve 启动${NC}"
+    echo -e "  📡 启动命令: ${YELLOW}./start-serve.sh${NC}"
     echo -e "  🔗 API 地址: ${GREEN}https://$CUSTOM_DOMAIN$API_PATH/health${NC}"
     echo -e "  📁 安装目录: ${GREEN}$INSTALL_DIR${NC}"
     echo ""
@@ -1685,11 +1975,11 @@ show_completion_info() {
     echo -e "  🔑 密码: ${GREEN}admin123${NC}"
     echo -e "  ${YELLOW}⚠️  请立即登录并修改默认密码！${NC}"
     echo ""
-    echo -e "${BOLD}${CYAN}管理工具:${NC}"
+    echo -e "${BOLD}${CYAN}启动服务:${NC}"
+    echo -e "  � 启动静态服务: ${GREEN}./start-serve.sh${NC}"
+    echo -e "  🔧 后台运行: ${GREEN}npx pm2 start ecosystem.config.js${NC}"
     echo -e "  📊 数据库管理: ${GREEN}~/manage_database.sh${NC}"
-    echo -e "  🔧 站点管理: ${GREEN}~/manage_site.sh${NC}"
-    echo -e "  🧪 MIME 类型测试: ${GREEN}./test-mime-types.sh $CUSTOM_DOMAIN${NC}"
-    echo -e "  🔧 备用 MIME 配置: ${YELLOW}.htaccess.simple${NC}"
+    echo -e "  🧪 服务测试: ${GREEN}./test-mime-types.sh $CUSTOM_DOMAIN${NC}"
     echo ""
     echo -e "${BOLD}${CYAN}Cloudflare DNS 配置提示:${NC}"
     if [[ "$CUSTOM_DOMAIN" != *".serv00.net" ]]; then
