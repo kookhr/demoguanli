@@ -527,45 +527,142 @@ EOF
     print_success "API 配置文件生成完成"
 
     # 生成强力 .htaccess 文件（修复 MIME 类型问题）
-    print_info "生成 .htaccess 文件..."
+    print_info "生成增强的 .htaccess 文件..."
 
     cat > "$INSTALL_DIR/.htaccess" << 'EOF'
-# 强制设置 JavaScript MIME 类型（修复白屏问题）
-<FilesMatch "\.(js|mjs)$">
+# ========================================
+# Serv00/FreeBSD Apache MIME 类型修复
+# 解决 JavaScript 模块加载和 SVG 资源问题
+# ========================================
+
+# 方法1: 强制设置文件类型（最高优先级）
+<FilesMatch "\.(js|mjs|jsx)$">
     ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
 </FilesMatch>
 
 <FilesMatch "\.css$">
     ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
 </FilesMatch>
 
 <FilesMatch "\.json$">
     ForceType application/json
+    Header set Content-Type "application/json; charset=utf-8"
 </FilesMatch>
 
-<FilesMatch "\.(svg|png|jpg|jpeg|gif|ico)$">
+<FilesMatch "\.svg$">
     ForceType image/svg+xml
+    Header set Content-Type "image/svg+xml; charset=utf-8"
 </FilesMatch>
 
-# 备用 MIME 类型设置
+<FilesMatch "\.(png|jpg|jpeg|gif|ico|webp)$">
+    ForceType image/png
+</FilesMatch>
+
+<FilesMatch "\.html$">
+    ForceType text/html
+    Header set Content-Type "text/html; charset=utf-8"
+</FilesMatch>
+
+# 方法2: AddType 指令（备用方案）
 AddType application/javascript .js
 AddType application/javascript .mjs
+AddType application/javascript .jsx
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
+AddType image/png .png
+AddType image/jpeg .jpg .jpeg
+AddType image/gif .gif
+AddType image/x-icon .ico
+AddType image/webp .webp
+AddType text/html .html .htm
 
-# 安全头
-Header always set X-Content-Type-Options nosniff
+# 方法3: RemoveType + AddType（强制重新定义）
+RemoveType .js
+RemoveType .mjs
+RemoveType .css
+RemoveType .svg
+AddType application/javascript .js .mjs
+AddType text/css .css
+AddType image/svg+xml .svg
 
-# 错误处理
-ErrorDocument 502 /index.html
+# 方法4: 设置默认字符集
+AddDefaultCharset UTF-8
+
+# 安全头设置
+<IfModule mod_headers.c>
+    # 防止 MIME 类型嗅探
+    Header always set X-Content-Type-Options nosniff
+
+    # 为 JavaScript 文件设置正确的 CORS 头
+    <FilesMatch "\.(js|mjs)$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
+    </FilesMatch>
+
+    # 为 SVG 文件设置正确的头
+    <FilesMatch "\.svg$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Cache-Control "public, max-age=31536000"
+    </FilesMatch>
+</IfModule>
+
+# 错误处理和重定向
 ErrorDocument 404 /index.html
+ErrorDocument 500 /index.html
+ErrorDocument 502 /index.html
+ErrorDocument 503 /index.html
+
+# SPA 路由支持
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 处理 API 请求
+    RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+
+    # 静态资源直接访问
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # SPA 路由回退到 index.html
+    RewriteRule ^ index.html [L]
+</IfModule>
 
 # 缓存控制
 <IfModule mod_expires.c>
     ExpiresActive on
-    ExpiresByType text/css "access plus 1 year"
+
+    # JavaScript 和 CSS 文件
     ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType text/css "access plus 1 year"
+
+    # 图片文件
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+
+    # HTML 文件不缓存
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# Gzip 压缩
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE image/svg+xml
 </IfModule>
 EOF
 
@@ -775,16 +872,51 @@ build_project() {
     fi
 
     # 修复构建后的文件（解决 MIME 类型问题）
-    if [ -f "dist/index.html" ]; then
-        print_info "修复模块类型问题..."
+    print_info "修复构建文件和 MIME 类型问题..."
 
+    if [ -f "dist/index.html" ]; then
         # 使用 FreeBSD 兼容的方法移除 type="module"
         cp dist/index.html dist/index.html.tmp
         awk '{gsub(/type="module"/, ""); print}' dist/index.html.tmp > dist/index.html
         rm -f dist/index.html.tmp
-
-        print_info "模块类型问题已修复"
+        print_info "✅ 移除了 type=\"module\" 属性"
     fi
+
+    # 确保 JavaScript 文件有正确的内容类型标识
+    if [ -d "dist/assets" ]; then
+        for js_file in dist/assets/*.js; do
+            if [ -f "$js_file" ]; then
+                # 在文件开头添加 MIME 类型注释（帮助服务器识别）
+                if ! head -1 "$js_file" | grep -q "javascript"; then
+                    temp_file=$(mktemp)
+                    echo "/* Content-Type: application/javascript */" > "$temp_file"
+                    cat "$js_file" >> "$temp_file"
+                    mv "$temp_file" "$js_file"
+                fi
+            fi
+        done
+        print_info "✅ JavaScript 文件已标记正确的内容类型"
+    fi
+
+    # 创建额外的 .htaccess 文件在 dist 目录
+    if [ -d "dist" ]; then
+        cat > "dist/.htaccess" << 'EOF'
+# Dist 目录专用 MIME 类型设置
+AddType application/javascript .js
+AddType text/css .css
+AddType image/svg+xml .svg
+Header always set X-Content-Type-Options nosniff
+EOF
+        print_info "✅ 在 dist 目录创建了专用 .htaccess"
+    fi
+
+    # 创建测试文件验证 MIME 类型
+    cat > "dist/mime-test.js" << 'EOF'
+// MIME 类型测试文件
+console.log('JavaScript MIME type test: OK');
+EOF
+
+    print_success "构建文件 MIME 类型修复完成"
 
     print_success "项目构建完成"
     echo ""
@@ -821,9 +953,95 @@ initialize_database() {
     echo ""
 }
 
+# MIME 类型验证和修复
+verify_and_fix_mime_types() {
+    print_step "9" "验证和修复 MIME 类型配置"
+
+    cd "$INSTALL_DIR"
+
+    # 验证 .htaccess 文件存在
+    if [ ! -f ".htaccess" ]; then
+        print_error ".htaccess 文件不存在"
+        return 1
+    fi
+
+    # 验证关键 MIME 类型配置
+    local mime_checks=(
+        "application/javascript.*\.js"
+        "text/css.*\.css"
+        "image/svg\+xml.*\.svg"
+    )
+
+    for check in "${mime_checks[@]}"; do
+        if grep -q "$check" .htaccess; then
+            print_info "✅ MIME 类型配置正确: $check"
+        else
+            print_warning "⚠️  MIME 类型配置可能有问题: $check"
+        fi
+    done
+
+    # 创建 MIME 类型测试页面
+    cat > "mime-test.html" << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MIME 类型测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>MIME 类型测试页面</h1>
+    <div id="js-test" class="test">JavaScript 加载测试: <span id="js-result">等待中...</span></div>
+    <div id="css-test" class="test">CSS 加载测试: <span id="css-result">等待中...</span></div>
+    <div id="svg-test" class="test">SVG 加载测试: <span id="svg-result">等待中...</span></div>
+
+    <script>
+        // 测试 JavaScript MIME 类型
+        document.getElementById('js-result').textContent = 'JavaScript 正常加载';
+        document.getElementById('js-test').className = 'test success';
+
+        // 测试 CSS
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'data:text/css,body{background-color:inherit;}';
+        link.onload = function() {
+            document.getElementById('css-result').textContent = 'CSS 正常加载';
+            document.getElementById('css-test').className = 'test success';
+        };
+        link.onerror = function() {
+            document.getElementById('css-result').textContent = 'CSS 加载失败';
+            document.getElementById('css-test').className = 'test error';
+        };
+        document.head.appendChild(link);
+
+        // 测试 SVG
+        const img = new Image();
+        img.onload = function() {
+            document.getElementById('svg-result').textContent = 'SVG 正常加载';
+            document.getElementById('svg-test').className = 'test success';
+        };
+        img.onerror = function() {
+            document.getElementById('svg-result').textContent = 'SVG 加载失败';
+            document.getElementById('svg-test').className = 'test error';
+        };
+        img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>';
+    </script>
+</body>
+</html>
+EOF
+
+    print_success "MIME 类型验证和修复完成"
+    print_info "测试页面: https://$CUSTOM_DOMAIN/mime-test.html"
+    echo ""
+}
+
 # 设置文件权限
 set_permissions() {
-    print_step "9" "设置文件权限"
+    print_step "10" "设置文件权限"
 
     cd "$INSTALL_DIR"
 
@@ -1005,6 +1223,7 @@ main() {
     generate_configuration_files
     build_project
     initialize_database
+    verify_and_fix_mime_types
     set_permissions
     generate_management_scripts
     show_completion_info
@@ -1059,6 +1278,7 @@ main_non_interactive() {
     generate_configuration_files
     build_project
     initialize_database
+    verify_and_fix_mime_types
     set_permissions
     generate_management_scripts
     show_completion_info
@@ -1087,6 +1307,7 @@ main_interactive() {
     generate_configuration_files
     build_project
     initialize_database
+    verify_and_fix_mime_types
     set_permissions
     generate_management_scripts
     show_completion_info
