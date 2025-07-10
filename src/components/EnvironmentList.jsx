@@ -103,19 +103,15 @@ const EnvironmentList = () => {
     setFilteredEnvironments(filtered);
   }, []);
 
-  // 检测单个环境状态 - 改进错误处理和用户反馈
+  // 检测单个环境状态
   const handleCheckSingle = useCallback(async (environment) => {
-    console.log('🔍 开始检测单个环境:', environment.name, environment.url);
-
     setEnvironmentStatuses(prev => ({
       ...prev,
       [environment.id]: { ...prev[environment.id], isChecking: true }
     }));
 
     try {
-      // 使用改进的检测方法
       const result = await checkEnvironmentStatus(environment);
-      console.log('✅ 单个检测完成:', environment.name, result.status);
 
       setEnvironmentStatuses(prev => ({
         ...prev,
@@ -126,8 +122,6 @@ const EnvironmentList = () => {
       addStatusRecord(environment.id, result);
 
     } catch (error) {
-      console.error('❌ 单个检测失败:', environment.name, error);
-
       const errorResult = {
         id: environment.id,
         status: 'unreachable',
@@ -148,11 +142,10 @@ const EnvironmentList = () => {
     }
   }, []);
 
-  // 批量检测所有环境状态 - 改进错误处理和用户反馈
+  // 批量检测所有环境状态
   const handleCheckAll = useCallback(async () => {
     if (isChecking || environments.length === 0) return;
 
-    console.log('🔍 开始批量检测', environments.length, '个环境');
     setIsChecking(true);
     setCheckProgress({
       completed: 0,
@@ -163,13 +156,9 @@ const EnvironmentList = () => {
     });
 
     try {
-      // 使用改进的检测方法
       const results = await checkMultipleEnvironments(environments, (progress) => {
-        console.log('📊 检测进度:', progress);
         setCheckProgress(progress);
       });
-
-      console.log('✅ 批量检测完成，结果:', Object.keys(results).length);
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
 
@@ -181,7 +170,6 @@ const EnvironmentList = () => {
       });
 
     } catch (error) {
-      console.error('❌ 批量检测失败:', error);
       setError(`批量检测失败: ${error.message}`);
     } finally {
       setIsChecking(false);

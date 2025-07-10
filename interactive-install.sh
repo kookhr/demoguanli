@@ -920,11 +920,7 @@ EOF
         print_info "✅ 在 dist 目录创建了专用 .htaccess"
     fi
 
-    # 创建测试文件验证 MIME 类型
-    cat > "dist/mime-test.js" << 'EOF'
-// MIME 类型测试文件
-console.log('JavaScript MIME type test: OK');
-EOF
+
 
     print_success "构建文件 MIME 类型修复完成"
 
@@ -990,62 +986,7 @@ verify_and_fix_mime_types() {
         fi
     done
 
-    # 创建 MIME 类型测试页面
-    cat > "mime-test.html" << 'EOF'
-<!DOCTYPE html>
-<html>
-<head>
-    <title>MIME 类型测试</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
-        .success { background: #d4edda; border-color: #c3e6cb; }
-        .error { background: #f8d7da; border-color: #f5c6cb; }
-    </style>
-</head>
-<body>
-    <h1>MIME 类型测试页面</h1>
-    <div id="js-test" class="test">JavaScript 加载测试: <span id="js-result">等待中...</span></div>
-    <div id="css-test" class="test">CSS 加载测试: <span id="css-result">等待中...</span></div>
-    <div id="svg-test" class="test">SVG 加载测试: <span id="svg-result">等待中...</span></div>
-
-    <script>
-        // 测试 JavaScript MIME 类型
-        document.getElementById('js-result').textContent = 'JavaScript 正常加载';
-        document.getElementById('js-test').className = 'test success';
-
-        // 测试 CSS
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'data:text/css,body{background-color:inherit;}';
-        link.onload = function() {
-            document.getElementById('css-result').textContent = 'CSS 正常加载';
-            document.getElementById('css-test').className = 'test success';
-        };
-        link.onerror = function() {
-            document.getElementById('css-result').textContent = 'CSS 加载失败';
-            document.getElementById('css-test').className = 'test error';
-        };
-        document.head.appendChild(link);
-
-        // 测试 SVG
-        const img = new Image();
-        img.onload = function() {
-            document.getElementById('svg-result').textContent = 'SVG 正常加载';
-            document.getElementById('svg-test').className = 'test success';
-        };
-        img.onerror = function() {
-            document.getElementById('svg-result').textContent = 'SVG 加载失败';
-            document.getElementById('svg-test').className = 'test error';
-        };
-        img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>';
-    </script>
-</body>
-</html>
-EOF
-
     print_success "MIME 类型验证和修复完成"
-    print_info "测试页面: https://$CUSTOM_DOMAIN/mime-test.html"
 
     # 额外的白屏修复措施
     print_info "应用额外的白屏修复措施..."
@@ -1099,16 +1040,15 @@ EOF
         <div id="status" class="status">正在检查系统状态...</div>
 
         <h3>访问选项：</h3>
-        <a href="./dist/index.html" class="btn">主应用</a>
-        <a href="./test-simple.html" class="btn">系统测试</a>
+        <a href="./dist/index.html" class="btn">进入系统</a>
         <a href="./api/health" class="btn">API 状态</a>
 
         <h3>故障排除：</h3>
-        <p>如果遇到白屏问题，请：</p>
+        <p>如果遇到问题，请：</p>
         <ol>
             <li>清除浏览器缓存 (Ctrl+Shift+Delete)</li>
             <li>检查浏览器控制台错误</li>
-            <li>尝试访问测试页面</li>
+            <li>联系系统管理员</li>
         </ol>
     </div>
 
@@ -1322,8 +1262,8 @@ show_completion_info() {
         echo ""
         echo -e "${BOLD}${CYAN}验证步骤:${NC}"
         echo -e "  1. 访问网站确认功能正常"
-        echo -e "  2. 测试环境检测功能"
-        echo -e "  3. 检查用户数据完整性"
+        echo -e "  2. 检查环境检测功能"
+        echo -e "  3. 验证用户数据完整性"
         echo ""
     else
         echo -e "${BOLD}${GREEN}🎉 安装完成！${NC}"

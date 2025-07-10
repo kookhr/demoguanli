@@ -96,7 +96,7 @@ class UserManager {
     // 在数据库版本中，用户列表通过数据库自动维护，无需单独保存
     try {
       // 可以在这里添加一些缓存逻辑，但通常不需要
-      console.log('用户列表已通过数据库自动维护');
+
     } catch (error) {
       console.warn('⚠️ 用户列表维护警告:', error);
     }

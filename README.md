@@ -28,10 +28,10 @@
 - **密码管理**: 安全的密码修改功能
 - **权限保护**: 路由级别的权限控制和访问保护
 
-### ☁️ 云端数据同步
-- **Cloudflare KV**: 支持Cloudflare KV存储，实现数据云端同步
-- **本地备份**: KV不可用时自动切换到本地存储
-- **数据迁移**: 支持本地数据向云端迁移
+### 💾 数据存储
+- **MySQL 数据库**: 基于 MySQL 的可靠数据存储
+- **Serv00 优化**: 专为 Serv00 平台优化的部署方案
+- **数据持久化**: 完整的数据持久化和备份机制
 
 ## 🛠️ 技术栈
 
@@ -42,9 +42,9 @@
 - **图标库**: Lucide React
 - **样式方案**: Tailwind CSS + 自定义CSS
 - **状态管理**: React Context + Hooks
-- **数据存储**: Cloudflare KV + LocalStorage
+- **数据存储**: MySQL + PHP API
 - **认证系统**: 基于JWT的用户认证
-- **部署平台**: Cloudflare Pages
+- **部署平台**: Serv00 FreeBSD
 
 ## 🚀 快速开始
 
@@ -121,11 +121,11 @@ npm run preview
 
 ## 🌐 网络检测功能
 
-### 简化检测策略
-- **纯前端方案**: 无需额外服务器或代理，保持系统轻量级
-- **双重策略**: 标准HTTP请求 + no-cors备用检测
-- **快速响应**: 统一5秒超时，快速获得检测结果
-- **智能缓存**: 30秒缓存机制，避免重复检测
+### 智能检测策略
+- **多层检测**: 标准HTTP请求 + 备用检测策略
+- **公网IP优化**: 专门优化的公网IP地址检测算法
+- **快速响应**: 8秒超时设置，平衡准确性和响应速度
+- **智能缓存**: 缓存机制避免重复检测，提升性能
 
 ### 状态类型
 - 🟢 **可用**: 网络可直接访问
@@ -261,34 +261,40 @@ src/
 
 ## 🚀 部署指南
 
-### Cloudflare Pages 部署（推荐）
+### Serv00 一键部署（推荐）
 ```bash
-# 1. 连接GitHub仓库到Cloudflare Pages
-# 2. 设置构建命令
-Build command: npm run build
-Build output directory: dist
-
-# 3. 配置环境变量（可选）
-# 如需使用KV存储，在Cloudflare Pages设置中绑定KV命名空间
+# 一键安装脚本
+bash <(curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/interactive-install.sh)
 ```
 
-### 其他平台部署
+**功能特性：**
+- ✅ 自动检测安装类型（首次安装/更新）
+- ✅ 智能配置保留和数据保护
+- ✅ FreeBSD/Serv00 环境优化
+- ✅ 自动修复 MIME 类型问题
+- ✅ 完整的 MySQL 数据库配置
+
+### 手动部署
 ```bash
-# Vercel
-vercel --prod
+# 1. 克隆项目
+git clone -b serv00 https://github.com/kookhr/demoguanli.git
+cd demoguanli
 
-# Netlify
-netlify deploy --prod --dir=dist
-
-# 静态服务器
+# 2. 安装依赖和构建
+npm install
 npm run build
-# 将 dist 目录部署到任何静态文件服务器
+
+# 3. 配置数据库
+# 编辑 api/.env 文件，配置 MySQL 连接信息
+
+# 4. 部署到 Serv00
+# 将文件上传到 ~/domains/your-domain/public_html/
 ```
 
 ### 环境配置
-- **KV存储**: 推荐使用Cloudflare KV实现数据云端同步
-- **HTTPS**: 生产环境必须使用HTTPS（状态检测需要）
-- **域名**: 建议使用自定义域名提升用户体验
+- **MySQL 数据库**: 使用 Serv00 提供的 MySQL 服务
+- **HTTPS**: 生产环境必须使用 HTTPS（状态检测需要）
+- **域名**: 支持 Serv00 子域名或自定义域名
 
 ## 🎨 界面特色
 

@@ -5,7 +5,7 @@
 在您的 Serv00 主机 SSH 终端中执行：
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/install.sh | bash
+bash <(curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/interactive-install.sh)
 ```
 
 ## 📋 完整安装流程
@@ -65,25 +65,13 @@ https://your_domain.serv00.net
 ```bash
 # 清理并重新安装
 rm -rf ~/domains/*/public_html/*
-curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/install.sh | bash
+bash <(curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/interactive-install.sh)
 ```
 
-### 手动下载
-```bash
-# 如果网络问题，手动下载
-wget https://raw.githubusercontent.com/kookhr/demoguanli/serv00/serv00-auto-deploy.sh
-chmod +x serv00-auto-deploy.sh
-./serv00-auto-deploy.sh
-```
-
-### 检查日志
-```bash
-# 查看 PHP 错误日志
-tail -f /tmp/php_errors.log
-
-# 查看应用日志
-tail -f /tmp/environment_manager.log
-```
+### 故障排除
+- **访问问题**: 清除浏览器缓存，检查域名配置
+- **功能异常**: 检查浏览器控制台错误信息
+- **数据问题**: 确认数据库配置和连接正常
 
 ## 🎊 完成！
 
@@ -98,9 +86,8 @@ tail -f /tmp/environment_manager.log
 
 ## 📚 更多帮助
 
-- 📖 [详细安装指南](SERV00_DIRECT_INSTALL.md)
-- 🚀 [完整部署文档](SERV00_DEPLOYMENT_COMPLETE.md)
-- ⚡ [快速开始指南](QUICK_START.md)
+- 📖 [项目文档](README.md)
+- 🚀 [GitHub 仓库](https://github.com/kookhr/demoguanli)
 
 ---
 
