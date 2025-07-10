@@ -1057,18 +1057,20 @@ EOF
         print_info "✅ 创建了默认的 K.svg 文件"
     fi
 
-    # 在 dist 目录创建超强力 .htaccess
+    # 在 dist 目录创建统一的 .htaccess 文件（同时覆盖 assets 目录）
     if [ -d "dist" ]; then
         cat > "dist/.htaccess" << 'EOF'
-# Dist 目录超强力 MIME 类型设置
+# 统一的 MIME 类型设置
 <Files "*.js">
     ForceType application/javascript
     Header always set Content-Type "application/javascript; charset=utf-8"
+    Header always unset Content-Encoding
 </Files>
 
 <Files "*.css">
     ForceType text/css
     Header always set Content-Type "text/css; charset=utf-8"
+    Header always unset Content-Encoding
 </Files>
 
 <Files "*.svg">
@@ -1084,33 +1086,16 @@ AddType image/svg+xml .svg
 # 安全头
 Header always set X-Content-Type-Options nosniff
 Header always set Access-Control-Allow-Origin "*"
+
+# URL 重写规则
+RewriteEngine On
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
 EOF
         chmod 644 "dist/.htaccess"
-        print_info "✅ 在 dist 目录创建了超强力 .htaccess"
-    fi
-
-    # 在 assets 目录也创建 .htaccess
-    if [ -d "dist/assets" ]; then
-        cat > "dist/assets/.htaccess" << 'EOF'
-# Assets 目录专用 MIME 类型强制设置
-<Files "*.js">
-    ForceType application/javascript
-    Header always set Content-Type "application/javascript; charset=utf-8"
-    Header always unset Content-Encoding
-</Files>
-
-<Files "*.css">
-    ForceType text/css
-    Header always set Content-Type "text/css; charset=utf-8"
-    Header always unset Content-Encoding
-</Files>
-
-AddType application/javascript .js
-AddType text/css .css
-Header always set X-Content-Type-Options nosniff
-EOF
-        chmod 644 "dist/assets/.htaccess"
-        print_info "✅ 在 assets 目录创建了专用 .htaccess"
+        print_info "✅ 在 dist 目录创建了统一的 .htaccess 文件"
     fi
 
 
@@ -1381,78 +1366,10 @@ EOF
         print_warning "⚠️  SVG MIME 类型异常: $svg_mime"
     fi
 
-    # 创建备用 MIME 类型解决方案
-    print_info "创建备用 MIME 类型解决方案..."
-
-    # 创建简化版 .htaccess（如果主版本不工作）
-    cat > ".htaccess.simple" << 'EOF'
-# 简化版 MIME 类型配置（备用方案）
-AddType application/javascript .js
-AddType text/css .css
-AddType image/svg+xml .svg
-AddDefaultCharset UTF-8
-
-# 基础错误处理
-ErrorDocument 404 /index.html
-
-# 基础重写规则
-RewriteEngine On
-RewriteRule ^api/(.*)$ api/index.php [QSA,L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.html [L]
-EOF
-
-    # 创建 PHP 脚本来设置 MIME 类型（终极备用方案）
-    cat > "mime-handler.php" << 'EOF'
-<?php
-// PHP MIME 类型处理器（备用方案）
-$request_uri = $_SERVER['REQUEST_URI'];
-$file_extension = pathinfo($request_uri, PATHINFO_EXTENSION);
-
-// 设置正确的 MIME 类型
-switch (strtolower($file_extension)) {
-    case 'js':
-    case 'mjs':
-        header('Content-Type: application/javascript; charset=utf-8');
-        break;
-    case 'css':
-        header('Content-Type: text/css; charset=utf-8');
-        break;
-    case 'svg':
-        header('Content-Type: image/svg+xml; charset=utf-8');
-        break;
-    case 'json':
-        header('Content-Type: application/json; charset=utf-8');
-        break;
-    case 'html':
-    case 'htm':
-        header('Content-Type: text/html; charset=utf-8');
-        break;
-}
-
-// 设置安全头
-header('X-Content-Type-Options: nosniff');
-header('Access-Control-Allow-Origin: *');
-
-// 输出文件内容
-$file_path = __DIR__ . $request_uri;
-if (file_exists($file_path) && is_file($file_path)) {
-    readfile($file_path);
-} else {
-    http_response_code(404);
-    echo 'File not found';
-}
-?>
-EOF
-
-    chmod 644 ".htaccess.simple"
-    chmod 644 "mime-handler.php"
-
-    # 创建 MIME 类型测试和修复脚本
+    # 创建 MIME 类型测试脚本
     cat > "test-mime-types.sh" << 'EOF'
 #!/bin/bash
-# MIME 类型测试和修复脚本
+# MIME 类型测试脚本
 
 DOMAIN="$1"
 if [ -z "$DOMAIN" ]; then
@@ -1476,9 +1393,8 @@ echo "SVG MIME: $SVG_MIME"
 
 # 如果 MIME 类型不正确，提供修复建议
 if ! echo "$JS_MIME" | grep -q "javascript"; then
-    echo "⚠️ JavaScript MIME 类型不正确，尝试备用方案："
-    echo "1. 复制 .htaccess.simple 到 .htaccess"
-    echo "2. 或使用 PHP 处理器"
+    echo "⚠️ JavaScript MIME 类型不正确，请检查服务器配置"
+    echo "建议使用 npx serve 启动静态文件服务，它会自动处理正确的 MIME 类型"
 fi
 EOF
 
@@ -1583,7 +1499,7 @@ EOF
                 .then(response => response.text())
                 .then(html => {
                     // 提取 JS 文件名
-                    const jsMatch = html.match(/href="([^"]*\.js)"/);
+                    const jsMatch = html.match(/href="([^"]*\.js)"/); 
                     if (jsMatch) {
                         const jsFile = jsMatch[1];
                         return fetch(`./dist/assets/${jsFile}`, { method: 'HEAD' });
@@ -1601,7 +1517,7 @@ EOF
                         document.getElementById('mime-test').className = 'test-item success';
                     } else {
                         result += `<p style="color: red;">❌ MIME 类型错误</p>`;
-                        result += `<p><strong>解决方案:</strong> 清除浏览器缓存后重试</p>`;
+                        result += `<p><strong>解决方案:</strong> 建议使用 npx serve 启动静态文件服务，它会自动处理正确的 MIME 类型</p>`;
                         document.getElementById('mime-test').className = 'test-item error';
                     }
 
@@ -1678,7 +1594,6 @@ EOF
     chmod 644 "browser-test.html"
 
     print_success "MIME 类型验证和修复完成"
-    print_info "✅ 创建了备用解决方案"
     print_info "✅ 创建了测试脚本: test-mime-types.sh"
     print_info "✅ 创建了浏览器测试页面: browser-test.html"
 
