@@ -271,11 +271,6 @@ export const validateEnvironment = (environment) => {
   return errors;
 };
 
-// 生成唯一ID
-const generateId = () => {
-  return 'env_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-};
-
 // 验证导入结果
 export const verifyImportResult = async () => {
   try {
