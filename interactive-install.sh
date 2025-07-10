@@ -96,28 +96,33 @@ check_port_available() {
     return 0  # 端口可用
 }
 
-# 智能端口选择函数
-suggest_available_port() {
-    local start_port="$1"
-    local max_attempts=20
+# 端口占用提示函数（仅用于提示，不自动切换）
+show_port_usage_info() {
+    local port="$1"
 
-    for ((i=0; i<max_attempts; i++)); do
-        local test_port=$((start_port + i))
+    print_warning "端口 $port 已被占用"
+    print_info "可能的解决方案："
+    echo -e "  ${YELLOW}1.${NC} 停止占用端口的服务"
+    echo -e "  ${YELLOW}2.${NC} 修改配置文件中的端口设置"
+    echo -e "  ${YELLOW}3.${NC} 强制使用被占用的端口（可能导致冲突）"
+    echo ""
 
-        # 确保端口在有效范围内
-        if [ "$test_port" -gt 65535 ]; then
-            break
+    # 显示占用端口的进程信息（如果可能）
+    if command -v netstat >/dev/null 2>&1; then
+        local process_info=$(netstat -tuln 2>/dev/null | grep ":$port ")
+        if [ -n "$process_info" ]; then
+            print_info "端口占用详情："
+            echo "$process_info"
         fi
+    fi
 
-        if check_port_available "$test_port"; then
-            echo "$test_port"
-            return 0
+    if command -v sockstat >/dev/null 2>&1; then
+        local process_info=$(sockstat -l 2>/dev/null | grep ":$port ")
+        if [ -n "$process_info" ]; then
+            print_info "端口占用详情 (FreeBSD)："
+            echo "$process_info"
         fi
-    done
-
-    # 如果没找到可用端口，返回原始端口
-    echo "$start_port"
-    return 1
+    fi
 }
 
 print_step() { echo -e "${BOLD}${BLUE}📋 步骤 $1: $2${NC}"; }
@@ -297,24 +302,34 @@ collect_fresh_config() {
 
         # 检查端口是否被占用
         if ! check_port_available "$CUSTOM_PORT"; then
-            print_warning "端口 $CUSTOM_PORT 已被占用！"
+            show_port_usage_info "$CUSTOM_PORT"
 
-            # 建议可用端口
-            suggested_port=$(suggest_available_port "$CUSTOM_PORT")
-            if [ "$suggested_port" != "$CUSTOM_PORT" ] && check_port_available "$suggested_port"; then
-                print_info "建议使用端口: $suggested_port"
-                read -p "是否使用建议端口 $suggested_port? [Y/n]: " use_suggested
-                if [[ ! $use_suggested =~ ^[Nn]$ ]]; then
-                    CUSTOM_PORT="$suggested_port"
+            echo -e "${CYAN}请选择操作:${NC}"
+            echo -e "  ${GREEN}1.${NC} 修改端口配置"
+            echo -e "  ${GREEN}2.${NC} 强制使用此端口"
+            echo -e "  ${GREEN}3.${NC} 取消安装"
+            echo ""
+            read -p "请选择 [1-3]: " port_choice
+
+            case $port_choice in
+                1)
+                    print_info "请重新输入端口..."
+                    continue
+                    ;;
+                2)
+                    print_warning "将强制使用被占用的端口 $CUSTOM_PORT"
+                    print_warning "这可能导致服务冲突或启动失败"
                     break
-                fi
-            fi
-
-            read -p "是否继续使用被占用的端口 $CUSTOM_PORT? [y/N]: " force_port
-            if [[ $force_port =~ ^[Yy]$ ]]; then
-                print_warning "将使用可能被占用的端口 $CUSTOM_PORT"
-                break
-            fi
+                    ;;
+                3)
+                    print_error "安装已取消"
+                    exit 0
+                    ;;
+                *)
+                    print_error "无效选择，请重新输入端口"
+                    continue
+                    ;;
+            esac
         else
             print_success "端口 $CUSTOM_PORT 可用"
             break
@@ -754,35 +769,34 @@ load_config() {
 
     [ "$VERBOSE" = true ] && print_info "配置加载完成 - 域名: $DOMAIN, 端口: $PORT"
 }
-# 智能端口选择
-find_available_port() {
-    local start_port="$PORT"
-    local max_attempts=20
-
+# 端口状态检查（仅检查，不自动切换）
+check_configured_port() {
     if check_port_available "$PORT"; then
-        return 0  # 当前端口可用
+        [ "$VERBOSE" = true ] && print_success "配置端口 $PORT 可用"
+        return 0
+    else
+        print_warning "配置端口 $PORT 已被占用"
+
+        if [ "$DAEMON_MODE" = true ]; then
+            # 后台模式下显示详细信息
+            show_port_usage_info "$PORT"
+            print_error "后台模式下无法交互选择，请修改配置文件中的端口或停止占用进程"
+            return 1
+        else
+            # 前台模式下询问用户
+            show_port_usage_info "$PORT"
+            echo ""
+            read -p "是否强制使用被占用的端口 $PORT? [y/N]: " force_port
+            if [[ $force_port =~ ^[Yy]$ ]]; then
+                print_warning "将强制使用被占用的端口 $PORT"
+                print_warning "这可能导致服务冲突或启动失败"
+                return 0
+            else
+                print_error "请修改配置文件中的端口设置，或停止占用端口的进程"
+                return 1
+            fi
+        fi
     fi
-
-    print_warning "端口 $PORT 已被占用，寻找可用端口..."
-
-    # 从配置端口开始寻找可用端口
-    for ((i=0; i<max_attempts; i++)); do
-        local test_port=$((start_port + i))
-
-        if [ "$test_port" -gt 65535 ]; then
-            break
-        fi
-
-        if check_port_available "$test_port"; then
-            PORT="$test_port"
-            print_info "找到可用端口: $PORT"
-            return 0
-        fi
-    done
-
-    print_warning "未找到可用端口，将尝试使用原端口 $start_port"
-    PORT="$start_port"
-    return 1
 }
 
 # 启动前台服务
@@ -887,8 +901,10 @@ main() {
     # 加载配置
     load_config
 
-    # 查找可用端口
-    find_available_port
+    # 检查配置端口状态
+    if ! check_configured_port; then
+        exit 1
+    fi
 
     # 根据模式启动服务
     if [ "$DAEMON_MODE" = true ]; then
@@ -1687,48 +1703,66 @@ EOF
     print_success "更新脚本已创建: update.sh"
 }
 
-setup_mime_types() {
-    local step_num="11"
-    if [ "$INSTALL_MODE" = "fresh" ]; then
-        step_num="10"
-    fi
+# 创建优化的 .htaccess 配置
+create_optimized_htaccess() {
+    local target_dir="$1"
+    local config_type="$2"  # "root" 或 "dist"
 
-    print_step "$step_num" "配置 MIME 类型"
+    print_info "为 $target_dir 创建 .htaccess 配置..."
 
-    # 为 dist 目录创建 .htaccess 文件（如果 Apache 可用）
-    cat > "$INSTALL_DIR/dist/.htaccess" << 'EOF'
-# MIME 类型配置 - Serv00 优化版本
-# 强制设置正确的 MIME 类型
+    cat > "$target_dir/.htaccess" << EOF
+# Serv00 环境管理系统 - Apache 配置文件
+# 自动生成的优化配置
 
-# JavaScript 文件
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # API requests to api/index.php
+    RewriteRule ^api/(.*)$ api/index.php [L]
+
+    # Frontend (single page application)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.html [L]
+</IfModule>
+
+# JavaScript 文件 MIME 类型
 <FilesMatch "\.(js|mjs)$">
     ForceType application/javascript
     AddType application/javascript .js .mjs
-    Header set Content-Type "application/javascript; charset=utf-8"
+    <IfModule mod_headers.c>
+        Header set Content-Type "application/javascript; charset=utf-8"
+    </IfModule>
 </FilesMatch>
 
-# CSS 文件
+# CSS 文件 MIME 类型
 <FilesMatch "\.css$">
     ForceType text/css
     AddType text/css .css
-    Header set Content-Type "text/css; charset=utf-8"
+    <IfModule mod_headers.c>
+        Header set Content-Type "text/css; charset=utf-8"
+    </IfModule>
 </FilesMatch>
 
-# SVG 文件
+# SVG 文件 MIME 类型
 <FilesMatch "\.svg$">
     ForceType image/svg+xml
     AddType image/svg+xml .svg
-    Header set Content-Type "image/svg+xml"
+    <IfModule mod_headers.c>
+        Header set Content-Type "image/svg+xml"
+    </IfModule>
 </FilesMatch>
 
-# JSON 文件
+# JSON 文件 MIME 类型
 <FilesMatch "\.json$">
     ForceType application/json
     AddType application/json .json
-    Header set Content-Type "application/json; charset=utf-8"
+    <IfModule mod_headers.c>
+        Header set Content-Type "application/json; charset=utf-8"
+    </IfModule>
 </FilesMatch>
 
-# 启用压缩
+# 启用压缩（如果模块可用）
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/plain
     AddOutputFilterByType DEFLATE text/html
@@ -1739,39 +1773,318 @@ setup_mime_types() {
     AddOutputFilterByType DEFLATE application/rss+xml
     AddOutputFilterByType DEFLATE application/javascript
     AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
 </IfModule>
 
-# SPA 路由支持
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /
-    RewriteRule ^index\.html$ - [L]
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule . /index.html [L]
-</IfModule>
-
-# 缓存控制
+# 缓存控制（如果模块可用）
 <IfModule mod_expires.c>
     ExpiresActive on
     ExpiresByType text/css "access plus 1 year"
     ExpiresByType application/javascript "access plus 1 year"
     ExpiresByType image/svg+xml "access plus 1 month"
     ExpiresByType application/json "access plus 1 day"
+    ExpiresByType text/html "access plus 1 hour"
+</IfModule>
+
+# 安全头部（如果模块可用）
+<IfModule mod_headers.c>
+    # 防止 MIME 类型嗅探
+    Header always set X-Content-Type-Options nosniff
+
+    # XSS 保护
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # 防止点击劫持
+    Header always set X-Frame-Options SAMEORIGIN
+
+    # 引用策略
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# 错误页面
+ErrorDocument 404 /index.html
+ErrorDocument 403 /index.html
+EOF
+}
+
+setup_mime_types() {
+    local step_num="11"
+    if [ "$INSTALL_MODE" = "fresh" ]; then
+        step_num="10"
+    fi
+
+    print_step "$step_num" "配置 Apache 和 MIME 类型"
+
+    # 检查前端文件位置并创建相应的 .htaccess
+    if [ -f "$INSTALL_DIR/index.html" ]; then
+        # 前端文件在根目录，创建根目录 .htaccess
+        create_optimized_htaccess "$INSTALL_DIR" "root"
+        print_success "已为根目录创建 .htaccess 配置"
+    elif [ -f "$INSTALL_DIR/dist/index.html" ]; then
+        # 前端文件在 dist 目录，创建 dist 目录 .htaccess
+        create_optimized_htaccess "$INSTALL_DIR/dist" "dist"
+        print_success "已为 dist 目录创建 .htaccess 配置"
+
+        # 同时创建根目录重定向配置
+        cat > "$INSTALL_DIR/.htaccess" << 'EOF'
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# API requests to api/index.php
+RewriteRule ^api/(.*)$ api/index.php [L]
+
+# Redirect all other requests to dist directory
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/dist/
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^(.*)$ dist/$1 [L]
+
+# Handle dist directory requests
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/dist/
+RewriteRule ^dist/(.*)$ dist/index.html [L]
+
 </IfModule>
 EOF
+        print_success "已为根目录创建重定向到 dist 的配置"
+    else
+        print_warning "未找到前端文件，跳过 .htaccess 配置"
+    fi
 
-    print_success "MIME 类型配置已创建"
+    print_success "Apache 和 MIME 类型配置完成"
     print_info "注意: 如果 Apache 不可用，将使用 npx serve 提供正确的 MIME 类型"
 }
 
-show_completion_info() {
+# 检测域名访问问题
+detect_domain_access_issues() {
+    print_info "检测域名访问配置..."
+
+    local has_issues=false
+    local issue_details=""
+
+    # 检查是否在根目录有前端文件
+    if [ ! -f "$INSTALL_DIR/index.html" ]; then
+        if [ -f "$INSTALL_DIR/dist/index.html" ]; then
+            has_issues=true
+            issue_details="前端文件在 dist 目录中，域名访问无法找到入口文件"
+        else
+            has_issues=true
+            issue_details="未找到前端入口文件 index.html"
+        fi
+    fi
+
+    # 检查静态资源位置
+    if [ ! -d "$INSTALL_DIR/assets" ] && [ -d "$INSTALL_DIR/dist/assets" ]; then
+        has_issues=true
+        issue_details="${issue_details}\n静态资源在 dist 目录中，可能导致 404 错误"
+    fi
+
+    if [ "$has_issues" = true ]; then
+        echo -e "${YELLOW}⚠️  检测到域名访问问题：${NC}"
+        echo -e "${issue_details}"
+        return 1
+    else
+        print_success "域名访问配置正确"
+        return 0
+    fi
+}
+
+# 自动修复域名访问问题
+fix_domain_access_issues() {
+    print_info "自动修复域名访问问题..."
+
+    # 检查是否需要移动 dist 内容
+    if [ -d "$INSTALL_DIR/dist" ] && [ -f "$INSTALL_DIR/dist/index.html" ] && [ ! -f "$INSTALL_DIR/index.html" ]; then
+        print_info "移动 dist 内容到根目录..."
+
+        # 创建备份
+        if [ -f "$INSTALL_DIR/index.html" ] || [ -d "$INSTALL_DIR/assets" ]; then
+            local backup_dir="$INSTALL_DIR/backup_$(date +%Y%m%d_%H%M%S)"
+            mkdir -p "$backup_dir"
+            [ -f "$INSTALL_DIR/index.html" ] && mv "$INSTALL_DIR/index.html" "$backup_dir/"
+            [ -d "$INSTALL_DIR/assets" ] && mv "$INSTALL_DIR/assets" "$backup_dir/"
+            print_info "已备份现有文件到: $backup_dir"
+        fi
+
+        # 移动 dist 内容到根目录
+        cd "$INSTALL_DIR/dist"
+        find . -mindepth 1 -maxdepth 1 -exec mv {} ../ \; 2>/dev/null || {
+            # 如果 find 不支持 -exec，使用传统方法
+            for item in * .*; do
+                [ "$item" = "." ] || [ "$item" = ".." ] && continue
+                [ -e "$item" ] && mv "$item" ../
+            done
+        }
+        cd "$INSTALL_DIR"
+
+        # 删除空的 dist 目录
+        if [ -d "dist" ] && [ -z "$(ls -A dist 2>/dev/null)" ]; then
+            rmdir dist
+            print_success "已删除空的 dist 目录"
+        fi
+
+        print_success "已移动 dist 内容到根目录"
+
+        # 更新启动脚本中的路径
+        if [ -f "start-server.sh" ]; then
+            sed -i.tmp 's|cd dist|# cd dist  # 已移动到根目录|g' start-server.sh
+            sed -i.tmp 's|if \[ ! -d "dist" \]|if [ ! -f "index.html" ]|g' start-server.sh
+            sed -i.tmp 's|dist 目录不存在|前端文件不存在|g' start-server.sh
+            rm -f start-server.sh.tmp
+            print_success "已更新启动脚本路径"
+        fi
+
+        return 0
+    else
+        print_warning "无需移动文件或文件已在正确位置"
+        return 1
+    fi
+}
+
+# 配置目录结构（集成版本）
+configure_directory_structure() {
     local step_num="12"
     if [ "$INSTALL_MODE" = "fresh" ]; then
         step_num="11"
     fi
 
+    print_step "$step_num" "配置域名访问"
+
+    # 自动检测域名访问问题
+    if detect_domain_access_issues; then
+        print_success "域名访问配置正确，无需修改"
+        return 0
+    fi
+
+    echo -e "\n${BOLD}${YELLOW}⚠️  检测到域名访问问题${NC}\n"
+
+    echo -e "${CYAN}为确保域名访问正常，请选择解决方案：${NC}"
+    echo -e "  ${GREEN}1.${NC} 自动修复 - 移动 dist 内容到根目录 (推荐)"
+    echo -e "  ${GREEN}2.${NC} 手动配置 - 保持 dist 目录结构"
+    echo -e "  ${GREEN}3.${NC} 跳过配置 - 稍后手动处理"
+    echo ""
+
+    read -p "请选择 [1-3]: " structure_choice
+
+    case $structure_choice in
+        1)
+            if fix_domain_access_issues; then
+                print_success "域名访问问题已自动修复"
+            else
+                print_warning "自动修复未完成，可能需要手动处理"
+            fi
+            ;;
+        2)
+            print_info "配置 .htaccess 重写规则..."
+
+            # 创建根目录 .htaccess 重写规则
+            cat > "$INSTALL_DIR/.htaccess" << 'EOF'
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# API requests to api/index.php
+RewriteRule ^api/(.*)$ api/index.php [L]
+
+# Redirect all other requests to dist directory
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/dist/
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^(.*)$ dist/$1 [L]
+
+# Handle dist directory requests
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/dist/
+RewriteRule ^dist/(.*)$ dist/index.html [L]
+
+</IfModule>
+EOF
+            print_success "已配置 .htaccess 重写规则"
+            print_info "域名访问将自动重定向到 dist 目录"
+            ;;
+        3)
+            print_warning "跳过域名访问配置"
+            print_info "如需稍后配置，请确保域名访问能正确找到前端文件"
+            ;;
+        *)
+            print_warning "无效选择，使用自动修复方案"
+            fix_domain_access_issues
+            ;;
+    esac
+}
+
+# 验证部署结果
+verify_deployment() {
+    print_info "验证部署结果..."
+
+    local issues_found=false
+
+    # 检查前端文件
+    if [ -f "$INSTALL_DIR/index.html" ]; then
+        print_success "前端入口文件: index.html ✓"
+    elif [ -f "$INSTALL_DIR/dist/index.html" ]; then
+        print_warning "前端文件在 dist 目录中"
+        if [ -f "$INSTALL_DIR/.htaccess" ] && grep -q "dist" "$INSTALL_DIR/.htaccess"; then
+            print_success "已配置重定向到 dist 目录 ✓"
+        else
+            print_error "缺少重定向配置"
+            issues_found=true
+        fi
+    else
+        print_error "未找到前端入口文件"
+        issues_found=true
+    fi
+
+    # 检查静态资源
+    if [ -d "$INSTALL_DIR/assets" ]; then
+        print_success "静态资源目录: assets ✓"
+    elif [ -d "$INSTALL_DIR/dist/assets" ]; then
+        print_info "静态资源在 dist/assets 目录"
+    else
+        print_warning "未找到 assets 目录"
+    fi
+
+    # 检查 API 目录
+    if [ -d "$INSTALL_DIR/api" ]; then
+        print_success "API 目录: api ✓"
+    else
+        print_warning "未找到 api 目录"
+    fi
+
+    # 检查 .htaccess 配置
+    if [ -f "$INSTALL_DIR/.htaccess" ]; then
+        print_success "Apache 配置: .htaccess ✓"
+    else
+        print_warning "未找到 .htaccess 配置文件"
+    fi
+
+    # 检查启动脚本
+    if [ -f "$INSTALL_DIR/start-server.sh" ] && [ -x "$INSTALL_DIR/start-server.sh" ]; then
+        print_success "启动脚本: start-server.sh ✓"
+    else
+        print_warning "启动脚本不存在或不可执行"
+    fi
+
+    if [ "$issues_found" = true ]; then
+        print_warning "发现一些问题，但不影响基本功能"
+    else
+        print_success "部署验证通过！"
+    fi
+}
+
+show_completion_info() {
+    local step_num="14"
+    if [ "$INSTALL_MODE" = "fresh" ]; then
+        step_num="13"
+    fi
+
     print_step "$step_num" "安装完成"
+
+    # 验证部署
+    verify_deployment
 
     echo -e "\n${BOLD}${GREEN}🎉 恭喜！环境管理系统安装/更新完成！${NC}\n"
 
@@ -1786,7 +2099,17 @@ show_completion_info() {
     echo -e "1. 进入目录: ${YELLOW}cd $INSTALL_DIR${NC}"
     echo -e "2. 前台运行: ${YELLOW}./start-server.sh${NC}"
     echo -e "3. 后台运行: ${YELLOW}./start-server.sh -d${NC}"
-    echo -e "4. 访问地址: ${YELLOW}https://$CUSTOM_DOMAIN:$CUSTOM_PORT${NC}"
+
+    echo -e "\n${BOLD}${CYAN}--- 访问地址 ---${NC}"
+    if [ -f "$INSTALL_DIR/index.html" ]; then
+        echo -e "🌐 域名访问: ${GREEN}https://$CUSTOM_DOMAIN/${NC} (推荐)"
+        echo -e "🔗 带端口访问: ${YELLOW}https://$CUSTOM_DOMAIN:$CUSTOM_PORT${NC}"
+    elif [ -f "$INSTALL_DIR/dist/index.html" ]; then
+        echo -e "🌐 域名访问: ${GREEN}https://$CUSTOM_DOMAIN/${NC} (自动重定向到 dist)"
+        echo -e "🔗 带端口访问: ${YELLOW}https://$CUSTOM_DOMAIN:$CUSTOM_PORT${NC}"
+    else
+        echo -e "🔗 访问地址: ${YELLOW}https://$CUSTOM_DOMAIN:$CUSTOM_PORT${NC}"
+    fi
 
     echo -e "\n${BOLD}${CYAN}--- 服务管理 ---${NC}"
     echo -e "查看状态: ${YELLOW}./status-server.sh${NC}"
@@ -1815,6 +2138,9 @@ show_completion_info() {
 
     echo -e "\n${BOLD}${CYAN}--- 故障排除 ---${NC}"
     echo -e "🔧 重新构建: ${YELLOW}npm run build${NC}"
+    echo -e "🌐 域名访问问题: 检查前端文件是否在根目录"
+    echo -e "📁 目录结构: ${YELLOW}ls -la index.html assets/ api/${NC}"
+    echo -e "⚙️  Apache 配置: ${YELLOW}cat .htaccess${NC}"
     echo -e "🗄️  重置数据库: ${YELLOW}./init-database.sh${NC}"
     echo -e "🔄 强制重启: ${YELLOW}./restart-server.sh -f${NC}"
     echo -e "🛑 强制停止: ${YELLOW}./stop-server.sh -f${NC}"
@@ -1843,6 +2169,7 @@ main() {
     test_database_connection
     create_service_scripts
     setup_mime_types
+    configure_directory_structure
     show_completion_info
 }
 
