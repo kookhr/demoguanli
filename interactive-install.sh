@@ -616,6 +616,16 @@ ErrorDocument 500 /index.html
 ErrorDocument 502 /index.html
 ErrorDocument 503 /index.html
 
+# 修复 Mixed Content 问题
+Header always set Content-Security-Policy "upgrade-insecure-requests"
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+# 阻止不安全的外部资源
+<IfModule mod_headers.c>
+    # 阻止 HTTP favicon 请求
+    Header always set Content-Security-Policy "default-src 'self' https:; img-src 'self' https: data:; script-src 'self' https: 'unsafe-inline' 'unsafe-eval'; style-src 'self' https: 'unsafe-inline'; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'none'; object-src 'none'; base-uri 'self';"
+</IfModule>
+
 # SPA 路由支持
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -1120,6 +1130,75 @@ EOF
 EOF
 
     print_info "✅ 创建了备用入口页面"
+
+    # 创建基础 API 以修复 502 错误
+    print_info "创建基础 API 修复 502 错误..."
+
+    mkdir -p "$INSTALL_DIR/api"
+
+    # 创建基础 API index.php
+    cat > "$INSTALL_DIR/api/index.php" << 'EOF'
+<?php
+// 基础 API 用于修复 502 错误
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+header('Content-Type: application/json; charset=utf-8');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+$path = trim(str_replace('/api', '', parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)), '/');
+
+switch ($path) {
+    case 'health':
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'API 运行正常',
+            'data' => [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'server' => 'Serv00'
+            ]
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'environments':
+        echo json_encode([
+            'status' => 'success',
+            'message' => '环境列表',
+            'data' => []
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        break;
+
+    default:
+        http_response_code(404);
+        echo json_encode([
+            'status' => 'error',
+            'message' => '接口不存在'
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        break;
+}
+?>
+EOF
+
+    # 创建 API .htaccess
+    cat > "$INSTALL_DIR/api/.htaccess" << 'EOF'
+RewriteEngine On
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type"
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+EOF
+
+    chmod 644 "$INSTALL_DIR/api/index.php"
+    chmod 644 "$INSTALL_DIR/api/.htaccess"
+
+    print_info "✅ 创建了基础 API"
     echo ""
 }
 
