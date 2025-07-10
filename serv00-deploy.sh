@@ -520,23 +520,60 @@ build_frontend() {
 # 配置数据库
 setup_database() {
     print_step "配置数据库..."
-    
+
     # 测试数据库连接
-    if ! mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" -e "SELECT 1;" >/dev/null 2>&1; then
-        print_error "数据库连接失败，请检查配置"
+    print_step "测试数据库连接..."
+    if mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" -e "SELECT 1;" >/dev/null 2>&1; then
+        print_success "数据库连接成功"
+    else
+        print_error "数据库连接失败，请检查以下配置："
+        echo "   数据库主机: $DB_HOST"
+        echo "   数据库用户: $DB_USER"
+        echo "   数据库名称: $DB_NAME"
+        print_warning "请确保："
+        echo "   1. 数据库用户名和密码正确"
+        echo "   2. 数据库名称已在 Serv00 面板中创建"
+        echo "   3. 用户有访问该数据库的权限"
         exit 1
     fi
-    
-    # 创建数据库
-    mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" -e "CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    
-    # 导入数据库结构
-    if [ -f "database/init.sql" ]; then
-        mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" < database/init.sql
-        print_success "数据库初始化完成"
+
+    # 检查数据库是否存在
+    print_step "检查数据库是否存在..."
+    if mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" -e "USE $DB_NAME;" >/dev/null 2>&1; then
+        print_success "数据库 $DB_NAME 存在"
     else
-        print_error "未找到数据库初始化文件"
+        print_error "数据库 $DB_NAME 不存在"
+        print_warning "请在 Serv00 面板中创建数据库: $DB_NAME"
+        print_info "创建步骤："
+        echo "   1. 登录 Serv00 面板"
+        echo "   2. 进入 'MySQL' 部分"
+        echo "   3. 创建数据库: $DB_NAME"
+        echo "   4. 确保用户 $DB_USER 有访问权限"
         exit 1
+    fi
+
+    # 检查数据库是否已初始化
+    print_step "检查数据库表..."
+    table_count=$(mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "SHOW TABLES;" 2>/dev/null | wc -l)
+
+    if [ "$table_count" -gt 1 ]; then
+        print_warning "数据库已包含表，跳过初始化"
+        print_info "如需重新初始化，请手动清空数据库"
+    else
+        # 导入数据库结构
+        if [ -f "database/init.sql" ]; then
+            print_step "导入数据库结构..."
+            if mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" < database/init.sql 2>/dev/null; then
+                print_success "数据库初始化完成"
+            else
+                print_error "数据库初始化失败"
+                print_info "请检查 database/init.sql 文件是否正确"
+                exit 1
+            fi
+        else
+            print_error "未找到数据库初始化文件"
+            exit 1
+        fi
     fi
 }
 
