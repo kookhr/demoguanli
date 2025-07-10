@@ -510,12 +510,20 @@ build_project() {
     # 修复 package.json 构建脚本（解决权限问题）
     print_info "修复构建脚本..."
     if [ -f "package.json" ]; then
-        # FreeBSD sed 需要备份文件扩展名
-        sed -i.bak 's/"build": "vite build"/"build": "npx vite build"/g' package.json
-        sed -i.bak 's/"dev": "vite"/"dev": "npx vite"/g' package.json
-        sed -i.bak 's/"preview": "vite preview"/"preview": "npx vite preview"/g' package.json
-        # 删除备份文件
-        rm -f package.json.bak
+        # 使用 FreeBSD 兼容的方法修改 package.json
+        cp package.json package.json.tmp
+
+        # 使用 awk 替代 sed 进行更可靠的替换
+        awk '
+        {
+            gsub(/"build": "vite build"/, "\"build\": \"npx vite build\"")
+            gsub(/"dev": "vite"/, "\"dev\": \"npx vite\"")
+            gsub(/"preview": "vite preview"/, "\"preview\": \"npx vite preview\"")
+            print
+        }' package.json.tmp > package.json
+
+        rm -f package.json.tmp
+        print_info "package.json 构建脚本已修复"
     fi
 
     # 安装依赖
@@ -527,26 +535,71 @@ build_project() {
 
     # 修复 node_modules 权限（Serv00 特定问题）
     print_info "修复执行权限..."
-    find node_modules/.bin -type f -exec chmod +x {} \; 2>/dev/null || true
+    if [ -d "node_modules/.bin" ]; then
+        find node_modules/.bin -type f -exec chmod +x {} \; 2>/dev/null || true
+        # 特别处理 vite 可执行文件
+        if [ -f "node_modules/.bin/vite" ]; then
+            chmod +x node_modules/.bin/vite 2>/dev/null || true
+        fi
+    fi
 
     # 构建项目
     print_info "构建生产版本..."
-    if ! npm run build; then
-        print_warning "npm run build 失败，尝试 npx..."
-        if ! npx vite build; then
+
+    # 设置 Node.js 环境变量（FreeBSD 特定）
+    export NODE_ENV=production
+    export PATH="$PATH:./node_modules/.bin"
+
+    # 尝试多种构建方法
+    BUILD_SUCCESS=false
+
+    # 方法1: 标准 npm run build
+    if npm run build 2>/dev/null; then
+        BUILD_SUCCESS=true
+        print_info "npm run build 成功"
+    else
+        print_warning "npm run build 失败，尝试备用方案..."
+
+        # 方法2: 使用 npx
+        if npx vite build 2>/dev/null; then
+            BUILD_SUCCESS=true
+            print_info "npx vite build 成功"
+        else
             print_warning "npx 失败，尝试直接调用..."
-            if ! node node_modules/vite/bin/vite.js build; then
-                print_error "所有构建方法都失败了"
-                exit 1
+
+            # 方法3: 直接调用 vite
+            if [ -f "node_modules/vite/bin/vite.js" ]; then
+                if node node_modules/vite/bin/vite.js build 2>/dev/null; then
+                    BUILD_SUCCESS=true
+                    print_info "直接调用 vite 成功"
+                fi
             fi
         fi
+    fi
+
+    # 检查构建结果
+    if [ "$BUILD_SUCCESS" = false ]; then
+        print_error "所有构建方法都失败了"
+        print_info "请检查 Node.js 版本和依赖安装"
+        exit 1
+    fi
+
+    # 验证构建输出
+    if [ ! -d "dist" ] || [ ! -f "dist/index.html" ]; then
+        print_error "构建完成但输出文件缺失"
+        exit 1
     fi
 
     # 修复构建后的文件（解决 MIME 类型问题）
     if [ -f "dist/index.html" ]; then
         print_info "修复模块类型问题..."
-        sed -i.bak 's/type="module"//g' dist/index.html
-        rm -f dist/index.html.bak
+
+        # 使用 FreeBSD 兼容的方法移除 type="module"
+        cp dist/index.html dist/index.html.tmp
+        awk '{gsub(/type="module"/, ""); print}' dist/index.html.tmp > dist/index.html
+        rm -f dist/index.html.tmp
+
+        print_info "模块类型问题已修复"
     fi
 
     print_success "项目构建完成"
