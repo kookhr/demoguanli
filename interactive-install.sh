@@ -1036,6 +1036,90 @@ EOF
 
     print_success "MIME 类型验证和修复完成"
     print_info "测试页面: https://$CUSTOM_DOMAIN/mime-test.html"
+
+    # 额外的白屏修复措施
+    print_info "应用额外的白屏修复措施..."
+
+    # 创建备用入口页面
+    cat > "backup-index.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>环境管理系统</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 8px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #1d4ed8; }
+        .status {
+            padding: 12px;
+            border-radius: 4px;
+            margin: 12px 0;
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 环境管理系统</h1>
+        <div id="status" class="status">正在检查系统状态...</div>
+
+        <h3>访问选项：</h3>
+        <a href="./dist/index.html" class="btn">主应用</a>
+        <a href="./test-simple.html" class="btn">系统测试</a>
+        <a href="./api/health" class="btn">API 状态</a>
+
+        <h3>故障排除：</h3>
+        <p>如果遇到白屏问题，请：</p>
+        <ol>
+            <li>清除浏览器缓存 (Ctrl+Shift+Delete)</li>
+            <li>检查浏览器控制台错误</li>
+            <li>尝试访问测试页面</li>
+        </ol>
+    </div>
+
+    <script>
+        // 检查 API 状态
+        fetch('./api/health')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').innerHTML = '✅ 系统运行正常';
+                document.getElementById('status').className = 'status success';
+            })
+            .catch(error => {
+                document.getElementById('status').innerHTML = '❌ API 连接失败';
+                document.getElementById('status').className = 'status error';
+            });
+    </script>
+</body>
+</html>
+EOF
+
+    print_info "✅ 创建了备用入口页面"
     echo ""
 }
 
