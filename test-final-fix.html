@@ -75,6 +75,7 @@
 
         <button class="button" onclick="runFinalTest()">🚀 运行完整验证</button>
         <button class="button" onclick="testSimpleRouting()">🔄 测试简化路由</button>
+        <button class="button" onclick="testMimeTypes()">📄 测试MIME类型</button>
         
         <div id="result" class="result" style="display: none;"></div>
     </div>
@@ -211,6 +212,99 @@
             report += `\n📅 测试时间: ${new Date().toLocaleString()}`;
             
             showResult(report, importSuccess ? 'success' : 'error');
+        }
+
+        // 新增：测试MIME类型
+        async function testMimeTypes() {
+            showResult('正在测试MIME类型配置...', 'info');
+
+            let report = '📄 MIME类型配置测试报告\n';
+            report += '=' .repeat(50) + '\n\n';
+
+            // 1. 检查当前页面的资源
+            report += '1️⃣ 当前页面资源检查:\n';
+            const scripts = document.querySelectorAll('script[src]');
+            const stylesheets = document.querySelectorAll('link[rel="stylesheet"]');
+
+            scripts.forEach((script, index) => {
+                report += `   脚本${index + 1}: ${script.src}\n`;
+            });
+
+            stylesheets.forEach((link, index) => {
+                report += `   样式${index + 1}: ${link.href}\n`;
+            });
+
+            // 2. 测试JavaScript文件的MIME类型
+            report += '\n2️⃣ JavaScript文件MIME类型测试:\n';
+
+            const jsFiles = [
+                'dist/assets/index-CmRkGmP_.js',
+                'assets/index-CmRkGmP_.js',
+                'serv00-mime-fix.php?file=assets/index-CmRkGmP_.js'
+            ];
+
+            for (const jsFile of jsFiles) {
+                try {
+                    const response = await fetch(jsFile, { method: 'HEAD' });
+                    const contentType = response.headers.get('content-type');
+
+                    if (response.ok) {
+                        if (contentType && (contentType.includes('javascript') || contentType.includes('application/javascript'))) {
+                            report += `   ✅ ${jsFile}: ${contentType}\n`;
+                        } else {
+                            report += `   ❌ ${jsFile}: ${contentType || 'unknown'} (错误的MIME类型)\n`;
+                        }
+                    } else {
+                        report += `   ⚠️ ${jsFile}: ${response.status} ${response.statusText}\n`;
+                    }
+                } catch (error) {
+                    report += `   ❌ ${jsFile}: 连接错误 - ${error.message}\n`;
+                }
+            }
+
+            // 3. 测试CSS文件的MIME类型
+            report += '\n3️⃣ CSS文件MIME类型测试:\n';
+
+            const cssFiles = [
+                'dist/assets/index-CmQAOyIr.css',
+                'assets/index-CmQAOyIr.css'
+            ];
+
+            for (const cssFile of cssFiles) {
+                try {
+                    const response = await fetch(cssFile, { method: 'HEAD' });
+                    const contentType = response.headers.get('content-type');
+
+                    if (response.ok) {
+                        if (contentType && contentType.includes('css')) {
+                            report += `   ✅ ${cssFile}: ${contentType}\n`;
+                        } else {
+                            report += `   ❌ ${cssFile}: ${contentType || 'unknown'} (错误的MIME类型)\n`;
+                        }
+                    } else {
+                        report += `   ⚠️ ${cssFile}: ${response.status} ${response.statusText}\n`;
+                    }
+                } catch (error) {
+                    report += `   ❌ ${cssFile}: 连接错误 - ${error.message}\n`;
+                }
+            }
+
+            // 4. 检查浏览器控制台错误
+            report += '\n4️⃣ 浏览器兼容性检查:\n';
+            report += '   • 检查浏览器控制台是否有MIME类型错误\n';
+            report += '   • 查看Network标签页的Content-Type头部\n';
+            report += '   • 确认JavaScript模块是否正确加载\n';
+
+            // 5. 解决方案建议
+            report += '\n5️⃣ 解决方案建议:\n';
+            report += '   如果仍有MIME类型错误，可以尝试:\n';
+            report += '   1. 使用MIME修复代理: serv00-mime-fix.php\n';
+            report += '   2. 联系Serv00技术支持配置nginx\n';
+            report += '   3. 检查.htaccess配置是否生效\n';
+
+            report += `\n📅 测试时间: ${new Date().toLocaleString()}`;
+
+            showResult(report, 'info');
         }
 
         // 新增：测试简化路由

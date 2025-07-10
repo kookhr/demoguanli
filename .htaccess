@@ -4,35 +4,55 @@
 <IfModule mod_rewrite.c>
 RewriteEngine On
 
-# 基础CORS配置
+# 基础CORS配置和MIME类型头部
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
     Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-API-Key"
     Header always set Access-Control-Max-Age "3600"
+
+    # 强制设置JavaScript文件的正确MIME类型
+    <FilesMatch "\.(js|mjs)$">
+        Header set Content-Type "application/javascript"
+    </FilesMatch>
+
+    # 强制设置CSS文件的正确MIME类型
+    <FilesMatch "\.css$">
+        Header set Content-Type "text/css"
+    </FilesMatch>
+
+    # 强制设置JSON文件的正确MIME类型
+    <FilesMatch "\.json$">
+        Header set Content-Type "application/json"
+    </FilesMatch>
 </IfModule>
 
-# API路由处理 - 保持简单
-# 处理预检请求
+# API路由处理 - 最高优先级
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteCond %{REQUEST_URI} ^/api/
 RewriteRule ^(.*)$ api/index.php [L]
 
-# API请求路由
 RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
-# 生产环境优先 - 如果dist文件存在则使用
+# 强制根目录重定向到生产版本
+RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
+RewriteCond %{REQUEST_URI} ^/$
+RewriteRule ^$ dist/index.html [L]
+
+# 生产环境静态资源优先
 RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
 RewriteRule ^(.+)$ dist/$1 [L]
 
-# SPA路由处理 - 优先使用dist，回退到根目录
+# 所有其他SPA路由重定向到生产版本
 RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
+RewriteCond %{REQUEST_URI} !^/dist/
 RewriteRule ^(.*)$ dist/index.html [L]
 
-# 开发环境回退
+# 开发环境回退（仅当dist不存在时）
+RewriteCond %{DOCUMENT_ROOT}/dist/index.html !-f
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
@@ -48,9 +68,47 @@ RewriteRule ^(.*)$ index.html [L]
     </Files>
 </Directory>
 
-# 基础MIME类型
+# 增强MIME类型配置 - 解决Serv00/nginx MIME类型问题
 <IfModule mod_mime.c>
-    AddType application/json .json
+    # JavaScript文件 - 多种格式确保兼容性
     AddType application/javascript .js
+    AddType text/javascript .js
+    AddType application/x-javascript .js
+    AddType text/x-javascript .js
+
+    # ES模块文件
+    AddType application/javascript .mjs
+    AddType text/javascript .mjs
+
+    # JSON文件
+    AddType application/json .json
+
+    # CSS文件
+    AddType text/css .css
+
+    # SVG文件
     AddType image/svg+xml .svg
+
+    # 字体文件
+    AddType font/woff .woff
+    AddType font/woff2 .woff2
+    AddType application/font-woff .woff
+    AddType application/font-woff2 .woff2
+
+    # 其他常用类型
+    AddType text/html .html
+    AddType application/xml .xml
 </IfModule>
+
+# 强制MIME类型 - 针对nginx平台
+<FilesMatch "\.(js|mjs)$">
+    ForceType application/javascript
+</FilesMatch>
+
+<FilesMatch "\.css$">
+    ForceType text/css
+</FilesMatch>
+
+<FilesMatch "\.json$">
+    ForceType application/json
+</FilesMatch>

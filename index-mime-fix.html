@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="serv00-mime-fix.php?file=K.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light dark" />
+    <title>DEMO环境管理中心</title>
+    <!-- 使用MIME修复代理加载CSS -->
+    <link rel="stylesheet" href="serv00-mime-fix.php?file=assets/index-CmQAOyIr.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- 使用MIME修复代理加载JavaScript模块 -->
+    <script type="module" src="serv00-mime-fix.php?file=assets/index-CmRkGmP_.js"></script>
+    
+    <!-- 备用加载脚本 -->
+    <script>
+      // 检测模块加载失败的情况
+      setTimeout(() => {
+        const root = document.getElementById('root');
+        if (!root.innerHTML.trim()) {
+          root.innerHTML = `
+            <div style="
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              max-width: 800px;
+              margin: 50px auto;
+              padding: 20px;
+              text-align: center;
+              background: #fef2f2;
+              border: 1px solid #fecaca;
+              border-radius: 8px;
+            ">
+              <h1 style="color: #dc2626;">⚠️ 应用加载失败</h1>
+              <p>检测到MIME类型错误，正在尝试修复...</p>
+              <p>如果问题持续存在，请：</p>
+              <ol style="text-align: left; max-width: 500px; margin: 0 auto;">
+                <li>访问 <a href="test-final-fix.html">测试工具</a> 进行诊断</li>
+                <li>点击"测试MIME类型"按钮检查配置</li>
+                <li>联系技术支持获取帮助</li>
+              </ol>
+              <div style="margin-top: 20px;">
+                <a href="test-final-fix.html" style="
+                  background: #2563eb;
+                  color: white;
+                  padding: 10px 20px;
+                  text-decoration: none;
+                  border-radius: 5px;
+                  display: inline-block;
+                ">🔧 运行诊断工具</a>
+              </div>
+            </div>
+          `;
+        }
+      }, 3000);
+    </script>
+  </body>
+</html>
