@@ -422,6 +422,17 @@ class AuthManager {
     }
   }
 
+  // 检查KV存储是否可用
+  async checkKVAvailability() {
+    try {
+      // 尝试测试KV连接
+      const response = await fetch('/api/kv?action=test');
+      const result = await response.json();
+      return result.success && result.available;
+    } catch (error) {
+      return false;
+    }
+  }
 }
 
 // 创建全局认证管理器实例

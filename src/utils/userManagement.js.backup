@@ -61,7 +61,7 @@ class UserManager {
 
     for (const username of knownUsers) {
       try {
-        const userData = await databaseAPI.getUserByUsername(username);
+        const userData = await authManager.getUserFromKV(username);
         if (userData) {
           this.users.set(username, userData);
         }
@@ -151,7 +151,7 @@ class UserManager {
     };
 
     // 保存到存储
-    await databaseAPI.updateUser(updatedUser.id, updatedUser);
+    await authManager.saveUserToKV(username, updatedUser);
     
     // 更新本地缓存
     this.users.set(username, updatedUser);

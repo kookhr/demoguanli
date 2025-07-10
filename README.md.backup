@@ -227,7 +227,7 @@ src/
 │   ├── configManager.js       # 配置管理
 │   ├── proxyStatusCheck.js    # 优化的状态检测
 │   ├── statusHistory.js       # 状态历史
-│   ├── kvApi.js               # 数据库API
+│   ├── kvApi.js               # KV存储API
 │   └── favorites.js           # 收藏管理
 ├── hooks/               # 自定义Hooks
 │   ├── useDarkMode.js         # 深色模式Hook
