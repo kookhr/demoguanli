@@ -737,7 +737,94 @@ main() {
     show_completion_info
 }
 
+# 非交互模式配置（用于curl管道执行）
+setup_non_interactive_config() {
+    print_step "2" "使用预设配置（非交互模式）"
+
+    # 使用预设的配置值
+    CUSTOM_DOMAIN="do.kandy.dpdns.org"
+    DB_HOST="mysql14.serv00.com"
+    DB_NAME="m9785_environment_manager"
+    DB_USER="m9785_s14kook"
+    DB_PASSWORD="请在安装后手动配置"
+    CUSTOM_PORT="3000"
+    API_PATH="/api"
+
+    print_info "域名: $CUSTOM_DOMAIN"
+    print_info "数据库: $DB_HOST/$DB_NAME"
+    print_info "用户: $DB_USER"
+    print_warning "数据库密码需要安装后手动配置"
+
+    echo ""
+}
+
+# 简化的验证（非交互模式）
+simple_validate_configuration() {
+    print_step "3" "验证配置（非交互模式）"
+
+    print_info "使用预设配置，跳过交互验证"
+    print_warning "请确保数据库 $DB_NAME 已创建"
+    print_warning "安装完成后需要手动配置数据库密码"
+
+    echo ""
+}
+
+# 非交互主函数
+main_non_interactive() {
+    # 设置错误处理
+    trap handle_error ERR
+
+    print_info "检测到非交互环境，使用预设配置"
+
+    # 执行安装步骤（非交互版本）
+    check_system_requirements
+    setup_non_interactive_config
+    simple_validate_configuration
+    setup_installation_directory
+    download_project
+    generate_configuration_files
+    build_project
+    initialize_database
+    set_permissions
+    generate_management_scripts
+    show_completion_info
+
+    # 显示后续配置提示
+    echo ""
+    print_warning "重要：请完成以下配置步骤："
+    echo "1. 编辑配置文件: nano ~/domains/$CUSTOM_DOMAIN/public_html/api/.env"
+    echo "2. 填入正确的数据库密码"
+    echo "3. 初始化数据库: mysql -h $DB_HOST -u $DB_USER -p $DB_NAME < ~/domains/$CUSTOM_DOMAIN/public_html/database/init.sql"
+    echo "4. 访问网站: https://$CUSTOM_DOMAIN"
+}
+
+# 交互主函数
+main_interactive() {
+    # 设置错误处理
+    trap handle_error ERR
+
+    # 执行安装步骤（交互版本）
+    check_system_requirements
+    collect_configuration
+    validate_configuration
+    setup_installation_directory
+    download_project
+    generate_configuration_files
+    build_project
+    initialize_database
+    set_permissions
+    generate_management_scripts
+    show_completion_info
+}
+
 # 脚本入口点
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+    # 检测是否为交互环境
+    if [ -t 0 ] && [ -t 1 ]; then
+        # 交互环境
+        main_interactive "$@"
+    else
+        # 非交互环境（如curl管道）
+        main_non_interactive "$@"
+    fi
 fi
