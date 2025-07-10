@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nginx 403错误诊断工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+        }
+        .test-section h3 {
+            color: #dc2626;
+            margin-top: 0;
+        }
+        .button {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #b91c1c;
+        }
+        .button.success {
+            background: #059669;
+        }
+        .button.info {
+            background: #2563eb;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result.success {
+            background: #ecfdf5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+        .result.error {
+            background: #fef2f2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+        .result.info {
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            color: #1e40af;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background: #10b981; }
+        .status-error { background: #ef4444; }
+        .status-warning { background: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 nginx 403错误诊断工具</h1>
+            <p>专门诊断和解决API导入功能的nginx 403 Forbidden错误</p>
+        </div>
+
+        <!-- 1. API端点可达性测试 -->
+        <div class="test-section">
+            <h3>🔍 API端点可达性测试</h3>
+            <p>测试各个API端点是否可以正常访问</p>
+            <button class="button info" onclick="testAPIEndpoints()">测试API端点</button>
+            <button class="button info" onclick="testDirectPHP()">测试直接PHP访问</button>
+            <div id="endpoint-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 2. 权限和路由诊断 -->
+        <div class="test-section">
+            <h3>🔐 权限和路由诊断</h3>
+            <p>检查文件权限、路由配置和服务器响应</p>
+            <button class="button" onclick="diagnosePermissions()">诊断权限问题</button>
+            <button class="button" onclick="testRouting()">测试路由配置</button>
+            <div id="permission-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 3. 导入功能专项测试 -->
+        <div class="test-section">
+            <h3>📤 导入功能专项测试</h3>
+            <p>专门测试配置导入功能的各种访问方式</p>
+            <button class="button" onclick="testImportEndpoint()">测试导入端点</button>
+            <button class="button" onclick="testDifferentMethods()">测试不同HTTP方法</button>
+            <div id="import-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 4. 服务器信息收集 -->
+        <div class="test-section">
+            <h3>🖥️ 服务器信息收集</h3>
+            <p>收集服务器配置和环境信息</p>
+            <button class="button info" onclick="collectServerInfo()">收集服务器信息</button>
+            <button class="button info" onclick="testCORS()">测试CORS配置</button>
+            <div id="server-result" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- 5. 综合诊断报告 -->
+        <div class="test-section">
+            <h3>📊 综合诊断报告</h3>
+            <p>运行完整的403错误诊断并生成解决方案</p>
+            <button class="button success" onclick="runFullDiagnosis()">运行完整诊断</button>
+            <div id="full-result" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function showResult(elementId, content, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.textContent = typeof content === 'object' ? JSON.stringify(content, null, 2) : content;
+        }
+
+        // 1. 测试API端点
+        async function testAPIEndpoints() {
+            showResult('endpoint-result', '正在测试API端点可达性...', 'info');
+            
+            const endpoints = [
+                '/api/health',
+                '/api/import',
+                '/api/environments',
+                '/api/test.php',
+                '/api/index.php'
+            ];
+            
+            let report = 'API端点可达性测试报告:\n\n';
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'GET',
+                        cache: 'no-cache'
+                    });
+                    
+                    const status = response.status;
+                    const statusText = response.statusText;
+                    
+                    if (status === 200) {
+                        report += `✅ ${endpoint}: ${status} ${statusText}\n`;
+                    } else if (status === 403) {
+                        report += `❌ ${endpoint}: ${status} ${statusText} (403 FORBIDDEN)\n`;
+                    } else {
+                        report += `⚠️ ${endpoint}: ${status} ${statusText}\n`;
+                    }
+                } catch (error) {
+                    report += `❌ ${endpoint}: 连接错误 - ${error.message}\n`;
+                }
+            }
+            
+            showResult('endpoint-result', report, 'info');
+        }
+
+        async function testDirectPHP() {
+            showResult('endpoint-result', '正在测试直接PHP文件访问...', 'info');
+            
+            try {
+                const response = await fetch('/api/test.php');
+                const data = await response.text();
+                
+                if (response.ok) {
+                    showResult('endpoint-result', `✅ 直接PHP访问成功:\n${data}`, 'success');
+                } else {
+                    showResult('endpoint-result', `❌ 直接PHP访问失败 (${response.status}):\n${data}`, 'error');
+                }
+            } catch (error) {
+                showResult('endpoint-result', `❌ 直接PHP访问错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 2. 诊断权限问题
+        async function diagnosePermissions() {
+            showResult('permission-result', '正在诊断权限和配置问题...', 'info');
+            
+            let report = '权限和配置诊断报告:\n\n';
+            
+            // 测试不同的请求方式
+            const tests = [
+                { method: 'GET', url: '/api/import' },
+                { method: 'POST', url: '/api/import' },
+                { method: 'OPTIONS', url: '/api/import' },
+                { method: 'GET', url: '/api/' },
+                { method: 'GET', url: '/api/index.php' }
+            ];
+            
+            for (const test of tests) {
+                try {
+                    const response = await fetch(test.url, {
+                        method: test.method,
+                        headers: test.method === 'POST' ? { 'Content-Type': 'application/json' } : {}
+                    });
+                    
+                    report += `${test.method} ${test.url}: ${response.status} ${response.statusText}\n`;
+                    
+                    if (response.status === 403) {
+                        const errorBody = await response.text();
+                        if (errorBody.includes('nginx')) {
+                            report += `  ⚠️ nginx级别的403错误\n`;
+                        }
+                    }
+                } catch (error) {
+                    report += `${test.method} ${test.url}: 错误 - ${error.message}\n`;
+                }
+            }
+            
+            showResult('permission-result', report, 'info');
+        }
+
+        async function testRouting() {
+            showResult('permission-result', '正在测试路由配置...', 'info');
+            
+            // 测试路由重写是否正常工作
+            const routeTests = [
+                '/api/test',
+                '/api/import',
+                '/api/nonexistent',
+                '/api/health'
+            ];
+            
+            let report = '路由配置测试:\n\n';
+            
+            for (const route of routeTests) {
+                try {
+                    const response = await fetch(route);
+                    const isNginx403 = response.status === 403 && (await response.text()).includes('nginx');
+                    
+                    report += `${route}: ${response.status}`;
+                    if (isNginx403) {
+                        report += ` (nginx 403 - 路由问题)`;
+                    }
+                    report += '\n';
+                } catch (error) {
+                    report += `${route}: 错误 - ${error.message}\n`;
+                }
+            }
+            
+            showResult('permission-result', report, 'info');
+        }
+
+        // 3. 测试导入端点
+        async function testImportEndpoint() {
+            showResult('import-result', '正在专项测试导入端点...', 'info');
+            
+            const testData = {
+                environments: [{
+                    name: '403诊断测试',
+                    url: 'https://httpbin.org/status/200',
+                    description: '用于诊断403错误的测试环境'
+                }]
+            };
+            
+            let report = '导入端点专项测试:\n\n';
+            
+            try {
+                // 测试1: 标准POST请求
+                report += '1. 标准POST请求测试:\n';
+                const response1 = await fetch('/api/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                report += `   状态: ${response1.status} ${response1.statusText}\n`;
+                const body1 = await response1.text();
+                
+                if (response1.status === 403 && body1.includes('nginx')) {
+                    report += '   ❌ nginx级别的403错误 - 这是问题所在!\n';
+                    report += '   原因: 请求被nginx阻止，未到达PHP应用\n';
+                } else if (response1.ok) {
+                    report += '   ✅ 请求成功\n';
+                } else {
+                    report += `   ⚠️ 其他错误: ${body1}\n`;
+                }
+                
+                // 测试2: 直接访问index.php
+                report += '\n2. 直接访问index.php测试:\n';
+                const response2 = await fetch('/api/index.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                report += `   状态: ${response2.status} ${response2.statusText}\n`;
+                
+            } catch (error) {
+                report += `测试过程出错: ${error.message}\n`;
+            }
+            
+            showResult('import-result', report, 'info');
+        }
+
+        async function testDifferentMethods() {
+            showResult('import-result', '正在测试不同HTTP方法...', 'info');
+            
+            const methods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
+            let report = '不同HTTP方法测试:\n\n';
+            
+            for (const method of methods) {
+                try {
+                    const response = await fetch('/api/import', {
+                        method: method,
+                        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {}
+                    });
+                    
+                    report += `${method}: ${response.status} ${response.statusText}`;
+                    
+                    if (response.status === 403) {
+                        const body = await response.text();
+                        if (body.includes('nginx')) {
+                            report += ' (nginx 403)';
+                        }
+                    }
+                    report += '\n';
+                } catch (error) {
+                    report += `${method}: 错误 - ${error.message}\n`;
+                }
+            }
+            
+            showResult('import-result', report, 'info');
+        }
+
+        // 4. 收集服务器信息
+        async function collectServerInfo() {
+            showResult('server-result', '正在收集服务器信息...', 'info');
+            
+            try {
+                const response = await fetch('/api/test.php');
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('server-result', `服务器信息:\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('server-result', `无法获取服务器信息: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                showResult('server-result', `收集服务器信息失败: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCORS() {
+            showResult('server-result', '正在测试CORS配置...', 'info');
+            
+            try {
+                const response = await fetch('/api/import', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+                
+                showResult('server-result', `CORS配置:\n${JSON.stringify(corsHeaders, null, 2)}`, 'info');
+            } catch (error) {
+                showResult('server-result', `CORS测试失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 5. 完整诊断
+        async function runFullDiagnosis() {
+            showResult('full-result', '正在运行完整的403错误诊断...', 'info');
+            
+            let report = '🚨 nginx 403错误完整诊断报告\n';
+            report += '=' .repeat(60) + '\n\n';
+            
+            // 问题确认
+            report += '1️⃣ 问题确认:\n';
+            try {
+                const response = await fetch('/api/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test: true })
+                });
+                
+                if (response.status === 403) {
+                    const body = await response.text();
+                    if (body.includes('nginx')) {
+                        report += '   ❌ 确认存在nginx级别的403错误\n';
+                        report += '   📍 问题位置: nginx服务器配置\n';
+                        report += '   🔍 根本原因: 请求被nginx阻止，未到达PHP应用\n\n';
+                    }
+                } else {
+                    report += '   ✅ 403错误已解决或不存在\n\n';
+                }
+            } catch (error) {
+                report += `   ❌ 测试过程出错: ${error.message}\n\n`;
+            }
+            
+            // 解决方案
+            report += '2️⃣ 解决方案:\n';
+            report += '   A. 检查.htaccess文件配置\n';
+            report += '   B. 验证API目录权限设置\n';
+            report += '   C. 确认nginx路由规则\n';
+            report += '   D. 测试直接PHP文件访问\n\n';
+            
+            // 立即修复步骤
+            report += '3️⃣ 立即修复步骤:\n';
+            report += '   1. 访问 /api/test.php 确认PHP可执行\n';
+            report += '   2. 检查 .htaccess 文件是否正确配置\n';
+            report += '   3. 验证 api/ 目录权限\n';
+            report += '   4. 测试不同的API访问路径\n\n';
+            
+            // 测试建议
+            report += '4️⃣ 测试建议:\n';
+            report += '   • 使用本页面的各项测试功能\n';
+            report += '   • 检查服务器错误日志\n';
+            report += '   • 联系Serv00技术支持\n';
+            
+            report += `\n📅 诊断时间: ${new Date().toLocaleString()}`;
+            
+            showResult('full-result', report, 'error');
+        }
+
+        // 页面加载时自动运行基础检查
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚨 nginx 403错误诊断工具已加载');
+            
+            // 自动检查API可达性
+            setTimeout(() => {
+                testAPIEndpoints();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

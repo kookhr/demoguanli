@@ -1,9 +1,27 @@
 <?php
 // Serv00 环境管理系统 API 入口文件
-// 加载 .env 文件
-require_once __DIR__ . '/vendor/autoload.php';
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+
+// 增强错误处理和日志记录
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+// 记录API访问
+error_log("API Access: " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['REQUEST_URI'] . " from " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+
+// 加载 .env 文件（安全加载）
+try {
+    if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+        require_once __DIR__ . '/vendor/autoload.php';
+        if (class_exists('Dotenv\Dotenv')) {
+            $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+            $dotenv->safeLoad();
+        }
+    }
+} catch (Exception $e) {
+    error_log("Dotenv loading error: " . $e->getMessage());
+    // 继续执行，不因为.env文件问题而中断
+}
 
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/models/Environment.php';

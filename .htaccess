@@ -1,12 +1,39 @@
 <IfModule mod_rewrite.c>
 RewriteEngine On
 
-# API requests to api/index.php
-RewriteRule ^api/(.*)$ api/index.php [L]
+# CORS headers for API requests
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-API-Key"
+    Header always set Access-Control-Max-Age "3600"
+</IfModule>
+
+# Handle preflight OPTIONS requests for CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^(.*)$ api/index.php [L]
+
+# API requests to api/index.php with query string preservation
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
 # Frontend (single page application)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [L]
 
+</IfModule>
+
+# 确保API目录可访问
+<Directory "api">
+    Require all granted
+    AllowOverride All
+</Directory>
+
+# 设置正确的MIME类型
+<IfModule mod_mime.c>
+    AddType application/json .json
+    AddType application/javascript .js
+    AddType image/svg+xml .svg
 </IfModule>

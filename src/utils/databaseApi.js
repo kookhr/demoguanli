@@ -190,9 +190,8 @@ class DatabaseAPI {
     return this.get('/export');
   }
 
-  // 配置导入 - 无认证限制
+  // 配置导入 - 无认证限制，支持备用端点
   async importData(data) {
-    const url = `${this.baseUrl}/import`;
     const config = {
       method: 'POST',
       headers: {
@@ -202,19 +201,45 @@ class DatabaseAPI {
       body: JSON.stringify(data),
     };
 
-    try {
-      const response = await fetch(url, config);
+    // 尝试多个端点来解决nginx 403问题
+    const endpoints = [
+      `${this.baseUrl}/import`,      // 主要端点
+      `${this.baseUrl}/import.php`,  // 直接PHP文件
+      `/api/import.php`,             // 绝对路径
+      `/api/index.php`               // 通过index.php
+    ];
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+    let lastError = null;
+
+    for (const url of endpoints) {
+      try {
+        console.log(`尝试导入端点: ${url}`);
+        const response = await fetch(url, config);
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ 导入成功，使用端点: ${url}`);
+          return result;
+        } else {
+          const errorText = await response.text();
+          console.log(`❌ 端点 ${url} 失败: ${response.status} ${errorText}`);
+
+          // 如果是403错误且包含nginx，记录特殊信息
+          if (response.status === 403 && errorText.includes('nginx')) {
+            lastError = new Error(`nginx 403错误: ${url} 被服务器阻止`);
+          } else {
+            lastError = new Error(`HTTP ${response.status}: ${errorText}`);
+          }
+        }
+      } catch (error) {
+        console.log(`❌ 端点 ${url} 连接错误: ${error.message}`);
+        lastError = error;
       }
-
-      return await response.json();
-    } catch (error) {
-      console.error('导入数据失败:', error);
-      throw error;
     }
+
+    // 所有端点都失败了
+    console.error('所有导入端点都失败了:', lastError);
+    throw lastError || new Error('所有导入端点都无法访问');
   }
 
   // 健康检查
