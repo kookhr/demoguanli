@@ -17,7 +17,7 @@ ssh your_username@your_domain.serv00.net
 
 ### 2. 执行一键安装
 ```bash
-bash -i <(curl -SL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/interactive-install.sh)
+bash <(curl -sSL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/interactive-install.sh)
 ```
 
 ### 3. 等待自动完成

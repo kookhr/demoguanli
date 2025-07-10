@@ -76,7 +76,12 @@ read_input() {
     local default="$2"
     local var_name="$3"
     local is_password="$4"
-    
+
+    # 如果没有提供变量名，使用默认的 USER_INPUT
+    if [ -z "$var_name" ]; then
+        var_name="USER_INPUT"
+    fi
+
     if [ "$is_password" = "true" ]; then
         echo -n -e "${CYAN}$prompt${NC}"
         if [ -n "$default" ]; then
@@ -93,12 +98,15 @@ read_input() {
         echo -n ": "
         read input
     fi
-    
+
     if [ -z "$input" ] && [ -n "$default" ]; then
         input="$default"
     fi
-    
-    eval "$var_name='$input'"
+
+    # 安全地设置变量值
+    if [ -n "$var_name" ]; then
+        eval "$var_name='$input'"
+    fi
 }
 
 # 验证域名格式
@@ -265,7 +273,7 @@ collect_configuration() {
         echo ""
 
         # 在更新模式下，提供选项是否修改配置
-        read_input "是否保持现有配置？(y/n)" "y"
+        read_input "是否保持现有配置？(y/n)" "y" "USER_INPUT"
         if [[ "$USER_INPUT" =~ ^[Nn] ]]; then
             echo -e "${YELLOW}请输入新的配置信息：${NC}"
             collect_new_configuration
