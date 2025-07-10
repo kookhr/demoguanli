@@ -76,11 +76,7 @@ read_input() {
     local default="$2"
     local var_name="$3"
     local is_password="$4"
-
-    # 如果没有提供变量名，使用默认的 USER_INPUT
-    if [ -z "$var_name" ]; then
-        var_name="USER_INPUT"
-    fi
+    local input=""
 
     if [ "$is_password" = "true" ]; then
         echo -n -e "${CYAN}$prompt${NC}"
@@ -99,14 +95,42 @@ read_input() {
         read input
     fi
 
+    # 如果输入为空且有默认值，使用默认值
     if [ -z "$input" ] && [ -n "$default" ]; then
         input="$default"
     fi
 
-    # 安全地设置变量值
-    if [ -n "$var_name" ]; then
-        eval "$var_name='$input'"
-    fi
+    # 根据变量名设置对应的全局变量
+    case "$var_name" in
+        "USER_INPUT")
+            USER_INPUT="$input"
+            ;;
+        "CUSTOM_DOMAIN")
+            CUSTOM_DOMAIN="$input"
+            ;;
+        "DB_HOST")
+            DB_HOST="$input"
+            ;;
+        "DB_NAME")
+            DB_NAME="$input"
+            ;;
+        "DB_USER")
+            DB_USER="$input"
+            ;;
+        "DB_PASSWORD")
+            DB_PASSWORD="$input"
+            ;;
+        "CUSTOM_PORT")
+            CUSTOM_PORT="$input"
+            ;;
+        "API_PATH")
+            API_PATH="$input"
+            ;;
+        *)
+            # 默认情况，设置 USER_INPUT
+            USER_INPUT="$input"
+            ;;
+    esac
 }
 
 # 验证域名格式
