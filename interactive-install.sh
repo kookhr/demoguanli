@@ -526,143 +526,208 @@ EOF
 
     print_success "API 配置文件生成完成"
 
-    # 生成强力 .htaccess 文件（修复 MIME 类型问题）
-    print_info "生成增强的 .htaccess 文件..."
+    # 生成超强力 .htaccess 文件（彻底修复 MIME 类型问题）
+    print_info "生成超强力 .htaccess 配置..."
 
     cat > "$INSTALL_DIR/.htaccess" << 'EOF'
 # ========================================
-# Serv00/FreeBSD Apache MIME 类型修复
-# 解决 JavaScript 模块加载和 SVG 资源问题
+# Serv00/FreeBSD Apache 超强力 MIME 类型修复
+# 彻底解决 JavaScript 模块加载和 SVG 资源问题
 # ========================================
 
-# 方法1: 强制设置文件类型（最高优先级）
+# 方法1: 最强力的文件类型强制设置
+<Files "*.js">
+    ForceType application/javascript
+    Header always set Content-Type "application/javascript; charset=utf-8"
+    Header always unset Content-Encoding
+    Header always set Cache-Control "public, max-age=31536000"
+</Files>
+
+<Files "*.mjs">
+    ForceType application/javascript
+    Header always set Content-Type "application/javascript; charset=utf-8"
+    Header always unset Content-Encoding
+</Files>
+
+<Files "*.css">
+    ForceType text/css
+    Header always set Content-Type "text/css; charset=utf-8"
+    Header always unset Content-Encoding
+    Header always set Cache-Control "public, max-age=31536000"
+</Files>
+
+<Files "*.svg">
+    ForceType image/svg+xml
+    Header always set Content-Type "image/svg+xml; charset=utf-8"
+    Header always unset Content-Encoding
+    Header always set Cache-Control "public, max-age=31536000"
+</Files>
+
+<Files "*.json">
+    ForceType application/json
+    Header always set Content-Type "application/json; charset=utf-8"
+</Files>
+
+<Files "*.html">
+    ForceType text/html
+    Header always set Content-Type "text/html; charset=utf-8"
+</Files>
+
+<Files "*.htm">
+    ForceType text/html
+    Header always set Content-Type "text/html; charset=utf-8"
+</Files>
+
+# 方法2: 基于扩展名的强制类型设置
 <FilesMatch "\.(js|mjs|jsx)$">
     ForceType application/javascript
-    Header set Content-Type "application/javascript; charset=utf-8"
+    Header always set Content-Type "application/javascript; charset=utf-8"
+    Header always set X-Content-Type-Options nosniff
 </FilesMatch>
 
 <FilesMatch "\.css$">
     ForceType text/css
-    Header set Content-Type "text/css; charset=utf-8"
-</FilesMatch>
-
-<FilesMatch "\.json$">
-    ForceType application/json
-    Header set Content-Type "application/json; charset=utf-8"
+    Header always set Content-Type "text/css; charset=utf-8"
+    Header always set X-Content-Type-Options nosniff
 </FilesMatch>
 
 <FilesMatch "\.svg$">
     ForceType image/svg+xml
-    Header set Content-Type "image/svg+xml; charset=utf-8"
+    Header always set Content-Type "image/svg+xml; charset=utf-8"
+    Header always set X-Content-Type-Options nosniff
 </FilesMatch>
 
-<FilesMatch "\.(png|jpg|jpeg|gif|ico|webp)$">
-    ForceType image/png
-</FilesMatch>
+# 方法3: 移除并重新添加 MIME 类型
+RemoveType .js
+RemoveType .mjs
+RemoveType .jsx
+RemoveType .css
+RemoveType .svg
+RemoveType .json
+RemoveType .html
+RemoveType .htm
 
-<FilesMatch "\.html$">
-    ForceType text/html
-    Header set Content-Type "text/html; charset=utf-8"
-</FilesMatch>
-
-# 方法2: AddType 指令（备用方案）
+# 方法4: 强制添加正确的 MIME 类型
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .jsx
 AddType text/css .css
-AddType application/json .json
 AddType image/svg+xml .svg
+AddType application/json .json
+AddType text/html .html
+AddType text/html .htm
+
+# 方法5: 备用图片类型
 AddType image/png .png
 AddType image/jpeg .jpg .jpeg
 AddType image/gif .gif
 AddType image/x-icon .ico
 AddType image/webp .webp
-AddType text/html .html .htm
 
-# 方法3: RemoveType + AddType（强制重新定义）
-RemoveType .js
-RemoveType .mjs
-RemoveType .css
-RemoveType .svg
-AddType application/javascript .js .mjs
-AddType text/css .css
-AddType image/svg+xml .svg
-
-# 方法4: 设置默认字符集
+# 方法6: 设置默认字符集和编码
 AddDefaultCharset UTF-8
+DefaultLanguage en
 
-# 安全头设置
+# 方法7: 强制 MIME 类型检查
 <IfModule mod_headers.c>
-    # 防止 MIME 类型嗅探
+    # 强制设置正确的 Content-Type
     Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
 
-    # 为 JavaScript 文件设置正确的 CORS 头
+    # JavaScript 文件特殊处理
     <FilesMatch "\.(js|mjs)$">
-        Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET, OPTIONS"
-        Header set Access-Control-Allow-Headers "Content-Type"
+        Header always set Content-Type "application/javascript; charset=utf-8"
+        Header always set Access-Control-Allow-Origin "*"
+        Header always set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header always set Access-Control-Allow-Headers "Content-Type"
+        Header always unset Content-Encoding
     </FilesMatch>
 
-    # 为 SVG 文件设置正确的头
+    # CSS 文件特殊处理
+    <FilesMatch "\.css$">
+        Header always set Content-Type "text/css; charset=utf-8"
+        Header always unset Content-Encoding
+    </FilesMatch>
+
+    # SVG 文件特殊处理
     <FilesMatch "\.svg$">
-        Header set Access-Control-Allow-Origin "*"
-        Header set Cache-Control "public, max-age=31536000"
+        Header always set Content-Type "image/svg+xml; charset=utf-8"
+        Header always set Access-Control-Allow-Origin "*"
+        Header always unset Content-Encoding
+    </FilesMatch>
+
+    # HTML 文件特殊处理
+    <FilesMatch "\.(html|htm)$">
+        Header always set Content-Type "text/html; charset=utf-8"
     </FilesMatch>
 </IfModule>
 
-# 错误处理和重定向
+# 方法8: 错误处理和重定向
 ErrorDocument 404 /index.html
 ErrorDocument 500 /index.html
 ErrorDocument 502 /index.html
 ErrorDocument 503 /index.html
 
-# 修复 Mixed Content 问题
-Header always set Content-Security-Policy "upgrade-insecure-requests"
-Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-
-# 阻止不安全的外部资源
+# 方法9: 修复 Mixed Content 问题
 <IfModule mod_headers.c>
-    # 阻止 HTTP favicon 请求
-    Header always set Content-Security-Policy "default-src 'self' https:; img-src 'self' https: data:; script-src 'self' https: 'unsafe-inline' 'unsafe-eval'; style-src 'self' https: 'unsafe-inline'; font-src 'self' https: data:; connect-src 'self' https:; frame-src 'none'; object-src 'none'; base-uri 'self';"
+    Header always set Content-Security-Policy "upgrade-insecure-requests"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# SPA 路由支持
+# 方法10: URL 重写和路由
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # 强制 HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # 处理 API 请求
     RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-    # 静态资源直接访问
+    # 静态资源直接访问（确保正确的 MIME 类型）
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{REQUEST_URI} \.(js|css|svg|png|jpg|jpeg|gif|ico|webp)$
+    RewriteRule ^ - [L]
+
+    # 其他静态文件
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # SPA 路由回退到 index.html
+    # SPA 路由回退
     RewriteRule ^ index.html [L]
 </IfModule>
 
-# 缓存控制
+# 方法11: 缓存控制
 <IfModule mod_expires.c>
     ExpiresActive on
 
-    # JavaScript 和 CSS 文件
+    # JavaScript 和 CSS 文件长期缓存
     ExpiresByType application/javascript "access plus 1 year"
     ExpiresByType text/css "access plus 1 year"
 
-    # 图片文件
+    # 图片文件长期缓存
     ExpiresByType image/svg+xml "access plus 1 year"
     ExpiresByType image/png "access plus 1 year"
     ExpiresByType image/jpeg "access plus 1 year"
     ExpiresByType image/gif "access plus 1 year"
     ExpiresByType image/x-icon "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
 
     # HTML 文件不缓存
     ExpiresByType text/html "access plus 0 seconds"
+    ExpiresByType application/json "access plus 0 seconds"
 </IfModule>
 
-# Gzip 压缩
+# 方法12: Gzip 压缩
 <IfModule mod_deflate.c>
+    # 启用压缩
+    SetOutputFilter DEFLATE
+
+    # 压缩特定文件类型
     AddOutputFilterByType DEFLATE text/plain
     AddOutputFilterByType DEFLATE text/html
     AddOutputFilterByType DEFLATE text/xml
@@ -672,8 +737,34 @@ Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains
     AddOutputFilterByType DEFLATE application/rss+xml
     AddOutputFilterByType DEFLATE application/javascript
     AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
     AddOutputFilterByType DEFLATE image/svg+xml
+
+    # 排除已压缩的文件
+    SetEnvIfNoCase Request_URI \
+        \.(?:gif|jpe?g|png|zip|gz|bz2)$ no-gzip dont-vary
+    SetEnvIfNoCase Request_URI \
+        \.(?:exe|t?gz|zip|bz2|sit|rar)$ no-gzip dont-vary
 </IfModule>
+
+# 方法13: 文件访问控制
+<Files "*.js">
+    Order allow,deny
+    Allow from all
+    Require all granted
+</Files>
+
+<Files "*.css">
+    Order allow,deny
+    Allow from all
+    Require all granted
+</Files>
+
+<Files "*.svg">
+    Order allow,deny
+    Allow from all
+    Require all granted
+</Files>
 EOF
 
     print_success ".htaccess 文件生成完成"
@@ -881,43 +972,138 @@ build_project() {
         exit 1
     fi
 
-    # 修复构建后的文件（解决 MIME 类型问题）
-    print_info "修复构建文件和 MIME 类型问题..."
+    # 修复构建后的文件（彻底解决 MIME 类型问题）
+    print_info "修复构建文件和资源问题..."
 
+    # 修复 HTML 文件
     if [ -f "dist/index.html" ]; then
         # 使用 FreeBSD 兼容的方法移除 type="module"
         cp dist/index.html dist/index.html.tmp
         awk '{gsub(/type="module"/, ""); print}' dist/index.html.tmp > dist/index.html
         rm -f dist/index.html.tmp
         print_info "✅ 移除了 type=\"module\" 属性"
+
+        # 检查并修复 HTML 中的资源引用
+        if grep -q "K.svg" dist/index.html; then
+            # 修复 SVG 路径引用
+            cp dist/index.html dist/index.html.tmp
+            awk '{gsub(/K\.svg/, "./assets/K.svg"); print}' dist/index.html.tmp > dist/index.html
+            rm -f dist/index.html.tmp
+            print_info "✅ 修复了 SVG 文件路径引用"
+        fi
     fi
 
-    # 确保 JavaScript 文件有正确的内容类型标识
+    # 处理 JavaScript 文件
     if [ -d "dist/assets" ]; then
         for js_file in dist/assets/*.js; do
             if [ -f "$js_file" ]; then
-                # 在文件开头添加 MIME 类型注释（帮助服务器识别）
-                if ! head -1 "$js_file" | grep -q "javascript"; then
+                # 在文件开头添加 MIME 类型注释
+                if ! head -1 "$js_file" | grep -q "Content-Type"; then
                     temp_file=$(mktemp)
-                    echo "/* Content-Type: application/javascript */" > "$temp_file"
+                    echo "/* Content-Type: application/javascript; charset=utf-8 */" > "$temp_file"
                     cat "$js_file" >> "$temp_file"
                     mv "$temp_file" "$js_file"
                 fi
+
+                # 设置正确的文件权限
+                chmod 644 "$js_file"
             fi
         done
-        print_info "✅ JavaScript 文件已标记正确的内容类型"
+        print_info "✅ JavaScript 文件已优化"
+
+        # 处理 CSS 文件
+        for css_file in dist/assets/*.css; do
+            if [ -f "$css_file" ]; then
+                # 在文件开头添加 MIME 类型注释
+                if ! head -1 "$css_file" | grep -q "Content-Type"; then
+                    temp_file=$(mktemp)
+                    echo "/* Content-Type: text/css; charset=utf-8 */" > "$temp_file"
+                    cat "$css_file" >> "$temp_file"
+                    mv "$temp_file" "$css_file"
+                fi
+                chmod 644 "$css_file"
+            fi
+        done
+        print_info "✅ CSS 文件已优化"
     fi
 
-    # 创建额外的 .htaccess 文件在 dist 目录
+    # 处理 SVG 文件和其他静态资源
+    print_info "处理 SVG 文件和静态资源..."
+
+    # 确保 public 目录中的 SVG 文件被正确复制
+    if [ -d "public" ]; then
+        # 复制 public 目录中的所有文件到 dist
+        cp -r public/* dist/ 2>/dev/null || true
+        print_info "✅ 复制了 public 目录中的静态资源"
+    fi
+
+    # 创建测试用的 SVG 文件（如果不存在）
+    if [ ! -f "dist/K.svg" ] && [ ! -f "dist/assets/K.svg" ]; then
+        # 创建一个简单的 K.svg 文件
+        cat > "dist/K.svg" << 'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" fill="#2563eb"/>
+  <text x="16" y="20" text-anchor="middle" fill="white" font-family="Arial" font-size="18" font-weight="bold">K</text>
+</svg>
+EOF
+        chmod 644 "dist/K.svg"
+        print_info "✅ 创建了默认的 K.svg 文件"
+    fi
+
+    # 在 dist 目录创建超强力 .htaccess
     if [ -d "dist" ]; then
         cat > "dist/.htaccess" << 'EOF'
-# Dist 目录专用 MIME 类型设置
+# Dist 目录超强力 MIME 类型设置
+<Files "*.js">
+    ForceType application/javascript
+    Header always set Content-Type "application/javascript; charset=utf-8"
+</Files>
+
+<Files "*.css">
+    ForceType text/css
+    Header always set Content-Type "text/css; charset=utf-8"
+</Files>
+
+<Files "*.svg">
+    ForceType image/svg+xml
+    Header always set Content-Type "image/svg+xml; charset=utf-8"
+</Files>
+
+# 备用设置
 AddType application/javascript .js
 AddType text/css .css
 AddType image/svg+xml .svg
+
+# 安全头
+Header always set X-Content-Type-Options nosniff
+Header always set Access-Control-Allow-Origin "*"
+EOF
+        chmod 644 "dist/.htaccess"
+        print_info "✅ 在 dist 目录创建了超强力 .htaccess"
+    fi
+
+    # 在 assets 目录也创建 .htaccess
+    if [ -d "dist/assets" ]; then
+        cat > "dist/assets/.htaccess" << 'EOF'
+# Assets 目录专用 MIME 类型强制设置
+<Files "*.js">
+    ForceType application/javascript
+    Header always set Content-Type "application/javascript; charset=utf-8"
+    Header always unset Content-Encoding
+</Files>
+
+<Files "*.css">
+    ForceType text/css
+    Header always set Content-Type "text/css; charset=utf-8"
+    Header always unset Content-Encoding
+</Files>
+
+AddType application/javascript .js
+AddType text/css .css
 Header always set X-Content-Type-Options nosniff
 EOF
-        print_info "✅ 在 dist 目录创建了专用 .htaccess"
+        chmod 644 "dist/assets/.htaccess"
+        print_info "✅ 在 assets 目录创建了专用 .htaccess"
     fi
 
 
@@ -961,32 +1147,251 @@ initialize_database() {
 
 # MIME 类型验证和修复
 verify_and_fix_mime_types() {
-    print_step "9" "验证和修复 MIME 类型配置"
+    if [ "$IS_UPDATE_MODE" = true ]; then
+        print_step "9" "验证和修复 MIME 类型配置（更新模式）"
+    else
+        print_step "9" "验证和修复 MIME 类型配置"
+    fi
 
     cd "$INSTALL_DIR"
 
-    # 验证 .htaccess 文件存在
+    # 验证 .htaccess 文件存在和内容
     if [ ! -f ".htaccess" ]; then
         print_error ".htaccess 文件不存在"
         return 1
     fi
 
+    local htaccess_size=$(wc -c < .htaccess)
+    print_info "📋 .htaccess 文件大小: $htaccess_size 字节"
+
     # 验证关键 MIME 类型配置
     local mime_checks=(
-        "application/javascript.*\.js"
-        "text/css.*\.css"
-        "image/svg\+xml.*\.svg"
+        "ForceType application/javascript"
+        "ForceType text/css"
+        "ForceType image/svg+xml"
+        "AddType application/javascript"
+        "AddType text/css"
+        "AddType image/svg+xml"
+        "Header.*Content-Type.*javascript"
+        "Header.*Content-Type.*css"
+        "Header.*Content-Type.*svg"
     )
 
+    local config_score=0
     for check in "${mime_checks[@]}"; do
         if grep -q "$check" .htaccess; then
-            print_info "✅ MIME 类型配置正确: $check"
+            print_info "✅ 配置存在: $check"
+            ((config_score++))
         else
-            print_warning "⚠️  MIME 类型配置可能有问题: $check"
+            print_warning "⚠️  配置缺失: $check"
         fi
     done
 
+    print_info "📊 MIME 配置完整度: $config_score/${#mime_checks[@]}"
+
+    # 验证文件结构
+    print_info "验证文件结构..."
+
+    local critical_files=(
+        "dist/index.html"
+        "dist/.htaccess"
+    )
+
+    for file in "${critical_files[@]}"; do
+        if [ -f "$file" ]; then
+            local file_size=$(wc -c < "$file")
+            print_info "✅ $file 存在 (${file_size} 字节)"
+        else
+            print_warning "⚠️  $file 不存在"
+        fi
+    done
+
+    # 检查 JavaScript 和 CSS 文件
+    if [ -d "dist/assets" ]; then
+        local js_count=$(ls dist/assets/*.js 2>/dev/null | wc -l)
+        local css_count=$(ls dist/assets/*.css 2>/dev/null | wc -l)
+        print_info "📋 JavaScript 文件: $js_count 个"
+        print_info "📋 CSS 文件: $css_count 个"
+
+        # 检查第一个 JS 文件的内容
+        local first_js=$(ls dist/assets/*.js 2>/dev/null | head -1)
+        if [ -n "$first_js" ] && [ -f "$first_js" ]; then
+            if head -1 "$first_js" | grep -q "Content-Type"; then
+                print_info "✅ JavaScript 文件包含 MIME 类型标识"
+            else
+                print_warning "⚠️  JavaScript 文件缺少 MIME 类型标识"
+            fi
+        fi
+    fi
+
+    # 检查 SVG 文件
+    local svg_files=(
+        "dist/K.svg"
+        "dist/assets/K.svg"
+        "public/K.svg"
+    )
+
+    local svg_found=false
+    for svg_file in "${svg_files[@]}"; do
+        if [ -f "$svg_file" ]; then
+            print_info "✅ SVG 文件存在: $svg_file"
+            svg_found=true
+            break
+        fi
+    done
+
+    if [ "$svg_found" = false ]; then
+        print_warning "⚠️  未找到 K.svg 文件，创建默认文件..."
+        cat > "dist/K.svg" << 'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" fill="#2563eb"/>
+  <text x="16" y="20" text-anchor="middle" fill="white" font-family="Arial" font-size="18" font-weight="bold">K</text>
+</svg>
+EOF
+        chmod 644 "dist/K.svg"
+        print_info "✅ 创建了默认 K.svg 文件"
+    fi
+
+    # 网络测试 MIME 类型
+    print_info "测试网络 MIME 类型响应..."
+
+    # 测试主页
+    local main_status=$(curl -s -I "https://$CUSTOM_DOMAIN/" 2>/dev/null | head -1 | awk '{print $2}' || echo "000")
+    if [ "$main_status" = "200" ]; then
+        print_info "✅ 主页访问正常 (HTTP $main_status)"
+    else
+        print_warning "⚠️  主页访问异常 (HTTP $main_status)"
+    fi
+
+    # 测试 JavaScript 文件 MIME 类型
+    if [ -d "dist/assets" ]; then
+        local js_file=$(ls dist/assets/*.js 2>/dev/null | head -1)
+        if [ -n "$js_file" ]; then
+            local js_filename=$(basename "$js_file")
+            local js_mime=$(curl -s -I "https://$CUSTOM_DOMAIN/dist/assets/$js_filename" 2>/dev/null | grep -i "content-type" | cut -d: -f2 | tr -d ' \r\n' || echo "unknown")
+
+            if echo "$js_mime" | grep -q "javascript"; then
+                print_info "✅ JavaScript MIME 类型正确: $js_mime"
+            else
+                print_warning "⚠️  JavaScript MIME 类型异常: $js_mime"
+            fi
+        fi
+    fi
+
+    # 测试 SVG 文件 MIME 类型
+    local svg_mime=$(curl -s -I "https://$CUSTOM_DOMAIN/K.svg" 2>/dev/null | grep -i "content-type" | cut -d: -f2 | tr -d ' \r\n' || echo "unknown")
+    if echo "$svg_mime" | grep -q "svg"; then
+        print_info "✅ SVG MIME 类型正确: $svg_mime"
+    else
+        print_warning "⚠️  SVG MIME 类型异常: $svg_mime"
+    fi
+
+    # 创建备用 MIME 类型解决方案
+    print_info "创建备用 MIME 类型解决方案..."
+
+    # 创建简化版 .htaccess（如果主版本不工作）
+    cat > ".htaccess.simple" << 'EOF'
+# 简化版 MIME 类型配置（备用方案）
+AddType application/javascript .js
+AddType text/css .css
+AddType image/svg+xml .svg
+AddDefaultCharset UTF-8
+
+# 基础错误处理
+ErrorDocument 404 /index.html
+
+# 基础重写规则
+RewriteEngine On
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
+EOF
+
+    # 创建 PHP 脚本来设置 MIME 类型（终极备用方案）
+    cat > "mime-handler.php" << 'EOF'
+<?php
+// PHP MIME 类型处理器（备用方案）
+$request_uri = $_SERVER['REQUEST_URI'];
+$file_extension = pathinfo($request_uri, PATHINFO_EXTENSION);
+
+// 设置正确的 MIME 类型
+switch (strtolower($file_extension)) {
+    case 'js':
+    case 'mjs':
+        header('Content-Type: application/javascript; charset=utf-8');
+        break;
+    case 'css':
+        header('Content-Type: text/css; charset=utf-8');
+        break;
+    case 'svg':
+        header('Content-Type: image/svg+xml; charset=utf-8');
+        break;
+    case 'json':
+        header('Content-Type: application/json; charset=utf-8');
+        break;
+    case 'html':
+    case 'htm':
+        header('Content-Type: text/html; charset=utf-8');
+        break;
+}
+
+// 设置安全头
+header('X-Content-Type-Options: nosniff');
+header('Access-Control-Allow-Origin: *');
+
+// 输出文件内容
+$file_path = __DIR__ . $request_uri;
+if (file_exists($file_path) && is_file($file_path)) {
+    readfile($file_path);
+} else {
+    http_response_code(404);
+    echo 'File not found';
+}
+?>
+EOF
+
+    chmod 644 ".htaccess.simple"
+    chmod 644 "mime-handler.php"
+
+    # 创建 MIME 类型测试和修复脚本
+    cat > "test-mime-types.sh" << 'EOF'
+#!/bin/bash
+# MIME 类型测试和修复脚本
+
+DOMAIN="$1"
+if [ -z "$DOMAIN" ]; then
+    echo "用法: $0 <domain>"
+    exit 1
+fi
+
+echo "测试 $DOMAIN 的 MIME 类型..."
+
+# 测试 JavaScript
+JS_MIME=$(curl -s -I "https://$DOMAIN/dist/assets/index.js" 2>/dev/null | grep -i "content-type" || echo "未找到")
+echo "JavaScript MIME: $JS_MIME"
+
+# 测试 CSS
+CSS_MIME=$(curl -s -I "https://$DOMAIN/dist/assets/index.css" 2>/dev/null | grep -i "content-type" || echo "未找到")
+echo "CSS MIME: $CSS_MIME"
+
+# 测试 SVG
+SVG_MIME=$(curl -s -I "https://$DOMAIN/K.svg" 2>/dev/null | grep -i "content-type" || echo "未找到")
+echo "SVG MIME: $SVG_MIME"
+
+# 如果 MIME 类型不正确，提供修复建议
+if ! echo "$JS_MIME" | grep -q "javascript"; then
+    echo "⚠️ JavaScript MIME 类型不正确，尝试备用方案："
+    echo "1. 复制 .htaccess.simple 到 .htaccess"
+    echo "2. 或使用 PHP 处理器"
+fi
+EOF
+
+    chmod +x "test-mime-types.sh"
+
     print_success "MIME 类型验证和修复完成"
+    print_info "✅ 创建了备用解决方案"
+    print_info "✅ 创建了测试脚本: test-mime-types.sh"
 
     # 额外的白屏修复措施
     print_info "应用额外的白屏修复措施..."
@@ -1283,6 +1688,8 @@ show_completion_info() {
     echo -e "${BOLD}${CYAN}管理工具:${NC}"
     echo -e "  📊 数据库管理: ${GREEN}~/manage_database.sh${NC}"
     echo -e "  🔧 站点管理: ${GREEN}~/manage_site.sh${NC}"
+    echo -e "  🧪 MIME 类型测试: ${GREEN}./test-mime-types.sh $CUSTOM_DOMAIN${NC}"
+    echo -e "  🔧 备用 MIME 配置: ${YELLOW}.htaccess.simple${NC}"
     echo ""
     echo -e "${BOLD}${CYAN}Cloudflare DNS 配置提示:${NC}"
     if [[ "$CUSTOM_DOMAIN" != *".serv00.net" ]]; then
