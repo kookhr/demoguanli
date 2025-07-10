@@ -2528,27 +2528,46 @@ detect_domain_access_issues() {
     print_info "检测域名访问配置..."
 
     local has_issues=false
+    local issue_count=0
     local issue_details=""
 
     # 检查是否在根目录有前端文件
     if [ ! -f "$INSTALL_DIR/index.html" ]; then
         if [ -f "$INSTALL_DIR/dist/index.html" ]; then
             has_issues=true
-            issue_details="前端文件在 dist 目录中，域名访问无法找到入口文件"
+            issue_count=$((issue_count + 1))
+            issue_details="• 前端文件在 dist 目录中，域名访问无法找到入口文件"
         else
             has_issues=true
-            issue_details="未找到前端入口文件 index.html"
+            issue_count=$((issue_count + 1))
+            issue_details="• 未找到前端入口文件 index.html"
         fi
     fi
 
     # 检查静态资源位置
     if [ ! -d "$INSTALL_DIR/assets" ] && [ -d "$INSTALL_DIR/dist/assets" ]; then
         has_issues=true
-        issue_details="${issue_details}\n静态资源在 dist 目录中，可能导致 404 错误"
+        issue_count=$((issue_count + 1))
+        if [ -n "$issue_details" ]; then
+            issue_details="${issue_details}\n• 静态资源在 dist 目录中，可能导致 404 错误"
+        else
+            issue_details="• 静态资源在 dist 目录中，可能导致 404 错误"
+        fi
+    fi
+
+    # 检查 .htaccess 配置
+    if [ ! -f "$INSTALL_DIR/.htaccess" ]; then
+        has_issues=true
+        issue_count=$((issue_count + 1))
+        if [ -n "$issue_details" ]; then
+            issue_details="${issue_details}\n• 缺少 .htaccess 配置文件"
+        else
+            issue_details="• 缺少 .htaccess 配置文件"
+        fi
     fi
 
     if [ "$has_issues" = true ]; then
-        echo -e "${YELLOW}⚠️  检测到域名访问问题：${NC}"
+        echo -e "${YELLOW}⚠️  检测到 $issue_count 个域名访问问题：${NC}"
         echo -e "${issue_details}"
         return 1
     else
@@ -2560,6 +2579,8 @@ detect_domain_access_issues() {
 # 自动修复域名访问问题
 fix_domain_access_issues() {
     print_info "自动修复域名访问问题..."
+
+    local fixed_issues=0
 
     # 检查是否需要移动 dist 内容
     if [ -d "$INSTALL_DIR/dist" ] && [ -f "$INSTALL_DIR/dist/index.html" ] && [ ! -f "$INSTALL_DIR/index.html" ]; then
@@ -2592,6 +2613,7 @@ fix_domain_access_issues() {
         fi
 
         print_success "已移动 dist 内容到根目录"
+        fixed_issues=$((fixed_issues + 1))
 
         # 更新启动脚本中的路径
         if [ -f "start-server.sh" ]; then
@@ -2601,11 +2623,33 @@ fix_domain_access_issues() {
             rm -f start-server.sh.tmp
             print_success "已更新启动脚本路径"
         fi
+    fi
 
+    # 检查并创建 .htaccess 配置
+    if [ ! -f "$INSTALL_DIR/.htaccess" ]; then
+        print_info "创建 .htaccess 配置..."
+        create_optimized_htaccess "$INSTALL_DIR" "root"
+        print_success "已创建 .htaccess 配置"
+        fixed_issues=$((fixed_issues + 1))
+    fi
+
+    # 验证前端文件位置
+    if [ -f "$INSTALL_DIR/index.html" ]; then
+        print_success "前端文件位置正确"
+        fixed_issues=$((fixed_issues + 1))
+    elif [ -f "$INSTALL_DIR/dist/index.html" ]; then
+        print_warning "前端文件仍在 dist 目录中"
+    else
+        print_error "未找到前端文件"
+        return 1
+    fi
+
+    if [ "$fixed_issues" -gt 0 ]; then
+        print_success "域名访问问题修复完成 (修复了 $fixed_issues 个问题)"
         return 0
     else
-        print_warning "无需移动文件或文件已在正确位置"
-        return 1
+        print_success "域名访问配置已正确，无需修复"
+        return 0
     fi
 }
 
@@ -2636,11 +2680,7 @@ configure_directory_structure() {
 
     case $structure_choice in
         1)
-            if fix_domain_access_issues; then
-                print_success "域名访问问题已自动修复"
-            else
-                print_warning "自动修复未完成，可能需要手动处理"
-            fi
+            fix_domain_access_issues
             ;;
         2)
             print_info "配置 .htaccess 重写规则..."
