@@ -32,9 +32,9 @@ INSTALL_DIR=""
 CONFIG_FILE=""
 
 # 默认值
-DEFAULT_DOMAIN="$(whoami).serv00.net"
-DEFAULT_DB_HOST="localhost"
-DEFAULT_DB_NAME="environment_manager"
+DEFAULT_DOMAIN="do.kandy.dpdns.org"
+DEFAULT_DB_HOST="mysql14.serv00.com"
+DEFAULT_DB_NAME="m9785_environment_manager"
 DEFAULT_API_PATH="/api"
 DEFAULT_PORT="3000"
 
@@ -333,9 +333,59 @@ LOG_FILE=/tmp/environment_manager.log
 # Serv00 特定配置
 SERV00_OPTIMIZED=true
 FREEBSD_COMPAT=true
+
+# 网络检测配置（修复后的设置）
+NETWORK_TIMEOUT=8000
+DETECTION_RETRY_COUNT=2
+CONCURRENT_CHECKS=3
 EOF
 
     print_success "API 配置文件生成完成"
+
+    # 生成强力 .htaccess 文件（修复 MIME 类型问题）
+    print_info "生成 .htaccess 文件..."
+
+    cat > "$INSTALL_DIR/.htaccess" << 'EOF'
+# 强制设置 JavaScript MIME 类型（修复白屏问题）
+<FilesMatch "\.(js|mjs)$">
+    ForceType application/javascript
+</FilesMatch>
+
+<FilesMatch "\.css$">
+    ForceType text/css
+</FilesMatch>
+
+<FilesMatch "\.json$">
+    ForceType application/json
+</FilesMatch>
+
+<FilesMatch "\.(svg|png|jpg|jpeg|gif|ico)$">
+    ForceType image/svg+xml
+</FilesMatch>
+
+# 备用 MIME 类型设置
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType text/css .css
+AddType application/json .json
+AddType image/svg+xml .svg
+
+# 安全头
+Header always set X-Content-Type-Options nosniff
+
+# 错误处理
+ErrorDocument 502 /index.html
+ErrorDocument 404 /index.html
+
+# 缓存控制
+<IfModule mod_expires.c>
+    ExpiresActive on
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+</IfModule>
+EOF
+
+    print_success ".htaccess 文件生成完成"
 
     # 生成数据库初始化脚本
     print_info "生成数据库初始化脚本..."
@@ -452,23 +502,47 @@ build_project() {
         print_warning "Node.js 版本过低 ($NODE_VERSION)，建议升级到 18 或更高版本"
     fi
 
-    # 清理缓存
-    print_info "清理 npm 缓存..."
+    # 清理缓存和旧文件
+    print_info "清理旧文件和缓存..."
+    rm -rf dist node_modules package-lock.json
     npm cache clean --force 2>/dev/null || true
+
+    # 修复 package.json 构建脚本（解决权限问题）
+    print_info "修复构建脚本..."
+    if [ -f "package.json" ]; then
+        sed -i 's/"build": "vite build"/"build": "npx vite build"/g' package.json
+        sed -i 's/"dev": "vite"/"dev": "npx vite"/g' package.json
+        sed -i 's/"preview": "vite preview"/"preview": "npx vite preview"/g' package.json
+    fi
 
     # 安装依赖
     print_info "安装项目依赖..."
     if ! npm install; then
-        print_error "依赖安装失败"
-        print_info "尝试使用 --legacy-peer-deps 选项..."
-        npm install --legacy-peer-deps
+        print_warning "标准安装失败，尝试备用方案..."
+        npm install --legacy-peer-deps || npm install --force
     fi
+
+    # 修复 node_modules 权限（Serv00 特定问题）
+    print_info "修复执行权限..."
+    find node_modules/.bin -type f -exec chmod +x {} \; 2>/dev/null || true
 
     # 构建项目
     print_info "构建生产版本..."
     if ! npm run build; then
-        print_error "项目构建失败"
-        exit 1
+        print_warning "npm run build 失败，尝试 npx..."
+        if ! npx vite build; then
+            print_warning "npx 失败，尝试直接调用..."
+            if ! node node_modules/vite/bin/vite.js build; then
+                print_error "所有构建方法都失败了"
+                exit 1
+            fi
+        fi
+    fi
+
+    # 修复构建后的文件（解决 MIME 类型问题）
+    if [ -f "dist/index.html" ]; then
+        print_info "修复模块类型问题..."
+        sed -i 's/type="module"//g' dist/index.html
     fi
 
     print_success "项目构建完成"
