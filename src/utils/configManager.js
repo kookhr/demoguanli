@@ -186,9 +186,11 @@ export const exportConfig = async () => {
   }
 };
 
-// 导入配置
+// 导入配置 - 简化版本，无认证限制
 export const importConfig = async (configString) => {
   try {
+    console.log('开始配置导入，无需认证验证');
+
     const config = JSON.parse(configString);
     if (!config.environments || !Array.isArray(config.environments)) {
       throw new Error('配置文件格式不正确：缺少 environments 数组');
@@ -205,7 +207,7 @@ export const importConfig = async (configString) => {
 
     console.log(`准备导入 ${validEnvironments.length} 个环境配置`);
 
-    // 调用数据库API进行导入
+    // 直接调用数据库API进行导入，无需认证
     const importData = {
       environments: validEnvironments.map(env => ({
         id: env.id || generateId(),
@@ -220,18 +222,19 @@ export const importConfig = async (configString) => {
       }))
     };
 
+    console.log('发送导入请求到 /api/import，无认证头部');
     const result = await databaseAPI.importData(importData);
 
-    if (result) {
+    if (result && result.success) {
       // 清除缓存以强制重新获取
       localStorage.removeItem(STORAGE_KEYS.environments);
-      console.log('配置导入成功，已清除本地缓存');
+      console.log('✅ 配置导入成功，已清除本地缓存');
       return validEnvironments;
     }
 
-    throw new Error('数据库导入失败');
+    throw new Error('数据库导入失败: ' + (result?.message || '未知错误'));
   } catch (error) {
-    console.error('配置导入失败:', error);
+    console.error('❌ 配置导入失败:', error);
     throw error;
   }
 };

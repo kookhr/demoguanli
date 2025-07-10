@@ -190,8 +190,31 @@ class DatabaseAPI {
     return this.get('/export');
   }
 
+  // 配置导入 - 无认证限制
   async importData(data) {
-    return this.post('/import', data);
+    const url = `${this.baseUrl}/import`;
+    const config = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // 不包含 Authorization 头部
+      },
+      body: JSON.stringify(data),
+    };
+
+    try {
+      const response = await fetch(url, config);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('导入数据失败:', error);
+      throw error;
+    }
   }
 
   // 健康检查
