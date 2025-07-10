@@ -221,7 +221,7 @@ read_existing_config() {
 
     if [ -f "$EXISTING_CONFIG_FILE" ]; then
         # 创建配置备份
-        BACKUP_CONFIG_FILE="/tmp/env_backup_$(date +%Y%m%d_%H%M%S)"
+        BACKUP_CONFIG_FILE="$HOME/tmp/env_backup_$(date +%Y%m%d_%H%M%S)"
         cp "$EXISTING_CONFIG_FILE" "$BACKUP_CONFIG_FILE"
         print_info "配置已备份到: $BACKUP_CONFIG_FILE"
 
