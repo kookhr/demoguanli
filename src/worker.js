@@ -69,7 +69,28 @@ async function handleAPI(request, env, ctx) {
     return await handleEnvironmentsAPI(request, env);
   }
 
+  // 调试端点 - 检查用户数据
+  if (url.pathname === '/api/debug/users') {
+    if (!env.ENV_CONFIG) {
+      return errorResponse('KV not configured', 503);
+    }
 
+    const adminData = await env.ENV_CONFIG.get('user:admin', 'json');
+    const userList = await env.ENV_CONFIG.get('user_list', 'json');
+
+    return jsonResponse({
+      adminExists: !!adminData,
+      adminData: adminData ? {
+        username: adminData.username,
+        email: adminData.email,
+        role: adminData.role,
+        enabled: adminData.enabled,
+        hasPassword: !!adminData.password
+      } : null,
+      userList: userList || [],
+      timestamp: new Date().toISOString()
+    });
+  }
 
   // 健康检查端点（带缓存）
   if (url.pathname === '/api/health') {
@@ -107,28 +128,7 @@ async function handleAPI(request, env, ctx) {
     });
   }
 
-  // 调试端点 - 检查用户数据
-  if (url.pathname === '/api/debug/users') {
-    if (!env.ENV_CONFIG) {
-      return errorResponse('KV not configured', 503);
-    }
 
-    const adminData = await env.ENV_CONFIG.get('user:admin', 'json');
-    const userList = await env.ENV_CONFIG.get('user_list', 'json');
-
-    return jsonResponse({
-      adminExists: !!adminData,
-      adminData: adminData ? {
-        username: adminData.username,
-        email: adminData.email,
-        role: adminData.role,
-        enabled: adminData.enabled,
-        hasPassword: !!adminData.password
-      } : null,
-      userList: userList || [],
-      timestamp: new Date().toISOString()
-    });
-  }
 
   return errorResponse('API endpoint not found', 404);
 }
