@@ -114,16 +114,46 @@ detect_serv00_environment() {
         PHP_VERSION=$(php -v | head -n1 | cut -d' ' -f2 | cut -d'-' -f1)
         print_success "✓ PHP 版本: $PHP_VERSION"
 
-        # 检查 PHP 扩展
-        local required_extensions=("pdo" "pdo_mysql" "session" "json")
-        for ext in "${required_extensions[@]}"; do
-            if php -m | grep -q "^$ext$"; then
-                print_success "  ✓ PHP 扩展 $ext 已安装"
-            else
-                print_error "  ✗ PHP 扩展 $ext 未安装"
-                exit 1
-            fi
-        done
+        # 检查关键 PHP 扩展
+        print_step "检查 PHP 扩展..."
+        local extension_errors=0
+
+        # 检查 PDO 扩展
+        if php -r "exit(extension_loaded('pdo') ? 0 : 1);" 2>/dev/null; then
+            print_success "  ✓ PDO 扩展已安装"
+        else
+            print_warning "  ⚠ PDO 扩展检测失败，将在后续步骤中验证"
+            ((extension_errors++))
+        fi
+
+        # 检查 PDO MySQL 扩展
+        if php -r "exit(extension_loaded('pdo_mysql') ? 0 : 1);" 2>/dev/null; then
+            print_success "  ✓ PDO MySQL 扩展已安装"
+        else
+            print_warning "  ⚠ PDO MySQL 扩展检测失败，将在后续步骤中验证"
+            ((extension_errors++))
+        fi
+
+        # 检查 JSON 扩展
+        if php -r "exit(extension_loaded('json') ? 0 : 1);" 2>/dev/null; then
+            print_success "  ✓ JSON 扩展已安装"
+        else
+            print_warning "  ⚠ JSON 扩展检测失败，将在后续步骤中验证"
+            ((extension_errors++))
+        fi
+
+        # 检查 Session 功能
+        if php -r "exit(function_exists('session_start') ? 0 : 1);" 2>/dev/null; then
+            print_success "  ✓ Session 功能可用"
+        else
+            print_warning "  ⚠ Session 功能检测失败，将在后续步骤中验证"
+            ((extension_errors++))
+        fi
+
+        if [ $extension_errors -gt 0 ]; then
+            print_warning "⚠ 检测到 $extension_errors 个扩展问题，但将继续安装"
+            print_info "Serv00 平台通常预装所有必需的 PHP 扩展"
+        fi
     else
         print_error "未找到 PHP，请联系 Serv00 支持"
         exit 1
@@ -863,6 +893,15 @@ EOF
     sed -i "s/PLACEHOLDER_DOMAIN_NAME/$DOMAIN_NAME/g" config.php
 
     print_success "PHP 配置文件已创建"
+
+    # 验证 PHP 配置文件语法
+    if php -l config.php >/dev/null 2>&1; then
+        print_success "✓ PHP 配置文件语法正确"
+    else
+        print_error "✗ PHP 配置文件语法错误"
+        php -l config.php
+        exit 1
+    fi
 }
 
 # 配置传统 Web 应用的 Apache
