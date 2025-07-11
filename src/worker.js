@@ -92,6 +92,19 @@ async function handleAPI(request, env, ctx) {
     });
   }
 
+  // 临时端点 - 生成密码哈希
+  if (url.pathname === '/api/debug/hash') {
+    const url_obj = new URL(request.url);
+    const password = url_obj.searchParams.get('password') || 'admin123';
+    const hash = await hashPassword(password);
+
+    return jsonResponse({
+      password: password,
+      hash: hash,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   // 健康检查端点（带缓存）
   if (url.pathname === '/api/health') {
     const cacheConfig = getCacheConfig(env);
