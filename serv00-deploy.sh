@@ -758,15 +758,15 @@ configure_php() {
         print_success "已移除 API 目录"
     fi
 
-    # 创建 PHP 配置文件
-    cat > config.php << 'EOF'
+    # 创建 PHP 配置文件 (直接替换变量)
+    cat > config.php << EOF
 <?php
 // 数据库配置
-define('DB_HOST', 'PLACEHOLDER_DB_HOST');
-define('DB_NAME', 'PLACEHOLDER_DB_NAME');
-define('DB_USER', 'PLACEHOLDER_DB_USER');
-define('DB_PASS', 'PLACEHOLDER_DB_PASS');
-define('APP_DOMAIN', 'PLACEHOLDER_DOMAIN_NAME');
+define('DB_HOST', '$DB_HOST');
+define('DB_NAME', '$DB_NAME');
+define('DB_USER', '$DB_USER');
+define('DB_PASS', '$DB_PASS');
+define('APP_DOMAIN', '$DOMAIN_NAME');
 
 // 应用配置
 define('APP_NAME', '环境管理系统');
@@ -785,11 +785,11 @@ ini_set('error_log', '/tmp/serv00-php-errors.log');
 
 // 数据库连接函数
 function getDatabase() {
-    static $pdo = null;
+    static \$pdo = null;
 
-    if ($pdo === null) {
+    if (\$pdo === null) {
         try {
-            $pdo = new PDO(
+            \$pdo = new PDO(
                 "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
                 DB_USER,
                 DB_PASS,
@@ -799,13 +799,13 @@ function getDatabase() {
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ]
             );
-        } catch (PDOException $e) {
-            error_log("数据库连接失败: " . $e->getMessage());
+        } catch (PDOException \$e) {
+            error_log("数据库连接失败: " . \$e->getMessage());
             die("数据库连接失败，请联系管理员");
         }
     }
 
-    return $pdo;
+    return \$pdo;
 }
 
 // 启动会话
@@ -813,46 +813,39 @@ session_start();
 
 // 检查用户是否已登录
 function isLoggedIn() {
-    return isset($_SESSION['user_id']) && isset($_SESSION['username']);
+    return isset(\$_SESSION['user_id']) && isset(\$_SESSION['username']);
 }
 
 // 检查是否为管理员
 function isAdmin() {
-    return isLoggedIn() && ($_SESSION['role'] ?? '') === 'admin';
+    return isLoggedIn() && (\$_SESSION['role'] ?? '') === 'admin';
 }
 
 // 重定向函数
-function redirect($url) {
-    header("Location: $url");
+function redirect(\$url) {
+    header("Location: \$url");
     exit();
 }
 
 // 安全的输出函数
-function h($string) {
-    return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
+function h(\$string) {
+    return htmlspecialchars(\$string, ENT_QUOTES, 'UTF-8');
 }
 
 // 生成 CSRF Token
 function generateCSRFToken() {
-    if (!isset($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    if (!isset(\$_SESSION['csrf_token'])) {
+        \$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
-    return $_SESSION['csrf_token'];
+    return \$_SESSION['csrf_token'];
 }
 
 // 验证 CSRF Token
-function validateCSRFToken($token) {
-    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+function validateCSRFToken(\$token) {
+    return isset(\$_SESSION['csrf_token']) && hash_equals(\$_SESSION['csrf_token'], \$token);
 }
 ?>
 EOF
-
-    # 替换占位符为实际值
-    sed -i "s/PLACEHOLDER_DB_HOST/$DB_HOST/g" config.php
-    sed -i "s/PLACEHOLDER_DB_NAME/$DB_NAME/g" config.php
-    sed -i "s/PLACEHOLDER_DB_USER/$DB_USER/g" config.php
-    sed -i "s/PLACEHOLDER_DB_PASS/$DB_PASS/g" config.php
-    sed -i "s/PLACEHOLDER_DOMAIN_NAME/$DOMAIN_NAME/g" config.php
 
     print_success "PHP 配置文件已创建"
 
