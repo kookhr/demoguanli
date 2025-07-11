@@ -1,26 +1,41 @@
 /**
  * Cloudflare Workers 主入口文件
- * 环境管理系统 - 兼容现有项目结构
+ * 环境管理系统 - 集成高级Workers特性
  */
+
+// 缓存配置
+const CACHE_CONFIG = {
+  STATIC_ASSETS: 86400,    // 静态资源缓存24小时
+  API_RESPONSES: 300,      // API响应缓存5分钟
+  HEALTH_CHECK: 60         // 健康检查缓存1分钟
+};
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    
-    try {
-      // API 路由处理
-      if (url.pathname.startsWith('/api/')) {
-        return await handleAPI(request, env, ctx);
-      }
 
-      // 静态资源处理
-      return await handleStaticAssets(request, env, ctx);
+    try {
+      // 添加安全头
+      const response = await handleRequest(request, env, ctx);
+      return addSecurityHeaders(response);
     } catch (error) {
-      console.error('Worker Error:', error);
       return errorResponse('Internal Server Error', 500);
     }
   }
 };
+
+// 主请求处理器
+async function handleRequest(request, env, ctx) {
+  const url = new URL(request.url);
+
+  // API 路由处理
+  if (url.pathname.startsWith('/api/')) {
+    return await handleAPI(request, env, ctx);
+  }
+
+  // 静态资源处理（带缓存）
+  return await handleStaticAssets(request, env, ctx);
+}
 
 // API 路由处理器
 async function handleAPI(request, env, ctx) {
@@ -36,14 +51,24 @@ async function handleAPI(request, env, ctx) {
     return await handleKVAPI(request, env);
   }
 
-  // 健康检查端点
+  // 健康检查端点（带缓存）
   if (url.pathname === '/api/health') {
-    return jsonResponse({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      version: env.APP_VERSION || '2.0.0',
-      environment: env.ENVIRONMENT || 'production'
-    });
+    return await handleCachedResponse(
+      request,
+      () => jsonResponse({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        version: env.APP_VERSION || '2.0.0',
+        environment: env.ENVIRONMENT || 'production',
+        edge: {
+          colo: request.cf?.colo || 'unknown',
+          country: request.cf?.country || 'unknown',
+          timezone: request.cf?.timezone || 'unknown'
+        }
+      }),
+      CACHE_CONFIG.HEALTH_CHECK,
+      ctx
+    );
   }
 
   // 系统信息端点
@@ -87,7 +112,6 @@ async function handleKVAPI(request, env) {
 
     return errorResponse('Method not allowed', 405);
   } catch (error) {
-    console.error('KV API Error:', error);
     return errorResponse(error.message, 500, { available: false });
   }
 }
@@ -148,7 +172,7 @@ async function handleKVPost(request, env) {
   }
 }
 
-// 静态资源处理
+// 静态资源处理（带智能缓存）
 async function handleStaticAssets(request, env, ctx) {
   const url = new URL(request.url);
 
@@ -161,7 +185,40 @@ async function handleStaticAssets(request, env, ctx) {
       // 如果是404且不是API路径，返回index.html用于SPA路由
       if (response.status === 404 && !url.pathname.startsWith('/api/')) {
         const indexRequest = new Request(new URL('/index.html', request.url), request);
-        return await env.ASSETS.fetch(indexRequest);
+        const indexResponse = await env.ASSETS.fetch(indexRequest);
+
+        // 为SPA路由添加适当的缓存头
+        return new Response(indexResponse.body, {
+          status: indexResponse.status,
+          headers: {
+            ...Object.fromEntries(indexResponse.headers),
+            'Cache-Control': 'public, max-age=300',
+            'X-SPA-Route': 'true'
+          }
+        });
+      }
+
+      // 为静态资源添加优化的缓存头
+      if (response.ok) {
+        const isAsset = url.pathname.includes('/assets/') ||
+                       url.pathname.endsWith('.js') ||
+                       url.pathname.endsWith('.css') ||
+                       url.pathname.endsWith('.svg') ||
+                       url.pathname.endsWith('.png') ||
+                       url.pathname.endsWith('.jpg');
+
+        const cacheControl = isAsset
+          ? `public, max-age=${CACHE_CONFIG.STATIC_ASSETS}, immutable`
+          : 'public, max-age=3600';
+
+        return new Response(response.body, {
+          status: response.status,
+          headers: {
+            ...Object.fromEntries(response.headers),
+            'Cache-Control': cacheControl,
+            'X-Edge-Cache': 'optimized'
+          }
+        });
       }
 
       return response;
@@ -175,8 +232,6 @@ async function handleStaticAssets(request, env, ctx) {
       }
     });
   } catch (error) {
-    console.error('Static Assets Error:', error);
-
     // SPA 路由处理 - 返回 index.html
     return new Response(getIndexHTML(), {
       headers: {
@@ -232,6 +287,79 @@ function getCorsHeaders() {
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
   };
+}
+
+// 智能缓存处理
+async function handleCachedResponse(request, responseGenerator, maxAge, ctx = null) {
+  const cache = caches.default;
+  const cacheKey = new Request(request.url, request);
+
+  // 尝试从缓存获取
+  let response = await cache.match(cacheKey);
+
+  if (!response) {
+    // 缓存未命中，生成新响应
+    response = await responseGenerator();
+
+    // 添加缓存头
+    const newResponse = new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        ...Object.fromEntries(response.headers),
+        'Cache-Control': `public, max-age=${maxAge}`,
+        'X-Cache': 'MISS'
+      }
+    });
+
+    // 存入缓存（如果有ctx）
+    if (ctx) {
+      ctx.waitUntil(cache.put(cacheKey, newResponse.clone()));
+    }
+    return newResponse;
+  }
+
+  // 缓存命中
+  const cachedResponse = new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: {
+      ...Object.fromEntries(response.headers),
+      'X-Cache': 'HIT'
+    }
+  });
+
+  return cachedResponse;
+}
+
+// 添加安全头
+function addSecurityHeaders(response) {
+  const newHeaders = new Headers(response.headers);
+
+  // 安全头配置
+  newHeaders.set('X-Content-Type-Options', 'nosniff');
+  newHeaders.set('X-Frame-Options', 'DENY');
+  newHeaders.set('X-XSS-Protection', '1; mode=block');
+  newHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  newHeaders.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  // CSP for production
+  if (!response.headers.get('Content-Security-Policy')) {
+    newHeaders.set('Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: https:; " +
+      "connect-src 'self' https:; " +
+      "font-src 'self' data:;"
+    );
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: newHeaders
+  });
 }
 
 // 基础HTML页面（降级使用）

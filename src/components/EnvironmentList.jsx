@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Activity, Star, BarChart3 } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
 import { addStatusRecord } from '../utils/statusHistory';
@@ -129,13 +129,10 @@ const EnvironmentList = () => {
 
     try {
       // 使用精确检测方法
-      console.log('[CHECK] 调用checkMultipleEnvironments...');
       const results = await checkMultipleEnvironments(environments, (progress) => {
-        console.log('[CHECK] 检测进度:', progress);
         setCheckProgress(progress);
       });
 
-      console.log('[CHECK] 检测完成，结果:', results);
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
 
@@ -144,10 +141,8 @@ const EnvironmentList = () => {
       const totalCount = Object.keys(results).length;
       showSuccess(`检测完成！${availableCount}/${totalCount} 个环境可用`, 3000);
     } catch (error) {
-      console.error('[CHECK] 批量检测失败:', error);
       showError('检测过程中出现错误，请重试', 3000);
     } finally {
-      console.log('[CHECK] 检测结束，清理状态');
       setIsChecking(false);
       setCheckProgress(null);
     }

@@ -132,7 +132,6 @@ export const checkEnvironmentStatus = async (environment) => {
  * 批量检测多个环境
  */
 export const checkMultipleEnvironments = async (environments, onProgress) => {
-  console.log('[NETWORK] 开始批量检测，环境数量:', environments.length);
   const results = {};
   const total = environments.length;
   let completed = 0;

@@ -10,7 +10,6 @@ export const getStatusHistory = () => {
     const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
     return stored ? JSON.parse(stored) : {};
   } catch (error) {
-    console.error('获取状态历史失败:', error);
     return {};
   }
 };
@@ -20,7 +19,7 @@ export const saveStatusHistory = (history) => {
   try {
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
   } catch (error) {
-    console.error('保存状态历史失败:', error);
+    // 静默处理存储错误
   }
 };
 
