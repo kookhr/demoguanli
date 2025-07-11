@@ -1,0 +1,174 @@
+{
+  "version": "2.0.0",
+  "lastUpdated": "2024-01-15T10:30:00Z",
+  "environments": [
+    {
+      "id": "env-001",
+      "name": "开发环境",
+      "url": "https://dev.example.com",
+      "description": "主要开发环境，用于日常开发和调试",
+      "version": "1.2.3",
+      "type": "development",
+      "network": "external",
+      "groupId": "group-dev",
+      "tags": ["开发", "前端", "API"],
+      "priority": 1,
+      "isActive": true,
+      "metadata": {
+        "maintainer": "开发团队",
+        "deployBranch": "develop",
+        "lastDeploy": "2024-01-15T09:00:00Z",
+        "healthCheckPath": "/health",
+        "expectedStatusCode": 200,
+        "timeout": 10000
+      }
+    },
+    {
+      "id": "env-002",
+      "name": "测试环境",
+      "url": "https://test.example.com",
+      "description": "QA 测试环境，用于功能测试和回归测试",
+      "version": "1.2.2",
+      "type": "testing",
+      "network": "external",
+      "groupId": "group-test",
+      "tags": ["测试", "QA", "自动化"],
+      "priority": 2,
+      "isActive": true,
+      "metadata": {
+        "maintainer": "QA 团队",
+        "deployBranch": "test",
+        "lastDeploy": "2024-01-14T16:30:00Z",
+        "healthCheckPath": "/api/status",
+        "expectedStatusCode": 200,
+        "timeout": 15000
+      }
+    },
+    {
+      "id": "env-003",
+      "name": "预发布环境",
+      "url": "https://staging.example.com",
+      "description": "预发布环境，生产前最后验证",
+      "version": "1.2.1",
+      "type": "staging",
+      "network": "external",
+      "groupId": "group-prod",
+      "tags": ["预发布", "验证", "性能测试"],
+      "priority": 3,
+      "isActive": true,
+      "metadata": {
+        "maintainer": "运维团队",
+        "deployBranch": "staging",
+        "lastDeploy": "2024-01-13T14:00:00Z",
+        "healthCheckPath": "/",
+        "expectedStatusCode": 200,
+        "timeout": 8000
+      }
+    },
+    {
+      "id": "env-004",
+      "name": "生产环境",
+      "url": "https://prod.example.com",
+      "description": "生产环境，对外提供服务",
+      "version": "1.2.0",
+      "type": "production",
+      "network": "external",
+      "groupId": "group-prod",
+      "tags": ["生产", "稳定", "监控", "高可用"],
+      "priority": 4,
+      "isActive": true,
+      "metadata": {
+        "maintainer": "运维团队",
+        "deployBranch": "main",
+        "lastDeploy": "2024-01-12T10:00:00Z",
+        "healthCheckPath": "/api/health",
+        "expectedStatusCode": 200,
+        "timeout": 5000
+      }
+    },
+    {
+      "id": "env-005",
+      "name": "内网开发环境",
+      "url": "http://192.168.1.100:3000",
+      "description": "内网开发环境，仅内部访问",
+      "version": "1.3.0-dev",
+      "type": "development",
+      "network": "internal",
+      "groupId": "group-dev",
+      "tags": ["内网", "开发", "本地"],
+      "priority": 5,
+      "isActive": true,
+      "metadata": {
+        "maintainer": "开发团队",
+        "deployBranch": "feature/new-ui",
+        "lastDeploy": "2024-01-15T11:00:00Z",
+        "healthCheckPath": "/",
+        "expectedStatusCode": 200,
+        "timeout": 3000
+      }
+    },
+    {
+      "id": "env-006",
+      "name": "API 文档环境",
+      "url": "https://docs-api.example.com",
+      "description": "API 文档和接口测试环境",
+      "version": "1.2.0",
+      "type": "documentation",
+      "network": "external",
+      "groupId": "group-tools",
+      "tags": ["文档", "API", "Swagger"],
+      "priority": 6,
+      "isActive": true,
+      "metadata": {
+        "maintainer": "开发团队",
+        "deployBranch": "docs",
+        "lastDeploy": "2024-01-10T15:30:00Z",
+        "healthCheckPath": "/swagger-ui",
+        "expectedStatusCode": 200,
+        "timeout": 10000
+      }
+    },
+    {
+      "id": "env-007",
+      "name": "监控面板",
+      "url": "https://monitor.example.com",
+      "description": "系统监控和性能分析面板",
+      "version": "2.1.0",
+      "type": "monitoring",
+      "network": "external",
+      "groupId": "group-tools",
+      "tags": ["监控", "性能", "日志", "告警"],
+      "priority": 7,
+      "isActive": true,
+      "metadata": {
+        "maintainer": "运维团队",
+        "deployBranch": "monitor",
+        "lastDeploy": "2024-01-08T12:00:00Z",
+        "healthCheckPath": "/api/status",
+        "expectedStatusCode": 200,
+        "timeout": 12000
+      }
+    },
+    {
+      "id": "env-008",
+      "name": "备用环境",
+      "url": "https://backup.example.com",
+      "description": "备用环境，紧急情况使用",
+      "version": "1.1.9",
+      "type": "backup",
+      "network": "external",
+      "groupId": "group-prod",
+      "tags": ["备用", "应急", "灾备"],
+      "priority": 8,
+      "isActive": false,
+      "metadata": {
+        "maintainer": "运维团队",
+        "deployBranch": "backup",
+        "lastDeploy": "2024-01-05T09:00:00Z",
+        "healthCheckPath": "/",
+        "expectedStatusCode": 200,
+        "timeout": 15000
+      }
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+{
+  "version": "2.0.0",
+  "lastUpdated": "2024-01-15T10:30:00Z",
+  "app": {
+    "name": "环境管理系统",
+    "description": "基于配置文件的现代化环境管理系统",
+    "version": "2.0.0",
+    "author": "开发团队",
+    "homepage": "https://github.com/your-org/environment-manager",
+    "logo": "/assets/logo.svg",
+    "favicon": "/assets/favicon.ico"
+  },
+  "ui": {
+    "theme": {
+      "default": "light",
+      "allowToggle": true,
+      "followSystem": true
+    },
+    "layout": {
+      "gridColumns": {
+        "mobile": 1,
+        "tablet": 2,
+        "desktop": 3
+      },
+      "cardSpacing": "1.5rem",
+      "maxWidth": "7xl"
+    },
+    "animations": {
+      "enabled": true,
+      "duration": "300ms",
+      "easing": "cubic-bezier(0.4, 0, 0.2, 1)"
+    },
+    "colors": {
+      "primary": "#3B82F6",
+      "secondary": "#8B5CF6",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444",
+      "info": "#06B6D4"
+    }
+  },
+  "features": {
+    "statusCheck": {
+      "enabled": true,
+      "interval": 300000,
+      "timeout": 10000,
+      "retries": 3,
+      "methods": ["GET", "HEAD"],
+      "followRedirects": true,
+      "validateSSL": true
+    },
+    "search": {
+      "enabled": true,
+      "placeholder": "搜索环境名称、描述或URL...",
+      "caseSensitive": false,
+      "highlightResults": true
+    },
+    "filters": {
+      "enabled": true,
+      "showCounts": true,
+      "persistState": true,
+      "available": [
+        "type",
+        "network",
+        "status",
+        "group",
+        "tags"
+      ]
+    },
+    "favorites": {
+      "enabled": true,
+      "persistInLocalStorage": true,
+      "showInSidebar": true,
+      "maxCount": 50
+    },
+    "history": {
+      "enabled": true,
+      "maxRecords": 1000,
+      "retentionDays": 30,
+      "persistInLocalStorage": true
+    },
+    "export": {
+      "enabled": true,
+      "formats": ["json", "csv", "yaml"],
+      "includeHistory": false,
+      "includeSettings": true
+    },
+    "notifications": {
+      "enabled": true,
+      "position": "top-right",
+      "duration": 5000,
+      "showProgress": true
+    }
+  },
+  "statusCheck": {
+    "defaultTimeout": 10000,
+    "defaultRetries": 3,
+    "userAgent": "Environment-Manager/2.0.0",
+    "headers": {
+      "Accept": "text/html,application/json,*/*",
+      "Cache-Control": "no-cache"
+    },
+    "statusMapping": {
+      "available": {
+        "codes": [200, 201, 202, 204, 301, 302, 304],
+        "color": "#10B981",
+        "icon": "check-circle",
+        "label": "可用"
+      },
+      "error": {
+        "codes": [400, 401, 403, 404, 405, 500, 502, 503, 504],
+        "color": "#F59E0B",
+        "icon": "alert-circle",
+        "label": "错误"
+      },
+      "unreachable": {
+        "codes": [],
+        "color": "#EF4444",
+        "icon": "x-circle",
+        "label": "不可达"
+      },
+      "checking": {
+        "codes": [],
+        "color": "#3B82F6",
+        "icon": "loader",
+        "label": "检测中"
+      },
+      "unknown": {
+        "codes": [],
+        "color": "#6B7280",
+        "icon": "help-circle",
+        "label": "未知"
+      }
+    }
+  },
+  "tags": {
+    "predefined": [
+      { "name": "开发", "color": "#10B981" },
+      { "name": "测试", "color": "#3B82F6" },
+      { "name": "生产", "color": "#EF4444" },
+      { "name": "API", "color": "#8B5CF6" },
+      { "name": "前端", "color": "#06B6D4" },
+      { "name": "后端", "color": "#F59E0B" },
+      { "name": "数据库", "color": "#84CC16" },
+      { "name": "监控", "color": "#EC4899" },
+      { "name": "文档", "color": "#6366F1" },
+      { "name": "工具", "color": "#14B8A6" }
+    ],
+    "allowCustom": true,
+    "maxPerEnvironment": 10,
+    "colorPalette": [
+      "#EF4444", "#F59E0B", "#10B981", "#06B6D4", "#3B82F6",
+      "#8B5CF6", "#EC4899", "#F97316", "#84CC16", "#14B8A6"
+    ]
+  },
+  "performance": {
+    "lazyLoading": true,
+    "virtualScrolling": false,
+    "debounceSearch": 300,
+    "cacheTimeout": 300000,
+    "maxConcurrentChecks": 10
+  },
+  "security": {
+    "allowedDomains": [],
+    "blockPrivateIPs": false,
+    "validateURLs": true,
+    "sanitizeInputs": true
+  },
+  "accessibility": {
+    "highContrast": false,
+    "reducedMotion": false,
+    "screenReader": true,
+    "keyboardNavigation": true
+  },
+  "development": {
+    "debug": false,
+    "mockData": false,
+    "showPerformanceMetrics": false,
+    "enableDevTools": false
+  }
+}

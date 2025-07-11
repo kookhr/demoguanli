@@ -1,0 +1,62 @@
+{
+  "version": "2.0.0",
+  "lastUpdated": "2024-01-15T10:30:00Z",
+  "groups": [
+    {
+      "id": "group-dev",
+      "name": "开发环境",
+      "description": "开发阶段使用的环境",
+      "color": "#10B981",
+      "icon": "code",
+      "sortOrder": 1,
+      "isCollapsed": false,
+      "metadata": {
+        "team": "开发团队",
+        "contact": "dev-team@example.com",
+        "documentation": "https://wiki.example.com/dev-environments"
+      }
+    },
+    {
+      "id": "group-test",
+      "name": "测试环境",
+      "description": "测试阶段使用的环境",
+      "color": "#3B82F6",
+      "icon": "test-tube",
+      "sortOrder": 2,
+      "isCollapsed": false,
+      "metadata": {
+        "team": "QA 团队",
+        "contact": "qa-team@example.com",
+        "documentation": "https://wiki.example.com/test-environments"
+      }
+    },
+    {
+      "id": "group-prod",
+      "name": "生产环境",
+      "description": "生产和预发布环境",
+      "color": "#EF4444",
+      "icon": "server",
+      "sortOrder": 3,
+      "isCollapsed": false,
+      "metadata": {
+        "team": "运维团队",
+        "contact": "ops-team@example.com",
+        "documentation": "https://wiki.example.com/prod-environments"
+      }
+    },
+    {
+      "id": "group-tools",
+      "name": "工具和服务",
+      "description": "辅助工具和服务环境",
+      "color": "#8B5CF6",
+      "icon": "wrench",
+      "sortOrder": 4,
+      "isCollapsed": true,
+      "metadata": {
+        "team": "平台团队",
+        "contact": "platform-team@example.com",
+        "documentation": "https://wiki.example.com/tools"
+      }
+    }
+  ]
+}
