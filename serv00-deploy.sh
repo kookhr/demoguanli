@@ -416,102 +416,10 @@ download_project() {
     print_success "项目文件下载完成"
 }
 
-# 构建前端
-build_frontend() {
-    print_step "构建前端项目..."
-
-    # 检查是否有预构建的 dist 目录
-    if [ -d "dist" ]; then
-        print_success "发现预构建的前端文件"
-
-        # 将 dist 目录内容移动到安装目录
-        print_step "部署前端文件到安装目录..."
-        cp -r dist/* "$INSTALL_DIR/"
-        print_success "前端文件部署完成"
-        return
-    fi
-
-    # 检查项目结构
-    if [ ! -f "package.json" ]; then
-        print_error "未找到 package.json，项目结构不完整"
-        exit 1
-    fi
-
-    if [ ! -d "src" ]; then
-        print_error "未找到 src 目录，项目结构不完整"
-        exit 1
-    fi
-
-    # 检查并创建 index.html 入口文件
-    if [ ! -f "index.html" ]; then
-        print_warning "未找到 index.html 入口文件，正在创建..."
-        create_index_html
-    fi
-
-    # 检查并修复 Vite 配置
-    check_and_fix_vite_config
-
-    # 如果有 Node.js，尝试构建
-    if command_exists npm; then
-        print_step "检查 Node.js 版本..."
-        local node_version=$(node --version | sed 's/v//')
-        print_info "当前 Node.js 版本: $node_version"
-
-        # 清理旧的构建文件
-        if [ -d "dist" ]; then
-            print_step "清理旧的构建文件..."
-            rm -rf dist
-        fi
-
-        print_step "安装依赖包..."
-        npm install --no-audit --no-fund
-
-        print_step "构建前端项目..."
-        if npm run build; then
-            print_success "前端构建成功"
-
-            # 验证构建结果
-            if [ -f "dist/index.html" ]; then
-                print_success "构建产物验证通过"
-
-                # 将构建结果移动到安装目录
-                print_step "部署前端文件到安装目录..."
-                cp -r dist/* "$INSTALL_DIR/"
-                print_success "前端文件部署完成"
-
-                # 显示部署结果
-                print_info "部署文件列表:"
-                ls -la "$INSTALL_DIR/index.html" "$INSTALL_DIR/assets/" 2>/dev/null || ls -la "$INSTALL_DIR/index.html"
-            else
-                print_error "构建失败：未生成 index.html"
-                exit 1
-            fi
-        else
-            print_error "前端构建失败，正在尝试修复..."
-
-            # 尝试修复构建问题
-            fix_build_issues
-
-            # 重新尝试构建
-            print_step "重新尝试构建..."
-            if npm run build; then
-                print_success "修复后构建成功"
-                cp -r dist/* "$INSTALL_DIR/"
-                print_success "前端文件部署完成"
-            else
-                print_error "构建修复失败，请检查项目配置"
-                exit 1
-            fi
-        fi
-    elif command_exists node; then
-        print_step "检测到 Node.js 但未找到 npm..."
-        node --version
-        print_error "请安装 npm 或确保项目包含预构建的 dist 目录"
-        exit 1
-    else
-        print_error "未找到 Node.js，请确保项目包含预构建的 dist 目录"
-        exit 1
-    fi
+# 跳过前端构建（传统 Web 应用不需要）
+skip_frontend_build() {
+    print_step "跳过前端构建（传统 Web 应用模式）..."
+    print_success "传统 Web 应用不需要前端构建步骤"
 }
 
 # 配置数据库和连接检查
@@ -679,14 +587,14 @@ configure_php() {
     fi
 
     # 创建 PHP 配置文件
-    cat > config.php << EOF
+    cat > config.php << 'EOF'
 <?php
 // 数据库配置
-define('DB_HOST', '$DB_HOST');
-define('DB_NAME', '$DB_NAME');
-define('DB_USER', '$DB_USER');
-define('DB_PASS', '$DB_PASS');
-define('APP_DOMAIN', '$DOMAIN_NAME');
+define('DB_HOST', 'PLACEHOLDER_DB_HOST');
+define('DB_NAME', 'PLACEHOLDER_DB_NAME');
+define('DB_USER', 'PLACEHOLDER_DB_USER');
+define('DB_PASS', 'PLACEHOLDER_DB_PASS');
+define('APP_DOMAIN', 'PLACEHOLDER_DOMAIN_NAME');
 
 // 应用配置
 define('APP_NAME', '环境管理系统');
@@ -705,11 +613,11 @@ ini_set('error_log', '/tmp/serv00-php-errors.log');
 
 // 数据库连接函数
 function getDatabase() {
-    static \$pdo = null;
+    static $pdo = null;
 
-    if (\$pdo === null) {
+    if ($pdo === null) {
         try {
-            \$pdo = new PDO(
+            $pdo = new PDO(
                 "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
                 DB_USER,
                 DB_PASS,
@@ -719,13 +627,13 @@ function getDatabase() {
                     PDO::ATTR_EMULATE_PREPARES => false,
                 ]
             );
-        } catch (PDOException \$e) {
-            error_log("数据库连接失败: " . \$e->getMessage());
+        } catch (PDOException $e) {
+            error_log("数据库连接失败: " . $e->getMessage());
             die("数据库连接失败，请联系管理员");
         }
     }
 
-    return \$pdo;
+    return $pdo;
 }
 
 // 启动会话
@@ -733,39 +641,46 @@ session_start();
 
 // 检查用户是否已登录
 function isLoggedIn() {
-    return isset(\$_SESSION['user_id']) && isset(\$_SESSION['username']);
+    return isset($_SESSION['user_id']) && isset($_SESSION['username']);
 }
 
 // 检查是否为管理员
 function isAdmin() {
-    return isLoggedIn() && (\$_SESSION['role'] ?? '') === 'admin';
+    return isLoggedIn() && ($_SESSION['role'] ?? '') === 'admin';
 }
 
 // 重定向函数
-function redirect(\$url) {
-    header("Location: \$url");
+function redirect($url) {
+    header("Location: $url");
     exit();
 }
 
 // 安全的输出函数
-function h(\$string) {
-    return htmlspecialchars(\$string, ENT_QUOTES, 'UTF-8');
+function h($string) {
+    return htmlspecialchars($string, ENT_QUOTES, 'UTF-8');
 }
 
 // 生成 CSRF Token
 function generateCSRFToken() {
-    if (!isset(\$_SESSION['csrf_token'])) {
-        \$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    if (!isset($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
-    return \$_SESSION['csrf_token'];
+    return $_SESSION['csrf_token'];
 }
 
 // 验证 CSRF Token
-function validateCSRFToken(\$token) {
-    return isset(\$_SESSION['csrf_token']) && hash_equals(\$_SESSION['csrf_token'], \$token);
+function validateCSRFToken($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 ?>
 EOF
+
+    # 替换占位符为实际值
+    sed -i "s/PLACEHOLDER_DB_HOST/$DB_HOST/g" config.php
+    sed -i "s/PLACEHOLDER_DB_NAME/$DB_NAME/g" config.php
+    sed -i "s/PLACEHOLDER_DB_USER/$DB_USER/g" config.php
+    sed -i "s/PLACEHOLDER_DB_PASS/$DB_PASS/g" config.php
+    sed -i "s/PLACEHOLDER_DOMAIN_NAME/$DOMAIN_NAME/g" config.php
 
     print_success "PHP 配置文件已创建"
 }
@@ -1430,7 +1345,44 @@ try {
 ?>
 EOF
 
+    # 创建简单的 PHP 测试文件
+    cat > test.php << 'EOF'
+<?php
+// 简单的 PHP 测试文件
+phpinfo();
+?>
+EOF
+
+    # 创建基础测试文件
+    cat > test-basic.php << 'EOF'
+<?php
+// 基础 PHP 测试
+echo "PHP 工作正常！<br>";
+echo "PHP 版本: " . PHP_VERSION . "<br>";
+echo "当前时间: " . date('Y-m-d H:i:s') . "<br>";
+
+// 测试数据库连接
+try {
+    if (file_exists('config.php')) {
+        require_once 'config.php';
+        $pdo = getDatabase();
+        echo "数据库连接成功！<br>";
+
+        // 测试查询
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM environments");
+        $result = $stmt->fetch();
+        echo "环境数量: " . $result['count'] . "<br>";
+    } else {
+        echo "配置文件不存在<br>";
+    }
+} catch (Exception $e) {
+    echo "数据库连接失败: " . $e->getMessage() . "<br>";
+}
+?>
+EOF
+
     print_success "编辑和删除环境 PHP 页面已创建"
+    print_success "测试 PHP 文件已创建"
 }
 
 # 设置权限
@@ -1479,6 +1431,24 @@ verify_installation() {
     # 测试 Web 应用功能
     if command_exists curl; then
         print_step "测试 Web 应用功能..."
+
+        # 测试基础 PHP 功能
+        local basic_test_url="https://$DOMAIN_NAME/test-basic.php"
+        print_step "测试基础 PHP 功能: $basic_test_url"
+        local basic_response=$(curl -s -o /dev/null -w "%{http_code}" "$basic_test_url" 2>/dev/null || echo "000")
+
+        case $basic_response in
+            200)
+                print_success "✓ 基础 PHP 功能正常 (HTTP $basic_response)"
+                ;;
+            *)
+                print_error "✗ 基础 PHP 功能异常 (HTTP $basic_response)"
+                print_warning "这表明 PHP 执行有问题，请检查："
+                echo "   1. PHP 是否正确安装"
+                echo "   2. 文件权限是否正确"
+                echo "   3. Apache 配置是否正确"
+                ;;
+        esac
 
         # 测试登录页面
         local login_url="https://$DOMAIN_NAME/login.php"
@@ -1555,6 +1525,8 @@ show_results() {
     echo "   删除环境: 在主页点击环境卡片的删除按钮"
     echo
     print_message $CYAN "🔍 测试和诊断:"
+    echo "   基础 PHP 测试: https://$DOMAIN_NAME/test-basic.php"
+    echo "   PHP 信息页面: https://$DOMAIN_NAME/test.php"
     echo "   数据库连接测试: https://$DOMAIN_NAME/test-db-connection.php"
     echo
     print_message $CYAN "👤 默认管理员账户:"
@@ -1601,6 +1573,9 @@ main() {
 
     # 下载项目
     download_project
+
+    # 跳过前端构建
+    skip_frontend_build
 
     # 配置数据库
     setup_database
