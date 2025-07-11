@@ -110,7 +110,7 @@ export const sortEnvironments = (environments, sortBy = 'custom') => {
     case 'name':
       return [...environments].sort((a, b) => a.name.localeCompare(b.name));
       
-    case 'type':
+    case 'type': {
       const typeOrder = ['production', 'staging', 'testing', 'development'];
       return [...environments].sort((a, b) => {
         const aIndex = typeOrder.indexOf(a.type);
@@ -122,6 +122,7 @@ export const sortEnvironments = (environments, sortBy = 'custom') => {
         
         return a.name.localeCompare(b.name);
       });
+    }
       
     case 'network':
       return [...environments].sort((a, b) => {
@@ -218,7 +219,7 @@ export const importPreferences = (file) => {
         }
         
         resolve(preferences);
-      } catch (error) {
+      } catch {
         reject(new Error('无效的配置文件格式'));
       }
     };

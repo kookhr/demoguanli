@@ -59,7 +59,7 @@ export const deepClone = (obj) => {
   if (typeof obj === 'object') {
     const clonedObj = {};
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         clonedObj[key] = deepClone(obj[key]);
       }
     }
@@ -146,7 +146,7 @@ export const isMixedContentScenario = (url) => {
     }
     
     return true;
-  } catch (error) {
+  } catch {
     return true;
   }
 };
@@ -160,7 +160,7 @@ export const getBaseUrl = (url) => {
   try {
     const urlObj = new URL(url);
     return `${urlObj.protocol}//${urlObj.host}`;
-  } catch (error) {
+  } catch {
     // 如果URL解析失败，尝试简单处理
     return url.split('/').slice(0, 3).join('/');
   }

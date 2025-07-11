@@ -1,6 +1,7 @@
 // 配置管理工具 - 使用 Cloudflare KV
 import { kvApi } from './kvApi.js';
 import { environments as defaultEnvironments } from '../data/environments.js';
+import { generateId } from './common.js';
 
 const KV_KEY = 'environments';
 
@@ -74,38 +75,27 @@ export const deleteEnvironment = async (id) => {
   }
 };
 
-// 生成唯一ID
-const generateId = () => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-};
+
 
 // 导出配置
 export const exportConfig = async () => {
-  try {
-    const environments = await getEnvironments();
-    const config = {
-      version: '1.0',
-      timestamp: new Date().toISOString(),
-      environments
-    };
-    return JSON.stringify(config, null, 2);
-  } catch (error) {
-    throw error;
-  }
+  const environments = await getEnvironments();
+  const config = {
+    version: '1.0',
+    timestamp: new Date().toISOString(),
+    environments
+  };
+  return JSON.stringify(config, null, 2);
 };
 
 // 导入配置
 export const importConfig = async (configString) => {
-  try {
-    const config = JSON.parse(configString);
-    if (config.environments && Array.isArray(config.environments)) {
-      await saveEnvironments(config.environments);
-      return config.environments;
-    }
-    return false;
-  } catch (error) {
-    throw error;
+  const config = JSON.parse(configString);
+  if (config.environments && Array.isArray(config.environments)) {
+    await saveEnvironments(config.environments);
+    return config.environments;
   }
+  return false;
 };
 
 

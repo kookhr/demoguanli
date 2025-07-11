@@ -5,81 +5,69 @@ class KVApiClient {
   }
 
   // 获取数据
-  async get(key, type = 'json') {
-    try {
-      const response = await fetch(`${this.baseUrl}?action=get&key=${encodeURIComponent(key)}`);
+  async get(key) {
+    const response = await fetch(`${this.baseUrl}?action=get&key=${encodeURIComponent(key)}`);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
-      const result = await response.json();
+    const result = await response.json();
 
-      if (result.success) {
-        return result.data;
-      } else {
-        throw new Error(result.error || 'KV GET 操作失败');
-      }
-    } catch (error) {
-      throw error;
+    if (result.success) {
+      return result.data;
+    } else {
+      throw new Error(result.error || 'KV GET 操作失败');
     }
   }
 
   // 存储数据
   async put(key, value) {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          action: 'put',
-          key,
-          value
-        })
-      });
+    const response = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'put',
+        key,
+        value
+      })
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'KV PUT 操作失败');
-      }
-
-      return true;
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'KV PUT 操作失败');
+    }
+
+    return true;
   }
 
   // 删除数据
   async delete(key) {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          action: 'delete',
-          key
-        })
-      });
+    const response = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'delete',
+        key
+      })
+    });
 
-      const result = await response.json();
+    const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || 'KV DELETE 操作失败');
-      }
-
-      return true;
-    } catch (error) {
-      throw error;
+    if (!result.success) {
+      throw new Error(result.error || 'KV DELETE 操作失败');
     }
+
+    return true;
   }
 }
 

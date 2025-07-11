@@ -13,7 +13,7 @@ const CACHE_DURATION = 30000; // 30秒缓存
 // 简化检测配置
 const SIMPLE_CHECK_CONFIG = {
   timeout: 5000,           // 统一5秒超时
-  concurrency: 4,          // 并发数
+  concurrency: 6,          // 提升并发数到6
   methods: ['HEAD', 'GET'], // 简化的检测方法
   retryCount: 1,           // 重试次数
   cacheEnabled: true       // 启用缓存
@@ -76,7 +76,7 @@ const checkNetworkReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeo
     clearTimeout(timeoutId);
     return { reachable: true };
 
-  } catch (error) {
+  } catch {
     clearTimeout(timeoutId);
     return { reachable: false };
   }

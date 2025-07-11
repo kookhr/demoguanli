@@ -1,4 +1,4 @@
-import React, { useState, memo, useMemo } from 'react';
+import React, { useState, memo } from 'react';
 import { Tag, Plus, X } from 'lucide-react';
 import { getTagColor } from '../utils/common';
 // 预定义颜色数组，用于基于位置分配颜色
@@ -82,6 +82,8 @@ const SimpleTagList = ({
   onRemove,
   expandable = false
 }) => {
+  const [showAll, setShowAll] = useState(false);
+
   if (!tags || tags.length === 0) {
     return (
       <span className="text-xs text-gray-400 italic">
@@ -89,8 +91,6 @@ const SimpleTagList = ({
       </span>
     );
   }
-
-  const [showAll, setShowAll] = useState(false);
   const visibleTags = (expandable && showAll) ? tags : tags.slice(0, maxVisible);
   const hiddenCount = tags.length - maxVisible;
 

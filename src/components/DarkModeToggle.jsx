@@ -82,7 +82,7 @@ const DarkModeToggle = ({ className = '', showLabel = false, variant = 'button' 
 
 // 高级三态切换组件（浅色/深色/跟随系统）
 export const AdvancedDarkModeToggle = ({ className = '' }) => {
-  const { isDarkMode, setDarkMode } = useDarkMode();
+  const { setDarkMode } = useDarkMode();
   const [mode, setMode] = React.useState(() => {
     const stored = localStorage.getItem('darkMode');
     if (stored === null) return 'system';
@@ -99,12 +99,13 @@ export const AdvancedDarkModeToggle = ({ className = '' }) => {
       case 'dark':
         setDarkMode(true);
         break;
-      case 'system':
+      case 'system': {
         localStorage.removeItem('darkMode');
         // 跟随系统偏好
         const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         setDarkMode(systemDark);
         break;
+      }
     }
   };
 
@@ -116,9 +117,9 @@ export const AdvancedDarkModeToggle = ({ className = '' }) => {
 
   return (
     <div className={`flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 ${className}`}>
-      {modes.map(({ key, label, icon: Icon }) => (
+      {modes.map(({ key, label, icon: IconComponent }, index) => (
         <button
-          key={key}
+          key={key || index}
           onClick={() => handleModeChange(key)}
           className={`
             flex items-center gap-1 px-3 py-1 rounded text-xs font-medium transition-all duration-200
@@ -129,7 +130,7 @@ export const AdvancedDarkModeToggle = ({ className = '' }) => {
           `}
           title={label}
         >
-          <Icon className="w-3 h-3" />
+          <IconComponent className="w-3 h-3" />
           <span className="hidden sm:inline">{label}</span>
         </button>
       ))}

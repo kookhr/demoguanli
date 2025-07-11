@@ -150,7 +150,7 @@ const EnvironmentList = () => {
 
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
-    } catch (error) {
+    } catch {
       // 批量检测失败，保持静默
     } finally {
       setIsChecking(false);
@@ -215,10 +215,11 @@ const EnvironmentList = () => {
       case 'visit':
         window.open(environment.url, '_blank');
         break;
-      case 'toggle_favorite':
+      case 'toggle_favorite': {
         const newFavorites = toggleFavorite(environment.id);
         setFavorites(newFavorites);
         break;
+      }
       case 'view_history':
         setSelectedEnvironmentForHistory(environment);
         setShowHistory(true);

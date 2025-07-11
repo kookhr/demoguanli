@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React, { memo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Settings, Monitor, Sparkles, Users } from 'lucide-react';
 import { UserInfo, useAuth } from './AuthProvider';
-import { isAdmin, hasPermission } from '../utils/auth';
+import { hasPermission } from '../utils/auth';
 import DarkModeToggle from './DarkModeToggle';
 
 const Navigation = () => {
   const location = useLocation();
   const { user } = useAuth();
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // 基础导航项
   const baseNavItems = [
@@ -102,7 +101,7 @@ const Navigation = () => {
             <DarkModeToggle />
 
             {/* 用户信息 */}
-            <UserInfo onChangePassword={() => setShowPasswordModal(true)} />
+            <UserInfo />
           </div>
         </div>
       </div>
@@ -110,4 +109,4 @@ const Navigation = () => {
   );
 };
 
-export default Navigation;
+export default memo(Navigation);

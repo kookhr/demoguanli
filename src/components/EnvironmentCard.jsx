@@ -123,7 +123,6 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
   const statusInfo = useMemo(() => {
     switch (status?.status) {
       case 'available':
-      // 兼容旧状态类型
       case 'online':
       case 'cors-bypassed':
       case 'image-reachable':
@@ -139,7 +138,6 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           description: '网络可达'
         };
       case 'unreachable':
-      // 兼容旧状态类型
       case 'offline':
       case 'error':
       case 'server-error':

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -316,4 +316,4 @@ const StatusHistoryChart = ({ environmentId, environment }) => {
   );
 };
 
-export default StatusHistoryChart;
+export default memo(StatusHistoryChart);
