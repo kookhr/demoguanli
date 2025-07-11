@@ -148,25 +148,36 @@ async function handleKVPost(request, env) {
 
 // 静态资源处理
 async function handleStaticAssets(request, env, ctx) {
+  const url = new URL(request.url);
+
   try {
     // 使用最新的Assets绑定
     if (env.ASSETS) {
-      return await env.ASSETS.fetch(request);
+      // 尝试获取静态资源
+      const response = await env.ASSETS.fetch(request);
+
+      // 如果是404且不是API路径，返回index.html用于SPA路由
+      if (response.status === 404 && !url.pathname.startsWith('/api/')) {
+        const indexRequest = new Request(new URL('/index.html', request.url), request);
+        return await env.ASSETS.fetch(indexRequest);
+      }
+
+      return response;
     }
 
     // 降级处理 - 返回基础HTML
     return new Response(getIndexHTML(), {
-      headers: { 
+      headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=3600'
       }
     });
   } catch (error) {
     console.error('Static Assets Error:', error);
-    
+
     // SPA 路由处理 - 返回 index.html
     return new Response(getIndexHTML(), {
-      headers: { 
+      headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'public, max-age=300'
       }
