@@ -3,17 +3,23 @@
  * 环境管理系统 - 集成高级Workers特性
  */
 
-// 缓存配置
+// 缓存配置 - 优化性能和KV使用量
 const CACHE_CONFIG = {
   STATIC_ASSETS: 86400,    // 静态资源缓存24小时
-  API_RESPONSES: 300,      // API响应缓存5分钟
-  HEALTH_CHECK: 60         // 健康检查缓存1分钟
+  API_RESPONSES: 600,      // API响应缓存10分钟（减少KV读取）
+  HEALTH_CHECK: 300,       // 健康检查缓存5分钟（减少频繁请求）
+  KV_CACHE: 1800          // KV数据缓存30分钟（新增）
+};
+
+// 安全配置
+const SECURITY_CONFIG = {
+  MAX_LOGIN_ATTEMPTS: 5,   // 最大登录尝试次数
+  LOGIN_COOLDOWN: 900,     // 登录冷却时间15分钟
+  JWT_EXPIRY: 86400       // JWT过期时间24小时
 };
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-
     try {
       // 添加安全头
       const response = await handleRequest(request, env, ctx);

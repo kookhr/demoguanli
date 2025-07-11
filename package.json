@@ -10,8 +10,7 @@
     "preview": "vite preview",
     "workers:dev": "wrangler dev",
     "workers:deploy": "npm run build && wrangler deploy",
-    "workers:deploy:staging": "npm run build && wrangler deploy --env staging",
-    "workers:deploy:production": "npm run build && wrangler deploy --env production"
+    "test:deployment": "node test-deployment.js"
   },
   "dependencies": {
     "lucide-react": "^0.511.0",

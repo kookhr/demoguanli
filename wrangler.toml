@@ -1,27 +1,16 @@
-# Cloudflare Workers 配置文件
-# 环境管理系统 - 基于您现有的项目结构
-
 name = "environment-manager"
 main = "src/worker.js"
 compatibility_date = "2025-01-15"
 compatibility_flags = ["nodejs_compat"]
 
-# 静态资源配置 - 使用最新的Static Assets功能
 [assets]
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# KV 存储绑定已在 Cloudflare Dashboard 中配置
-# 绑定名称: ENV_CONFIG
-# 命名空间: demo-workers
+# 所有敏感配置已在 Cloudflare Dashboard 中配置:
+# - KV 绑定: ENV_CONFIG → demo-workers
+# - 环境变量: JWT_SECRET 等
 
-# 环境变量已在 Cloudflare Dashboard 中配置
-# 如需添加变量，请在 Dashboard > Settings > Variables 中配置
-
-
-
-
-# Workers.dev 子域名配置
 workers_dev = true
 
