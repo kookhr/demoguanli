@@ -1,0 +1,60 @@
+# Cloudflare Workers 配置文件
+# 环境管理系统 - 基于您现有的项目结构
+
+name = "environment-manager"
+main = "src/worker.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# 静态资源配置 - 使用最新的Static Assets功能
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# KV 存储绑定
+[[kv_namespaces]]
+binding = "ENV_CONFIG"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+# 环境变量
+[vars]
+ENVIRONMENT = "production"
+APP_VERSION = "2.0.0"
+
+# 开发环境配置
+[env.development]
+name = "environment-manager-dev"
+vars = { ENVIRONMENT = "development", DEBUG = "true" }
+
+# 预生产环境配置
+[env.staging]
+name = "environment-manager-staging"
+vars = { ENVIRONMENT = "staging" }
+
+# 生产环境配置
+[env.production]
+name = "environment-manager-prod"
+vars = { ENVIRONMENT = "production" }
+
+# Workers.dev 子域名配置
+workers_dev = true
+
+# 智能放置配置
+[placement]
+mode = "smart"
+
+# 构建配置
+[build]
+command = "npm run build"
+cwd = "."
+watch_dir = ["src", "functions"]
+
+# 限制配置
+[limits]
+cpu_ms = 50
+
+# 观察性配置
+[observability]
+enabled = true
