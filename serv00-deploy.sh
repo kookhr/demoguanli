@@ -514,25 +514,44 @@ build_frontend() {
     fi
 }
 
-# 配置数据库
+# 配置数据库和连接检查
 setup_database() {
-    print_step "配置数据库..."
+    print_step "配置数据库和连接检查..."
 
     # 测试数据库连接
     print_step "测试数据库连接..."
-    if mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" -e "SELECT 1;" >/dev/null 2>&1; then
-        print_success "数据库连接成功"
-    else
-        print_error "数据库连接失败，请检查以下配置："
-        echo "   数据库主机: $DB_HOST"
-        echo "   数据库用户: $DB_USER"
-        echo "   数据库名称: $DB_NAME"
-        print_warning "请确保："
-        echo "   1. 数据库用户名和密码正确"
-        echo "   2. 数据库名称已在 Serv00 面板中创建"
-        echo "   3. 用户有访问该数据库的权限"
-        exit 1
-    fi
+    local connection_attempts=0
+    local max_attempts=3
+
+    while [ $connection_attempts -lt $max_attempts ]; do
+        if mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" -e "SELECT 1;" >/dev/null 2>&1; then
+            print_success "数据库连接成功"
+            break
+        else
+            ((connection_attempts++))
+            if [ $connection_attempts -lt $max_attempts ]; then
+                print_warning "数据库连接失败，重试中... ($connection_attempts/$max_attempts)"
+                sleep 2
+            else
+                print_error "数据库连接失败，已尝试 $max_attempts 次"
+                print_error "请检查以下配置："
+                echo "   数据库主机: $DB_HOST"
+                echo "   数据库用户: $DB_USER"
+                echo "   数据库名称: $DB_NAME"
+                print_warning "请确保："
+                echo "   1. 数据库用户名和密码正确"
+                echo "   2. 数据库名称已在 Serv00 面板中创建"
+                echo "   3. 用户有访问该数据库的权限"
+                echo "   4. 网络连接正常"
+
+                # 提供诊断命令
+                print_info "诊断命令："
+                echo "   测试连接: mysql -h$DB_HOST -u$DB_USER -p"
+                echo "   查看数据库: SHOW DATABASES;"
+                exit 1
+            fi
+        fi
+    done
 
     # 检查数据库是否存在
     print_step "检查数据库是否存在..."
@@ -546,6 +565,10 @@ setup_database() {
         echo "   2. 进入 'MySQL' 部分"
         echo "   3. 创建数据库: $DB_NAME"
         echo "   4. 确保用户 $DB_USER 有访问权限"
+
+        # 尝试列出可用数据库
+        print_info "当前可用数据库："
+        mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" -e "SHOW DATABASES;" 2>/dev/null | grep -v "information_schema\|performance_schema\|mysql" || echo "   无法获取数据库列表"
         exit 1
     fi
 
@@ -555,6 +578,8 @@ setup_database() {
 
     if [ "$table_count" -gt 1 ]; then
         print_warning "数据库已包含表，跳过初始化"
+        print_info "现有表："
+        mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "SHOW TABLES;" 2>/dev/null | tail -n +2 | sed 's/^/   /'
         print_info "如需重新初始化，请手动清空数据库"
     else
         # 导入数据库结构
@@ -562,16 +587,82 @@ setup_database() {
             print_step "导入数据库结构..."
             if mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" < database/init.sql 2>/dev/null; then
                 print_success "数据库初始化完成"
+
+                # 验证表创建
+                new_table_count=$(mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "SHOW TABLES;" 2>/dev/null | wc -l)
+                if [ "$new_table_count" -gt 1 ]; then
+                    print_success "数据库表创建成功 ($((new_table_count-1)) 个表)"
+                    mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "SHOW TABLES;" 2>/dev/null | tail -n +2 | sed 's/^/   /'
+                else
+                    print_warning "数据库初始化可能不完整"
+                fi
             else
                 print_error "数据库初始化失败"
                 print_info "请检查 database/init.sql 文件是否正确"
+
+                # 显示 SQL 文件信息
+                if [ -f "database/init.sql" ]; then
+                    print_info "SQL 文件信息："
+                    echo "   文件大小: $(wc -c < database/init.sql) 字节"
+                    echo "   行数: $(wc -l < database/init.sql) 行"
+                    echo "   前几行内容:"
+                    head -5 database/init.sql | sed 's/^/   /'
+                fi
                 exit 1
             fi
         else
             print_error "未找到数据库初始化文件"
+            print_info "查找数据库文件..."
+            find . -name "*.sql" -type f | head -5 | sed 's/^/   /'
             exit 1
         fi
     fi
+
+    # 测试数据库连接的 PHP 函数
+    print_step "创建数据库连接测试..."
+    cat > test-db-connection.php << EOF
+<?php
+// 数据库连接测试
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+header('Content-Type: application/json; charset=utf-8');
+
+try {
+    \$pdo = new PDO(
+        "mysql:host=$DB_HOST;dbname=$DB_NAME;charset=utf8mb4",
+        "$DB_USER",
+        "$DB_PASS",
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_TIMEOUT => 10
+        ]
+    );
+
+    \$stmt = \$pdo->query("SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = '$DB_NAME'");
+    \$result = \$stmt->fetch();
+
+    echo json_encode([
+        'status' => 'success',
+        'message' => '数据库连接成功',
+        'database' => '$DB_NAME',
+        'table_count' => \$result['table_count'],
+        'timestamp' => date('Y-m-d H:i:s')
+    ], JSON_PRETTY_PRINT);
+
+} catch (PDOException \$e) {
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => \$e->getMessage(),
+        'timestamp' => date('Y-m-d H:i:s')
+    ], JSON_PRETTY_PRINT);
+}
+?>
+EOF
+
+    print_success "数据库连接测试文件已创建"
 }
 
 # 配置 PHP
@@ -611,9 +702,9 @@ EOF
     print_success "PHP 配置完成"
 }
 
-# 配置 Apache
+# 配置 Apache 和 HTTPS API 修复
 configure_apache() {
-    print_step "配置 Apache..."
+    print_step "配置 Apache 和 HTTPS API 修复..."
 
     # 确保在正确的目录
     cd "$INSTALL_DIR"
@@ -624,41 +715,161 @@ configure_apache() {
         print_success "数据库文件复制完成"
     fi
 
-    # 创建 .htaccess 文件
+    # 创建优化的 .htaccess 文件 - HTTPS 和 API 修复版
     cat > .htaccess << 'EOF'
-# Serv00 环境管理系统 Apache 配置
+# Serv00 环境管理系统 Apache 配置 - HTTPS API 修复版
 RewriteEngine On
 
-# 强制 MIME 类型
+# 安全设置 - 隐藏敏感文件
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "*.backup">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files "*.log">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# 强制 MIME 类型 - Serv00 FreeBSD Apache 需要
 <FilesMatch "\.(js)$">
     ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
 </FilesMatch>
 
 <FilesMatch "\.(css)$">
     ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
 </FilesMatch>
 
 <FilesMatch "\.(svg)$">
     ForceType image/svg+xml
+    Header set Content-Type "image/svg+xml; charset=utf-8"
 </FilesMatch>
 
-# API 路由
+<FilesMatch "\.(json)$">
+    ForceType application/json
+    Header set Content-Type "application/json; charset=utf-8"
+</FilesMatch>
+
+# PHP 配置 - 强制 JSON 输出
+<FilesMatch "\.(php)$">
+    Header set Content-Type "application/json; charset=utf-8"
+</FilesMatch>
+
+# API 路由重写 - 优先级最高
 RewriteCond %{REQUEST_URI} ^/api/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-# 前端路由 (React Router)
+# React Router 支持 - 前端路由
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
+RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|json|php)$
 RewriteRule . /index.html [L]
 
-# 缓存设置
+# CORS 设置 - 支持 HTTPS
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-API-Key"
+Header always set Access-Control-Max-Age "3600"
+
+# 安全头部 - HTTPS 优化
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# 内容安全策略 - 允许同源 API 调用
+Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-ancestors 'none';"
+
+# 处理 OPTIONS 预检请求
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# 缓存控制
 <IfModule mod_expires.c>
     ExpiresActive On
+
+    # 静态资源长期缓存
     ExpiresByType text/css "access plus 1 month"
     ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
     ExpiresByType image/svg+xml "access plus 1 month"
+
+    # HTML 文件短期缓存
+    ExpiresByType text/html "access plus 1 hour"
+
+    # API 响应不缓存
+    ExpiresByType application/json "access plus 0 seconds"
 </IfModule>
+
+# 压缩设置
+<IfModule mod_deflate.c>
+    SetOutputFilter DEFLATE
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+</IfModule>
+
+# 错误页面
+ErrorDocument 404 /index.html
+ErrorDocument 403 /index.html
+
+# 目录浏览禁用
+Options -Indexes
+
+# 符号链接跟随
+Options +FollowSymLinks
+
+# 字符集设置
+AddDefaultCharset UTF-8
+
+# 默认文档
+DirectoryIndex index.html index.php
+EOF
+
+    # 创建 API 目录的 .htaccess
+    if [ -d "api" ]; then
+        cat > api/.htaccess << 'EOF'
+# API 目录配置
+RewriteEngine On
+
+# 所有请求都转发到 index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# CORS 设置
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-API-Key"
+
+# 处理 OPTIONS 请求
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# 强制 JSON 内容类型
+<FilesMatch "\.(php)$">
+    Header set Content-Type "application/json; charset=utf-8"
+</FilesMatch>
 
 # 安全设置
 <Files ".env">
@@ -671,8 +882,10 @@ RewriteRule . /index.html [L]
     Deny from all
 </Files>
 EOF
-    
-    print_success "Apache 配置完成"
+        print_success "API .htaccess 已创建"
+    fi
+
+    print_success "Apache 和 HTTPS API 配置完成"
 }
 
 # 设置权限
@@ -694,18 +907,165 @@ set_permissions() {
     print_success "权限设置完成"
 }
 
-# 验证安装
+# 创建 API 测试文件
+create_api_test_file() {
+    print_step "创建 API 测试文件..."
+
+    # 创建简单的 API 测试文件
+    cat > test-api.php << 'EOF'
+<?php
+/**
+ * 简单的 API 测试文件
+ * 用于诊断 502 错误和 HTTPS 问题
+ */
+
+// 开启错误显示用于调试
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+ini_set('error_log', '/tmp/serv00-php-errors.log');
+
+// 设置响应头
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+
+// 处理 OPTIONS 请求
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// 基本信息收集
+$info = [
+    'status' => 'ok',
+    'message' => 'API 测试成功',
+    'timestamp' => date('Y-m-d H:i:s'),
+    'php_version' => PHP_VERSION,
+    'server_info' => [
+        'software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+        'protocol' => $_SERVER['SERVER_PROTOCOL'] ?? 'Unknown',
+        'method' => $_SERVER['REQUEST_METHOD'] ?? 'Unknown',
+        'uri' => $_SERVER['REQUEST_URI'] ?? 'Unknown',
+        'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'Unknown',
+        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Unknown',
+        'https' => isset($_SERVER['HTTPS']) ? $_SERVER['HTTPS'] : 'Not set',
+        'host' => $_SERVER['HTTP_HOST'] ?? 'Unknown'
+    ],
+    'environment' => [
+        'current_user' => get_current_user(),
+        'working_directory' => getcwd(),
+        'script_filename' => __FILE__,
+        'include_path' => get_include_path()
+    ],
+    'php_extensions' => [
+        'pdo' => extension_loaded('pdo'),
+        'pdo_mysql' => extension_loaded('pdo_mysql'),
+        'json' => extension_loaded('json'),
+        'curl' => extension_loaded('curl'),
+        'mbstring' => extension_loaded('mbstring')
+    ],
+    'file_permissions' => [
+        'current_file_readable' => is_readable(__FILE__),
+        'current_file_writable' => is_writable(__FILE__),
+        'directory_writable' => is_writable(dirname(__FILE__)),
+        'parent_directory_writable' => is_writable(dirname(dirname(__FILE__)))
+    ]
+];
+
+// 尝试数据库连接测试
+try {
+    // 检查 .env 文件
+    $envFile = dirname(__FILE__) . '/.env';
+    if (file_exists($envFile)) {
+        $info['env_file'] = [
+            'exists' => true,
+            'readable' => is_readable($envFile),
+            'size' => filesize($envFile)
+        ];
+
+        // 读取数据库配置
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $dbConfig = [];
+        foreach ($lines as $line) {
+            if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
+                list($key, $value) = explode('=', $line, 2);
+                $key = trim($key);
+                $value = trim($value);
+                if (strpos($key, 'DB_') === 0) {
+                    $dbConfig[$key] = $value;
+                }
+            }
+        }
+        $info['db_config'] = $dbConfig;
+    } else {
+        $info['env_file'] = [
+            'exists' => false,
+            'path' => $envFile
+        ];
+    }
+
+    // 尝试数据库连接
+    $host = $dbConfig['DB_HOST'] ?? 'mysql14.serv00.com';
+    $dbname = $dbConfig['DB_NAME'] ?? 'em9785_environment_manager';
+    $username = $dbConfig['DB_USER'] ?? 'm9785_s14kook';
+    $password = $dbConfig['DB_PASSWORD'] ?? '';
+
+    if (!empty($host) && !empty($dbname) && !empty($username)) {
+        $pdo = new PDO(
+            "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
+            $username,
+            $password,
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_TIMEOUT => 5
+            ]
+        );
+
+        $stmt = $pdo->query("SELECT 1 as test, NOW() as current_time");
+        $result = $stmt->fetch();
+
+        $info['database'] = [
+            'status' => 'connected',
+            'test_query' => $result
+        ];
+    } else {
+        $info['database'] = [
+            'status' => 'config_missing',
+            'message' => '数据库配置不完整'
+        ];
+    }
+
+} catch (Exception $e) {
+    $info['database'] = [
+        'status' => 'error',
+        'message' => $e->getMessage()
+    ];
+}
+
+// 输出 JSON 响应
+echo json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+?>
+EOF
+
+    print_success "API 测试文件已创建"
+}
+
+# 验证安装和 API 测试
 verify_installation() {
-    print_step "验证安装..."
-    
+    print_step "验证安装和 API 功能..."
+
     # 检查关键文件
     local required_files=(
         "index.html"
         "api/index.php"
         "api/config/database.php"
         ".htaccess"
+        "api/.htaccess"
     )
-    
+
     for file in "${required_files[@]}"; do
         if [ -f "$file" ]; then
             print_success "✓ $file"
@@ -714,43 +1074,88 @@ verify_installation() {
             return 1
         fi
     done
-    
-    # 测试 API 健康检查
-    if command_exists curl; then
-        local api_url="https://$DOMAIN_NAME/api/health"
-        print_step "测试 API 访问: $api_url"
 
+    # 创建 API 测试文件
+    create_api_test_file
+
+    # 测试 API 功能
+    if command_exists curl; then
+        print_step "测试 API 功能..."
+
+        # 测试基础 PHP 功能
+        local test_url="https://$DOMAIN_NAME/test-api.php"
+        print_step "测试基础 PHP: $test_url"
+        local test_response=$(curl -s -o /dev/null -w "%{http_code}" "$test_url" 2>/dev/null || echo "000")
+
+        case $test_response in
+            200)
+                print_success "✓ 基础 PHP 测试通过 (HTTP $test_response)"
+                ;;
+            *)
+                print_warning "⚠ 基础 PHP 测试异常 (HTTP $test_response)"
+                ;;
+        esac
+
+        # 测试 API 健康检查
+        local api_url="https://$DOMAIN_NAME/api/health"
+        print_step "测试 API 健康检查: $api_url"
         local response=$(curl -s -o /dev/null -w "%{http_code}" "$api_url" 2>/dev/null || echo "000")
+
         case $response in
             200)
                 print_success "✓ API 健康检查通过 (HTTP $response)"
                 ;;
             502)
                 print_error "✗ API 访问失败 (HTTP 502 - 网关错误)"
+                print_warning "正在尝试诊断问题..."
+
+                # 尝试获取详细错误信息
+                local error_content=$(curl -s "$test_url" 2>/dev/null | head -c 500)
+                if [ -n "$error_content" ]; then
+                    print_info "错误详情: $error_content"
+                fi
+
                 print_warning "可能的原因："
-                echo "   1. 文件部署到错误的目录"
-                echo "   2. .htaccess 配置问题"
-                echo "   3. PHP 执行错误"
-                echo "   4. 数据库连接失败"
+                echo "   1. API 路由配置问题"
+                echo "   2. PHP 执行错误"
+                echo "   3. 数据库连接失败"
+                echo "   4. 文件权限问题"
                 ;;
             *)
                 print_warning "⚠ API 访问异常 (HTTP $response)"
                 ;;
         esac
+
+        # 测试环境列表 API
+        local env_url="https://$DOMAIN_NAME/api/environments"
+        print_step "测试环境列表 API: $env_url"
+        local env_response=$(curl -s -o /dev/null -w "%{http_code}" "$env_url" 2>/dev/null || echo "000")
+
+        case $env_response in
+            200)
+                print_success "✓ 环境列表 API 通过 (HTTP $env_response)"
+                ;;
+            *)
+                print_warning "⚠ 环境列表 API 异常 (HTTP $env_response)"
+                ;;
+        esac
+
+    else
+        print_warning "curl 不可用，跳过 API 测试"
     fi
-    
+
     print_success "安装验证完成"
 }
 
 # 显示安装结果
 show_results() {
     print_title "安装完成"
-    
+
     echo
     print_message $GREEN "🎉 环境管理系统安装成功！"
     echo
     print_message $CYAN "📋 安装信息:"
-    echo "   安装目录: $INSTALL_DIR/$PROJECT_NAME"
+    echo "   安装目录: $INSTALL_DIR"
     echo "   自定义端口: $CUSTOM_PORT"
     echo "   数据库主机: $DB_HOST"
     echo "   数据库名称: $DB_NAME"
@@ -758,8 +1163,13 @@ show_results() {
     echo "   域名: $DOMAIN_NAME"
     echo
     print_message $CYAN "🌐 访问地址:"
-    echo "   前端: https://$DOMAIN_NAME"
+    echo "   前端应用: https://$DOMAIN_NAME"
     echo "   API健康检查: https://$DOMAIN_NAME/api/health"
+    echo "   环境列表API: https://$DOMAIN_NAME/api/environments"
+    echo
+    print_message $CYAN "🔧 测试和诊断地址:"
+    echo "   基础PHP测试: https://$DOMAIN_NAME/test-api.php"
+    echo "   数据库连接测试: https://$DOMAIN_NAME/test-db-connection.php"
     echo
     print_message $CYAN "👤 默认账户:"
     echo "   用户名: admin"
@@ -769,6 +1179,12 @@ show_results() {
     echo "   1. 请及时修改默认管理员密码"
     echo "   2. 确保数据库连接安全"
     echo "   3. 定期备份数据"
+    echo "   4. 如遇API问题，请查看测试地址进行诊断"
+    echo
+    print_message $BLUE "🔍 故障排除:"
+    echo "   查看PHP错误日志: tail -f /tmp/serv00-php-errors.log"
+    echo "   测试数据库连接: mysql -h$DB_HOST -u$DB_USER -p$DB_PASS $DB_NAME"
+    echo "   检查文件权限: ls -la $INSTALL_DIR"
     echo
     print_message $BLUE "📚 更多信息:"
     echo "   项目文档: https://github.com/kookhr/demoguanli/tree/serv00"
