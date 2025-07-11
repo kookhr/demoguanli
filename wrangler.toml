@@ -41,9 +41,9 @@ vars = { ENVIRONMENT = "production" }
 # Workers.dev 子域名配置
 workers_dev = true
 
-# 智能放置配置
-[placement]
-mode = "smart"
+# 智能放置配置 (可能需要付费计划)
+# [placement]
+# mode = "smart"
 
 # 构建配置
 [build]
@@ -54,10 +54,10 @@ watch_dir = ["src", "functions"]
 # Git分支配置
 # 注意：在Dashboard中选择 workers 分支作为生产分支
 
-# 限制配置
-[limits]
-cpu_ms = 50
+# 限制配置 (仅付费计划支持)
+# [limits]
+# cpu_ms = 50
 
-# 观察性配置
-[observability]
-enabled = true
+# 观察性配置 (可能需要付费计划)
+# [observability]
+# enabled = true
