@@ -7,20 +7,33 @@ const KV_KEY = 'environments';
 
 // 获取所有环境配置
 export const getEnvironments = async () => {
-  // 在开发环境中直接使用默认数据
-  if (import.meta.env.DEV) {
+  // 检查是否强制使用默认数据
+  if (localStorage.getItem('forceDefaultData') === 'true') {
+    console.log('[FORCE] 强制使用默认环境数据，数量:', defaultEnvironments.length);
     return defaultEnvironments;
   }
 
+  // 在开发环境中直接使用默认数据
+  if (import.meta.env.DEV) {
+    console.log('[DEV] 使用默认环境数据，数量:', defaultEnvironments.length);
+    return defaultEnvironments;
+  }
+
+  console.log('[PROD] 生产环境，尝试从KV获取数据...');
   try {
     // 尝试从 KV 获取
     const environments = await kvApi.get(KV_KEY);
+    console.log('[PROD] KV返回数据:', environments);
     if (environments && Array.isArray(environments) && environments.length > 0) {
+      console.log('[PROD] 使用KV数据，数量:', environments.length);
       return environments;
     } else {
+      console.log('[PROD] KV无数据，使用默认数据，数量:', defaultEnvironments.length);
       return defaultEnvironments;
     }
   } catch (error) {
+    console.error('[PROD] KV获取失败，使用默认数据:', error);
+    console.log('[PROD] 默认数据数量:', defaultEnvironments.length);
     return defaultEnvironments;
   }
 };

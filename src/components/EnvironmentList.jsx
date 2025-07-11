@@ -52,11 +52,14 @@ const EnvironmentList = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('[ENV] 开始加载环境数据...');
 
       const envs = await getEnvironments();
+      console.log('[ENV] 加载完成，环境数量:', envs?.length || 0);
       setEnvironments(envs);
       setFilteredEnvironments(envs);
     } catch (err) {
+      console.error('[ENV] 加载环境数据失败:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -102,21 +105,34 @@ const EnvironmentList = () => {
 
   // 批量检测所有环境状态
   const handleCheckAll = useCallback(async () => {
-    if (isChecking || environments.length === 0) return;
+    console.log('[CHECK] handleCheckAll被调用', {
+      isChecking,
+      environmentsLength: environments.length,
+      environments: environments.map(e => ({ id: e.id, name: e.name }))
+    });
+    if (isChecking || environments.length === 0) {
+      console.log('[CHECK] 检测被跳过:', { isChecking, environmentsLength: environments.length });
+      return;
+    }
+    console.log('[CHECK] 开始批量检测...');
     setIsChecking(true);
     setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
 
     try {
       // 使用精确检测方法
+      console.log('[CHECK] 调用checkMultipleEnvironments...');
       const results = await checkMultipleEnvironments(environments, (progress) => {
+        console.log('[CHECK] 检测进度:', progress);
         setCheckProgress(progress);
       });
 
+      console.log('[CHECK] 检测完成，结果:', results);
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
-    } catch {
-      // 批量检测失败，保持静默
+    } catch (error) {
+      console.error('[CHECK] 批量检测失败:', error);
     } finally {
+      console.log('[CHECK] 检测结束，清理状态');
       setIsChecking(false);
       setCheckProgress(null);
     }
@@ -331,7 +347,10 @@ const EnvironmentList = () => {
 
 
               <button
-                onClick={handleCheckAll}
+                onClick={() => {
+                  console.log('[BUTTON] 检测所有按钮被点击');
+                  handleCheckAll();
+                }}
                 disabled={isChecking || environments.length === 0}
                 className="btn btn-primary flex items-center gap-2 disabled:opacity-50"
               >

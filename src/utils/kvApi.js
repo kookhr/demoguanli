@@ -6,18 +6,28 @@ class KVApiClient {
 
   // 获取数据
   async get(key) {
-    const response = await fetch(`${this.baseUrl}?action=get&key=${encodeURIComponent(key)}`);
+    const url = `${this.baseUrl}?action=get&key=${encodeURIComponent(key)}`;
+    console.log('[KV] GET请求:', url);
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    try {
+      const response = await fetch(url);
+      console.log('[KV] 响应状态:', response.status, response.statusText);
 
-    const result = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
-    if (result.success) {
-      return result.data;
-    } else {
-      throw new Error(result.error || 'KV GET 操作失败');
+      const result = await response.json();
+      console.log('[KV] 响应数据:', result);
+
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error || 'KV GET 操作失败');
+      }
+    } catch (error) {
+      console.error('[KV] 请求失败:', error);
+      throw error;
     }
   }
 

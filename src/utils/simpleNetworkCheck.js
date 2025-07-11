@@ -132,6 +132,7 @@ export const checkEnvironmentStatus = async (environment) => {
  * 批量检测多个环境
  */
 export const checkMultipleEnvironments = async (environments, onProgress) => {
+  console.log('[NETWORK] 开始批量检测，环境数量:', environments.length);
   const results = {};
   const total = environments.length;
   let completed = 0;
@@ -148,10 +149,13 @@ export const checkMultipleEnvironments = async (environments, onProgress) => {
   }
 
   for (const chunk of chunks) {
+    console.log('[NETWORK] 处理批次，环境数量:', chunk.length);
     const promises = chunk.map(async (env) => {
+      console.log('[NETWORK] 检测环境:', env.name, env.url);
       const result = await checkEnvironmentStatus(env);
+      console.log('[NETWORK] 检测结果:', env.name, result);
       completed++;
-      
+
       // 更新进度
       if (onProgress) {
         onProgress({
@@ -160,7 +164,7 @@ export const checkMultipleEnvironments = async (environments, onProgress) => {
           percentage: Math.round((completed / total) * 100)
         });
       }
-      
+
       return { [env.id]: result };
     });
 
@@ -168,6 +172,7 @@ export const checkMultipleEnvironments = async (environments, onProgress) => {
     chunkResults.forEach(result => Object.assign(results, result));
   }
 
+  console.log('[NETWORK] 批量检测完成，结果:', results);
   return results;
 };
 
