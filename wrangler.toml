@@ -12,53 +12,16 @@ directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# KV 存储绑定
-[[kv_namespaces]]
-binding = "ENV_CONFIG"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-kv-namespace-id"
+# KV 存储绑定已在 Cloudflare Dashboard 中配置
+# 绑定名称: ENV_CONFIG
+# 命名空间: demo-workers
 
-# 环境变量
-[vars]
-ENVIRONMENT = "production"
-APP_VERSION = "2.0.0"
-JWT_SECRET = "your-jwt-secret-key-change-in-production"
+# 环境变量已在 Cloudflare Dashboard 中配置
+# 如需添加变量，请在 Dashboard > Settings > Variables 中配置
 
-# 开发环境配置
-[env.development]
-name = "environment-manager-dev"
-vars = { ENVIRONMENT = "development", DEBUG = "true" }
 
-# 预生产环境配置
-[env.staging]
-name = "environment-manager-staging"
-vars = { ENVIRONMENT = "staging" }
 
-# 生产环境配置
-[env.production]
-name = "environment-manager-prod"
-vars = { ENVIRONMENT = "production" }
 
 # Workers.dev 子域名配置
 workers_dev = true
 
-# 智能放置配置 (可能需要付费计划)
-# [placement]
-# mode = "smart"
-
-# 构建配置
-[build]
-command = "npm run build"
-cwd = "."
-watch_dir = ["src", "functions"]
-
-# Git分支配置
-# 注意：在Dashboard中选择 workers 分支作为生产分支
-
-# 限制配置 (仅付费计划支持)
-# [limits]
-# cpu_ms = 50
-
-# 观察性配置 (可能需要付费计划)
-# [observability]
-# enabled = true
