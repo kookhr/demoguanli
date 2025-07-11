@@ -27,7 +27,11 @@ export const DATABASE_CONFIG = {
 
 // API 端点配置
 export const API_CONFIG = {
-  baseUrl: process.env.API_BASE_URL || '/api',
+  baseUrl: process.env.API_BASE_URL || (
+    typeof window !== 'undefined' && window.location.protocol === 'https:'
+      ? '/api'  // HTTPS 环境使用相对路径
+      : '/api'  // 开发环境也使用相对路径
+  ),
   endpoints: {
     // 环境管理
     environments: '/environments',

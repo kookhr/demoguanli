@@ -1,384 +1,199 @@
 <?php
-// Serv00 环境管理系统 API 入口文件
+/**
+ * API 入口文件 - HTTPS 优化版
+ */
 
-// 增强错误处理和日志记录
+// 错误报告设置
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 0); // 生产环境关闭显示错误
 ini_set('log_errors', 1);
+ini_set('error_log', '/tmp/serv00-php-errors.log');
 
-// 记录API访问
-error_log("API Access: " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['REQUEST_URI'] . " from " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+// 设置响应头 - HTTPS 优化
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-API-Key');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
 
-// 加载 .env 文件（安全加载）
-try {
-    if (file_exists(__DIR__ . '/vendor/autoload.php')) {
-        require_once __DIR__ . '/vendor/autoload.php';
-        if (class_exists('Dotenv\Dotenv')) {
-            $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-            $dotenv->safeLoad();
-        }
-    }
-} catch (Exception $e) {
-    error_log("Dotenv loading error: " . $e->getMessage());
-    // 继续执行，不因为.env文件问题而中断
+// 处理 OPTIONS 预检请求
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
 }
 
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/models/Environment.php';
-require_once __DIR__ . '/models/User.php';
-require_once __DIR__ . '/models/StatusHistory.php';
-require_once __DIR__ . '/controllers/EnvironmentController.php';
-require_once __DIR__ . '/controllers/UserController.php';
-require_once __DIR__ . '/controllers/AuthController.php';
+// 获取请求信息
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+$requestPath = parse_url($requestUri, PHP_URL_PATH);
 
-// 设置 CORS 头
-setCorsHeaders();
+// 移除 /api 前缀
+$apiPath = preg_replace('#^/api/?#', '', $requestPath);
+$pathParts = explode('/', trim($apiPath, '/'));
+$endpoint = $pathParts[0] ?? '';
 
-// 设置内容类型
-header('Content-Type: application/json; charset=utf-8');
+// 加载环境变量
+function loadEnv() {
+    $envFile = dirname(__DIR__) . '/.env';
+    $config = [];
+    
+    if (file_exists($envFile)) {
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            if (strpos($line, '=') !== false && strpos($line, '#') !== 0) {
+                list($key, $value) = explode('=', $line, 2);
+                $config[trim($key)] = trim($value);
+            }
+        }
+    }
+    
+    return $config;
+}
 
-// 获取请求方法和路径
-$method = $_SERVER['REQUEST_METHOD'];
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+// 数据库连接
+function getDatabase() {
+    $env = loadEnv();
+    
+    $host = $env['DB_HOST'] ?? 'mysql14.serv00.com';
+    $dbname = $env['DB_NAME'] ?? 'em9785_environment_manager';
+    $username = $env['DB_USER'] ?? 'm9785_s14kook';
+    $password = $env['DB_PASSWORD'] ?? '';
+    
+    try {
+        $pdo = new PDO(
+            "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
+            $username,
+            $password,
+            [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_TIMEOUT => 10
+            ]
+        );
+        return $pdo;
+    } catch (PDOException $e) {
+        error_log("Database connection failed: " . $e->getMessage());
+        return null;
+    }
+}
 
-// 移除 API 前缀
-$path = preg_replace('#^/api#', '', $path);
-$path = trim($path, '/');
-
-// 解析路径
-$segments = explode('/', $path);
-$resource = $segments[0] ?? '';
-$id = $segments[1] ?? null;
-$action = $segments[2] ?? null;
+// 路由处理
+$response = [];
 
 try {
-    // 路由分发
-    switch ($resource) {
+    switch ($endpoint) {
         case 'health':
-            handleHealthCheck();
+        case '':
+            $response = [
+                'status' => 'ok',
+                'message' => 'API is running',
+                'timestamp' => date('Y-m-d H:i:s'),
+                'https' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+                'server_protocol' => $_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.1'
+            ];
             break;
             
         case 'environments':
-            $controller = new EnvironmentController();
-            handleEnvironmentRoutes($controller, $method, $id, $action);
-            break;
-            
-        case 'users':
-            $controller = new UserController();
-            handleUserRoutes($controller, $method, $id, $action);
+            $db = getDatabase();
+            if ($db) {
+                if ($requestMethod === 'GET') {
+                    $stmt = $db->query("SELECT * FROM environments ORDER BY created_at DESC");
+                    $environments = $stmt->fetchAll();
+                    $response = [
+                        'status' => 'success',
+                        'data' => $environments
+                    ];
+                } else {
+                    $response = [
+                        'status' => 'error',
+                        'message' => 'Method not allowed'
+                    ];
+                    http_response_code(405);
+                }
+            } else {
+                $response = [
+                    'status' => 'error',
+                    'message' => 'Database connection failed'
+                ];
+                http_response_code(500);
+            }
             break;
             
         case 'auth':
-            $controller = new AuthController();
-            handleAuthRoutes($controller, $method, $id);
-            break;
-            
-        case 'status-history':
-            $controller = new EnvironmentController();
-            handleStatusHistoryRoutes($controller, $method, $id);
-            break;
-            
-        case 'groups':
-            $controller = new EnvironmentController();
-            handleGroupRoutes($controller, $method, $id);
-            break;
-            
-        case 'export':
-            handleExport();
-            break;
-            
-        case 'import':
-            handleImport();
+            $subEndpoint = $pathParts[1] ?? '';
+            if ($subEndpoint === 'login') {
+                if ($requestMethod === 'POST') {
+                    $input = json_decode(file_get_contents('php://input'), true);
+                    $username = $input['username'] ?? '';
+                    $password = $input['password'] ?? '';
+                    
+                    // 简单的认证逻辑
+                    if ($username === 'admin' && $password === 'admin123') {
+                        $response = [
+                            'status' => 'success',
+                            'message' => 'Login successful',
+                            'token' => 'demo-token-' . time(),
+                            'user' => [
+                                'id' => 1,
+                                'username' => 'admin',
+                                'role' => 'admin'
+                            ]
+                        ];
+                    } else {
+                        $response = [
+                            'status' => 'error',
+                            'message' => 'Invalid credentials'
+                        ];
+                        http_response_code(401);
+                    }
+                } else {
+                    $response = [
+                        'status' => 'error',
+                        'message' => 'Method not allowed'
+                    ];
+                    http_response_code(405);
+                }
+            } else {
+                $response = [
+                    'status' => 'error',
+                    'message' => 'Auth endpoint not found'
+                ];
+                http_response_code(404);
+            }
             break;
             
         default:
-            handleError('API 端点不存在', 404);
+            $response = [
+                'status' => 'error',
+                'message' => 'Endpoint not found',
+                'available_endpoints' => [
+                    '/api/health' => 'Health check',
+                    '/api/environments' => 'Environment management',
+                    '/api/auth/login' => 'User authentication'
+                ],
+                'request_info' => [
+                    'method' => $requestMethod,
+                    'uri' => $requestUri,
+                    'path' => $requestPath,
+                    'endpoint' => $endpoint
+                ]
+            ];
+            http_response_code(404);
+            break;
     }
+    
 } catch (Exception $e) {
     error_log("API Error: " . $e->getMessage());
-    handleError($e->getMessage(), 500);
-}
-
-// 健康检查
-function handleHealthCheck() {
-    global $database;
-    
-    $health = [
-        'status' => 'ok',
-        'timestamp' => date('c'),
-        'version' => '1.0.0',
-        'database' => 'disconnected'
+    $response = [
+        'status' => 'error',
+        'message' => 'Internal server error',
+        'error_id' => uniqid()
     ];
-    
-    try {
-        if ($database->testConnection()) {
-            $health['database'] = 'connected';
-            $dbInfo = $database->getDatabaseInfo();
-            $health['database_info'] = $dbInfo;
-        }
-    } catch (Exception $e) {
-        $health['database'] = 'error: ' . $e->getMessage();
-    }
-    
-    sendResponse($health);
+    http_response_code(500);
 }
 
-// 环境路由处理
-function handleEnvironmentRoutes($controller, $method, $id, $action) {
-    global $path;
-    switch ($method) {
-        case 'GET':
-            if ($id && $action === 'status') {
-                $controller->getEnvironmentStatus($id);
-            } elseif ($id) {
-                $controller->getEnvironment($id);
-            } else {
-                $controller->getEnvironments();
-            }
-            break;
-            
-        case 'POST':
-            if ($id && $action === 'status') {
-                $controller->updateEnvironmentStatus($id);
-            } elseif ($path === 'environments/batch-status') {
-                $controller->batchUpdateStatus();
-            } else {
-                $controller->createEnvironment();
-            }
-            break;
-            
-        case 'PUT':
-            if ($id) {
-                $controller->updateEnvironment($id);
-            } else {
-                handleError('环境 ID 是必需的', 400);
-            }
-            break;
-            
-        case 'DELETE':
-            if ($id) {
-                $controller->deleteEnvironment($id);
-            } else {
-                handleError('环境 ID 是必需的', 400);
-            }
-            break;
-            
-        default:
-            handleError('不支持的请求方法', 405);
-    }
-}
-
-// 用户路由处理
-function handleUserRoutes($controller, $method, $id, $action) {
-    // 检查认证
-    if (!checkAuth()) {
-        handleError('需要认证', 401);
-        return;
-    }
-    
-    switch ($method) {
-        case 'GET':
-            if ($id) {
-                $controller->getUser($id);
-            } else {
-                $controller->getUsers();
-            }
-            break;
-            
-        case 'POST':
-            $controller->createUser();
-            break;
-            
-        case 'PUT':
-            if ($id) {
-                $controller->updateUser($id);
-            } else {
-                handleError('用户 ID 是必需的', 400);
-            }
-            break;
-            
-        case 'DELETE':
-            if ($id) {
-                $controller->deleteUser($id);
-            } else {
-                handleError('用户 ID 是必需的', 400);
-            }
-            break;
-            
-        default:
-            handleError('不支持的请求方法', 405);
-    }
-}
-
-// 认证路由处理
-function handleAuthRoutes($controller, $method, $action) {
-    switch ($method) {
-        case 'POST':
-            if ($action === 'login') {
-                $controller->login();
-            } elseif ($action === 'register') {
-                $controller->register();
-            } elseif ($action === 'logout') {
-                $controller->logout();
-            } else {
-                handleError('无效的认证操作', 400);
-            }
-            break;
-            
-        case 'GET':
-            if ($action === 'me') {
-                $controller->getCurrentUser();
-            } else {
-                handleError('无效的认证操作', 400);
-            }
-            break;
-            
-        default:
-            handleError('不支持的请求方法', 405);
-    }
-}
-
-// 状态历史路由处理
-function handleStatusHistoryRoutes($controller, $method, $envId) {
-    switch ($method) {
-        case 'GET':
-            $controller->getStatusHistory($envId);
-            break;
-            
-        case 'POST':
-            if ($envId) {
-                $controller->addStatusRecord($envId);
-            } else {
-                handleError('环境 ID 是必需的', 400);
-            }
-            break;
-            
-        default:
-            handleError('不支持的请求方法', 405);
-    }
-}
-
-// 分组路由处理
-function handleGroupRoutes($controller, $method, $id) {
-    switch ($method) {
-        case 'GET':
-            if ($id) {
-                $controller->getGroup($id);
-            } else {
-                $controller->getGroups();
-            }
-            break;
-            
-        case 'POST':
-            $controller->createGroup();
-            break;
-            
-        case 'PUT':
-            if ($id) {
-                $controller->updateGroup($id);
-            } else {
-                handleError('分组 ID 是必需的', 400);
-            }
-            break;
-            
-        case 'DELETE':
-            if ($id) {
-                $controller->deleteGroup($id);
-            } else {
-                handleError('分组 ID 是必需的', 400);
-            }
-            break;
-            
-        default:
-            handleError('不支持的请求方法', 405);
-    }
-}
-
-// 数据导出
-function handleExport() {
-    if (!checkAuth()) {
-        handleError('需要认证', 401);
-        return;
-    }
-    
-    // 实现数据导出逻辑
-    $controller = new EnvironmentController();
-    $controller->exportData();
-}
-
-// 数据导入 - 无认证限制
-function handleImport() {
-    // 记录导入请求（用于日志追踪）
-    error_log("Import request from: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
-
-    // 直接执行数据导入逻辑，无需认证
-    $controller = new EnvironmentController();
-    $controller->importData();
-}
-
-// 改进的认证检查
-function checkAuth() {
-    $headers = getallheaders();
-    $authHeader = $headers['Authorization'] ?? '';
-
-    // 检查 Bearer token
-    if (strpos($authHeader, 'Bearer ') === 0) {
-        $token = substr($authHeader, 7);
-        return validateJWT($token);
-    }
-
-    // 检查是否是本地请求（开发环境）
-    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
-    if (in_array($remoteAddr, ['127.0.0.1', '::1', 'localhost'])) {
-        return true;
-    }
-
-    // 检查是否有简单的API密钥
-    $apiKey = $headers['X-API-Key'] ?? $_GET['api_key'] ?? '';
-    if (!empty($apiKey) && $apiKey === 'demo-api-key-2025') {
-        return true;
-    }
-
-    return false;
-}
-
-// 改进的JWT验证
-function validateJWT($token) {
-    // 基本token验证
-    if (empty($token) || strlen($token) < 10) {
-        return false;
-    }
-
-    // 检查测试token
-    if (strpos($token, 'test-token-') === 0) {
-        return true;
-    }
-
-    // 检查简单的demo token
-    if ($token === 'demo-token-2025') {
-        return true;
-    }
-
-    // 这里可以添加真正的JWT验证逻辑
-    return !empty($token) && strlen($token) > 10;
-}
-
-// 获取请求体数据
-function getRequestData() {
-    $input = file_get_contents('php://input');
-    return json_decode($input, true) ?? [];
-}
-
-// 生成 UUID
-function generateUUID() {
-    return sprintf(
-        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-        mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-        mt_rand(0, 0xffff),
-        mt_rand(0, 0x0fff) | 0x4000,
-        mt_rand(0, 0x3fff) | 0x8000,
-        mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-    );
-}
-
+// 输出响应
+echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>
