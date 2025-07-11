@@ -56,7 +56,8 @@ async function handleAPI(request, env, ctx) {
         kv: !!env.ENV_CONFIG,
         assets: !!env.ASSETS,
         smartPlacement: true
-      }
+      },
+      message: env.ENV_CONFIG ? 'KV storage available' : 'KV storage not configured (can be added later)'
     });
   }
 
@@ -72,8 +73,9 @@ async function handleKVAPI(request, env) {
   try {
     // 检查 KV 绑定
     if (!env.ENV_CONFIG) {
-      return errorResponse('KV binding ENV_CONFIG not configured', 500, {
-        available: false
+      return errorResponse('KV binding ENV_CONFIG not configured. Please configure KV namespace in Cloudflare Dashboard.', 503, {
+        available: false,
+        setup_required: true
       });
     }
 

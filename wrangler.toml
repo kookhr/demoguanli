@@ -12,11 +12,11 @@ directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# KV 存储绑定
-[[kv_namespaces]]
-binding = "ENV_CONFIG"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-kv-namespace-id"
+# KV 存储绑定 (暂时禁用，部署成功后可通过Dashboard配置)
+# [[kv_namespaces]]
+# binding = "ENV_CONFIG"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-namespace-id"
 
 # 环境变量
 [vars]
