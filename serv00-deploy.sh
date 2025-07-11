@@ -186,10 +186,10 @@ interactive_config() {
         DB_HOST="$input_db_host"
     fi
 
-    echo -n "数据库名称 [默认: em9785_environment_manager]: "
+    echo -n "数据库名称 [默认: m9785_environment_manager]: "
     read input_db_name
     if [ -z "$input_db_name" ]; then
-        DB_NAME="em9785_environment_manager"
+        DB_NAME="m9785_environment_manager"
     else
         DB_NAME="$input_db_name"
     fi
@@ -396,15 +396,12 @@ fix_build_issues() {
 download_project() {
     print_step "下载项目文件..."
     
-    cd "$INSTALL_DIR"
-    
-    # 检查是否已存在项目
-    if [ -d "$PROJECT_NAME" ]; then
-        print_warning "检测到已存在的项目，正在备份..."
-        mv "$PROJECT_NAME" "${PROJECT_NAME}_backup_$(date +%Y%m%d_%H%M%S)"
-    fi
-    
-    # 下载项目
+    # 创建临时目录用于下载
+    temp_dir="$INSTALL_DIR/temp_${PROJECT_NAME}_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$temp_dir"
+    cd "$temp_dir"
+
+    # 下载项目到临时目录
     if command_exists git; then
         git clone -b "$GITHUB_BRANCH" "$GITHUB_REPO" "$PROJECT_NAME"
     else
@@ -414,7 +411,7 @@ download_project() {
         mv "${PROJECT_NAME}-${GITHUB_BRANCH}" "$PROJECT_NAME"
         rm "${PROJECT_NAME}.zip"
     fi
-    
+
     cd "$PROJECT_NAME"
     print_success "项目文件下载完成"
 }
@@ -427,9 +424,9 @@ build_frontend() {
     if [ -d "dist" ]; then
         print_success "发现预构建的前端文件"
 
-        # 将 dist 目录内容移动到根目录
-        print_step "部署前端文件到根目录..."
-        cp -r dist/* .
+        # 将 dist 目录内容移动到安装目录
+        print_step "部署前端文件到安装目录..."
+        cp -r dist/* "$INSTALL_DIR/"
         print_success "前端文件部署完成"
         return
     fi
@@ -477,14 +474,14 @@ build_frontend() {
             if [ -f "dist/index.html" ]; then
                 print_success "构建产物验证通过"
 
-                # 将构建结果移动到根目录
-                print_step "部署前端文件到根目录..."
-                cp -r dist/* .
+                # 将构建结果移动到安装目录
+                print_step "部署前端文件到安装目录..."
+                cp -r dist/* "$INSTALL_DIR/"
                 print_success "前端文件部署完成"
 
                 # 显示部署结果
                 print_info "部署文件列表:"
-                ls -la index.html assets/ 2>/dev/null || ls -la index.html
+                ls -la "$INSTALL_DIR/index.html" "$INSTALL_DIR/assets/" 2>/dev/null || ls -la "$INSTALL_DIR/index.html"
             else
                 print_error "构建失败：未生成 index.html"
                 exit 1
@@ -499,7 +496,7 @@ build_frontend() {
             print_step "重新尝试构建..."
             if npm run build; then
                 print_success "修复后构建成功"
-                cp -r dist/* .
+                cp -r dist/* "$INSTALL_DIR/"
                 print_success "前端文件部署完成"
             else
                 print_error "构建修复失败，请检查项目配置"
@@ -580,9 +577,18 @@ setup_database() {
 # 配置 PHP
 configure_php() {
     print_step "配置 PHP 环境..."
-    
+
+    # 确保在正确的目录
+    cd "$INSTALL_DIR"
+
+    # 复制 API 文件
+    if [ -d "$temp_dir/$PROJECT_NAME/api" ]; then
+        cp -r "$temp_dir/$PROJECT_NAME/api" .
+        print_success "API 文件复制完成"
+    fi
+
     # 创建 .env 文件
-    cat > api/.env << EOF
+    cat > .env << EOF
 DB_HOST=$DB_HOST
 DB_NAME=$DB_NAME
 DB_USER=$DB_USER
@@ -608,7 +614,16 @@ EOF
 # 配置 Apache
 configure_apache() {
     print_step "配置 Apache..."
-    
+
+    # 确保在正确的目录
+    cd "$INSTALL_DIR"
+
+    # 复制数据库文件
+    if [ -d "$temp_dir/$PROJECT_NAME/database" ]; then
+        cp -r "$temp_dir/$PROJECT_NAME/database" .
+        print_success "数据库文件复制完成"
+    fi
+
     # 创建 .htaccess 文件
     cat > .htaccess << 'EOF'
 # Serv00 环境管理系统 Apache 配置
@@ -663,16 +678,19 @@ EOF
 # 设置权限
 set_permissions() {
     print_step "设置文件权限..."
-    
+
+    # 确保在正确的目录
+    cd "$INSTALL_DIR"
+
     # 设置目录权限
     find . -type d -exec chmod 755 {} \;
-    
+
     # 设置文件权限
     find . -type f -exec chmod 644 {} \;
-    
-    # 设置可执行权限
-    chmod +x serv00-deploy.sh 2>/dev/null || true
-    
+
+    # 设置脚本可执行权限
+    find . -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+
     print_success "权限设置完成"
 }
 
@@ -761,7 +779,10 @@ show_results() {
 # 主函数
 main() {
     print_title "Serv00 环境管理系统一键部署"
-    
+
+    # 定义临时目录变量
+    local temp_dir=""
+
     # 检测系统
     detect_system
     
@@ -791,6 +812,13 @@ main() {
     
     # 显示结果
     show_results
+
+    # 清理临时目录
+    if [ -d "$temp_dir" ]; then
+        print_step "清理临时文件..."
+        rm -rf "$temp_dir"
+        print_success "临时文件清理完成"
+    fi
 }
 
 # 错误处理
