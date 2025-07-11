@@ -3,13 +3,15 @@
  * 环境管理系统 - 集成高级Workers特性
  */
 
-// 缓存配置 - 优化性能和KV使用量
-const CACHE_CONFIG = {
-  STATIC_ASSETS: 86400,    // 静态资源缓存24小时
-  API_RESPONSES: 600,      // API响应缓存10分钟（减少KV读取）
-  HEALTH_CHECK: 300,       // 健康检查缓存5分钟（减少频繁请求）
-  KV_CACHE: 1800          // KV数据缓存30分钟（新增）
-};
+// 获取缓存配置 - 从Dashboard环境变量读取，如果没有则使用默认值
+function getCacheConfig(env) {
+  return {
+    STATIC_ASSETS: parseInt(env.CACHE_STATIC_ASSETS) || 86400,    // 静态资源缓存24小时
+    API_RESPONSES: parseInt(env.CACHE_API_RESPONSES) || 600,      // API响应缓存10分钟
+    HEALTH_CHECK: parseInt(env.CACHE_HEALTH_CHECK) || 300,        // 健康检查缓存5分钟
+    KV_CACHE: parseInt(env.CACHE_KV_CACHE) || 1800               // KV数据缓存30分钟
+  };
+}
 
 // 安全配置
 const SECURITY_CONFIG = {
@@ -67,8 +69,11 @@ async function handleAPI(request, env, ctx) {
     return await handleEnvironmentsAPI(request, env);
   }
 
+
+
   // 健康检查端点（带缓存）
   if (url.pathname === '/api/health') {
+    const cacheConfig = getCacheConfig(env);
     return await handleCachedResponse(
       request,
       () => jsonResponse({
@@ -82,7 +87,7 @@ async function handleAPI(request, env, ctx) {
           timezone: request.cf?.timezone || 'unknown'
         }
       }),
-      CACHE_CONFIG.HEALTH_CHECK,
+      cacheConfig.HEALTH_CHECK,
       ctx
     );
   }
@@ -364,8 +369,9 @@ async function handleStaticAssets(request, env, ctx) {
                        url.pathname.endsWith('.png') ||
                        url.pathname.endsWith('.jpg');
 
+        const cacheConfig = getCacheConfig(env);
         const cacheControl = isAsset
-          ? `public, max-age=${CACHE_CONFIG.STATIC_ASSETS}, immutable`
+          ? `public, max-age=${cacheConfig.STATIC_ASSETS}, immutable`
           : 'public, max-age=3600';
 
         return new Response(response.body, {
@@ -844,6 +850,8 @@ async function deleteEnvironmentHistory(envId, env) {
   const historyKey = `status_history:${envId}`;
   await env.ENV_CONFIG.delete(historyKey);
 }
+
+
 
 // 工具函数
 function generateId() {
