@@ -21,7 +21,7 @@
 ```bash
 git add .
 git commit -m "Add Cloudflare Workers support"
-git push origin main
+git push origin workers
 ```
 
 ### 2. 按照部署指南操作
@@ -40,7 +40,7 @@ git push origin main
 ### Worker配置
 ```
 名称: environment-manager
-分支: main
+分支: workers  ← 重要：选择workers分支
 构建命令: npm run build
 输出目录: dist
 ```

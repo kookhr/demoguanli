@@ -51,6 +51,9 @@ command = "npm run build"
 cwd = "."
 watch_dir = ["src", "functions"]
 
+# Git分支配置
+# 注意：在Dashboard中选择 workers 分支作为生产分支
+
 # 限制配置
 [limits]
 cpu_ms = 50

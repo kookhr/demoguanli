@@ -58,7 +58,7 @@ Worker名称: environment-manager
 
 ### 2.4 选择仓库和分支
 1. 返回Cloudflare页面后，选择您的仓库
-2. 选择主分支（通常是 `main` 或 `master`）
+2. **重要：选择 `workers` 分支**（不是main分支）
 3. 点击 **"Begin setup"**
 
 ## ⚙️ 第三步：配置构建设置
@@ -75,7 +75,7 @@ Root directory: / (留空)
 
 ### 3.2 详细配置步骤
 1. **Project name**: 确认为 `environment-manager`
-2. **Production branch**: 选择 `main`
+2. **Production branch**: **选择 `workers`**（重要！）
 3. **Framework preset**: 选择 `None` 或 `Vite`
 4. **Build command**: 输入 `npm run build`
 5. **Build output directory**: 输入 `dist`
@@ -170,8 +170,8 @@ APP_VERSION = 2.0.0
 
 ### 8.2 分支部署策略
 ```
-main分支 → 生产环境自动部署
-develop分支 → 可配置为预览环境
+workers分支 → 生产环境自动部署
+其他分支 → 可配置为预览环境
 Pull Request → 自动创建预览部署
 ```
 
