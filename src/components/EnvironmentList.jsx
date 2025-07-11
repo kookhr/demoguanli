@@ -17,12 +17,17 @@ import EnvironmentFilter from './EnvironmentFilter';
 import EnvironmentCard from './EnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
+import Toast from './Toast';
+import { useToast } from '../hooks/useToast';
 
 const EnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
   const [filteredEnvironments, setFilteredEnvironments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Toast通知系统
+  const { toasts, removeToast, showSuccess, showInfo, showError } = useToast();
 
   // 状态检测相关状态
   const [environmentStatuses, setEnvironmentStatuses] = useState({});
@@ -115,6 +120,10 @@ const EnvironmentList = () => {
       return;
     }
     console.log('[CHECK] 开始批量检测...');
+
+    // 显示开始检测的通知
+    showInfo(`开始检测 ${environments.length} 个环境...`, 2000);
+
     setIsChecking(true);
     setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
 
@@ -129,8 +138,14 @@ const EnvironmentList = () => {
       console.log('[CHECK] 检测完成，结果:', results);
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
+
+      // 显示检测完成通知
+      const availableCount = Object.values(results).filter(r => r.status === 'online').length;
+      const totalCount = Object.keys(results).length;
+      showSuccess(`检测完成！${availableCount}/${totalCount} 个环境可用`, 3000);
     } catch (error) {
       console.error('[CHECK] 批量检测失败:', error);
+      showError('检测过程中出现错误，请重试', 3000);
     } finally {
       console.log('[CHECK] 检测结束，清理状态');
       setIsChecking(false);
@@ -331,6 +346,23 @@ const EnvironmentList = () => {
 
         {/* 状态监控面板 */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6 transition-colors duration-300">
+          {/* 全局检测状态指示器 */}
+          {isChecking && (
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    正在检测环境状态...
+                  </div>
+                  <div className="text-xs text-blue-700 dark:text-blue-300">
+                    {checkProgress ? `${checkProgress.completed}/${checkProgress.total} 已完成` : '准备中...'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Activity className="w-5 h-5" />
@@ -347,12 +379,13 @@ const EnvironmentList = () => {
 
 
               <button
-                onClick={() => {
-                  console.log('[BUTTON] 检测所有按钮被点击');
-                  handleCheckAll();
-                }}
+                onClick={handleCheckAll}
                 disabled={isChecking || environments.length === 0}
-                className="btn btn-primary flex items-center gap-2 disabled:opacity-50"
+                className={`btn btn-primary flex items-center gap-2 disabled:opacity-50 transition-all duration-200 ${
+                  isChecking
+                    ? 'bg-blue-600 dark:bg-blue-500 cursor-wait'
+                    : 'hover:bg-blue-700 dark:hover:bg-blue-600 active:scale-95'
+                }`}
               >
                 <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
                 {isChecking ? '检测中...' : '检测所有'}
@@ -362,19 +395,33 @@ const EnvironmentList = () => {
             </div>
           </div>
 
-          {/* 进度条 */}
-          {isChecking && checkProgress && (
+          {/* 进度条 - 优化显示逻辑 */}
+          {isChecking && (
             <div className="mb-4">
               <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-                <span>检测进度: {checkProgress.current || '准备中...'}</span>
-                <span>{checkProgress.completed}/{checkProgress.total}</span>
+                <span>
+                  {checkProgress?.current || '正在准备检测...'}
+                </span>
+                <span>
+                  {checkProgress ? `${checkProgress.completed}/${checkProgress.total}` : '0/0'}
+                </span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div
                   className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${checkProgress.percentage || 0}%` }}
+                  style={{ width: `${checkProgress?.percentage || 0}%` }}
                 ></div>
               </div>
+              {/* 添加脉动效果表示正在工作 */}
+              {!checkProgress && (
+                <div className="mt-2 flex items-center justify-center">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -463,8 +510,16 @@ const EnvironmentList = () => {
           isFavorite={contextMenu.environment ? isFavorite(contextMenu.environment.id) : false}
         />
 
-
-
+        {/* Toast通知 */}
+        {toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            duration={toast.duration}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
 
       </div>
     </div>

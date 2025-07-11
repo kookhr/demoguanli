@@ -1,5 +1,6 @@
 // 用户认证管理工具
 import { kvApi } from './kvApi';
+import { userManager, recordUserLogin } from './userManagement';
 
 const AUTH_STORAGE_KEY = 'auth_token';
 const USER_STORAGE_KEY = 'current_user';
@@ -109,7 +110,6 @@ class AuthManager {
 
         // 添加到用户管理器
         try {
-          const { userManager } = await import('./userManagement');
           await userManager.addUser(adminUsername, adminData);
         } catch (error) {
           console.warn('⚠️ 无法将管理员添加到用户管理器:', error);
@@ -119,7 +119,6 @@ class AuthManager {
       } else {
         // 确保现有管理员账户在用户管理器中
         try {
-          const { userManager } = await import('./userManagement');
           await userManager.addUser(adminUsername, existingAdmin);
         } catch (error) {
           // 静默处理错误
@@ -191,7 +190,6 @@ class AuthManager {
       await this.saveUserToKV(username, userData);
 
       // 添加到用户管理器
-      const { userManager } = await import('./userManagement');
       await userManager.addUser(username, userData);
 
       return { success: true, message: '注册成功' };
@@ -228,7 +226,6 @@ class AuthManager {
 
       // 记录用户登录到用户管理器
       try {
-        const { recordUserLogin } = await import('./userManagement');
         await recordUserLogin(username);
       } catch (error) {
         // 静默处理错误

@@ -257,13 +257,14 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
             
             {/* 检测按钮 */}
             <button
-              onClick={() => {
-                console.log('[CARD] 环境卡片刷新按钮被点击:', environment.name);
-                onStatusCheck && onStatusCheck(environment);
-              }}
+              onClick={() => onStatusCheck && onStatusCheck(environment)}
               disabled={isChecking}
-              className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors disabled:opacity-50"
-              title="检测状态"
+              className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 ${
+                isChecking
+                  ? 'bg-primary-200 dark:bg-primary-800/50 cursor-wait'
+                  : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50 active:scale-90'
+              }`}
+              title={isChecking ? '检测中...' : '检测状态'}
             >
               <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
             </button>
