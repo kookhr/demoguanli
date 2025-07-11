@@ -1,6 +1,6 @@
 // 环境数据管理 - 使用KV存储
 import { environmentsAPI } from '../utils/apiClient';
-import { environments as staticEnvironments } from './environments';
+import { environments as staticEnvironments } from './defaultEnvironments';
 
 // 将静态环境数据转换为KV格式
 function convertStaticToKVFormat(staticEnv) {

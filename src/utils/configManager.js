@@ -1,6 +1,6 @@
 // 配置管理工具 - 使用 Cloudflare KV
-import { kvApi } from './kvApi.js';
-import { environments as defaultEnvironments } from '../data/environments.js';
+import { kvAPI } from './apiClient.js';
+import { environments as defaultEnvironments } from '../data/defaultEnvironments.js';
 import { generateId } from './common.js';
 
 const KV_KEY = 'environments';
@@ -22,7 +22,7 @@ export const getEnvironments = async () => {
   console.log('[PROD] 生产环境，尝试从KV获取数据...');
   try {
     // 尝试从 KV 获取
-    const environments = await kvApi.get(KV_KEY);
+    const environments = await kvAPI.get(KV_KEY);
     console.log('[PROD] KV返回数据:', environments);
     if (environments && Array.isArray(environments) && environments.length > 0) {
       console.log('[PROD] 使用KV数据，数量:', environments.length);
@@ -41,7 +41,7 @@ export const getEnvironments = async () => {
 // 保存环境配置
 export const saveEnvironments = async (environments) => {
   try {
-    await kvApi.put(KV_KEY, environments);
+    await kvAPI.put(KV_KEY, environments);
     return true;
   } catch (error) {
     return false;

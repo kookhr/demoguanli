@@ -1,5 +1,5 @@
 // 用户管理工具
-import { kvApi } from './kvApi';
+import { kvAPI } from './apiClient';
 import { authManager } from './auth';
 
 // 用户管理类
@@ -33,7 +33,7 @@ class UserManager {
   async loadAllUsers() {
     try {
       // 尝试从KV存储获取用户列表
-      const userList = await kvApi.get('user_list');
+      const userList = await kvAPI.get('user_list');
       if (userList && Array.isArray(userList)) {
         // 加载每个用户的详细数据
         for (const username of userList) {
@@ -97,7 +97,7 @@ class UserManager {
     const userList = Array.from(this.users.keys());
     
     try {
-      await kvApi.put('user_list', userList);
+      await kvAPI.put('user_list', userList);
     } catch (error) {
       console.warn('⚠️ 无法保存用户列表到KV存储:', error);
     }
@@ -176,7 +176,7 @@ class UserManager {
 
     // 从KV存储删除
     try {
-      await kvApi.delete(`user_${username}`);
+      await kvAPI.delete(`user_${username}`);
     } catch (error) {
       // 静默处理错误
     }
