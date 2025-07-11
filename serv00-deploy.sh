@@ -1,7 +1,7 @@
 #!/bin/bash
-# Serv00 环境管理系统一键部署脚本
-# 支持交互式安装和自定义端口配置
-# 使用方法: bash -i <(curl -SL https://your-domain.com/serv00-deploy.sh)
+# Serv00 环境管理系统一键部署脚本 - 传统 Web 应用版
+# 完全兼容 Serv00 平台限制，使用传统 PHP + HTML 表单架构
+# 使用方法: bash -i <(curl -SL https://raw.githubusercontent.com/kookhr/demoguanli/serv00/serv00-deploy.sh)
 
 set -e  # 遇到错误立即退出
 
@@ -15,27 +15,26 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # 配置变量
-PROJECT_NAME="demoguanli"
+PROJECT_NAME="environment-manager"
 GITHUB_REPO="https://github.com/kookhr/demoguanli.git"
 GITHUB_BRANCH="serv00"
-DEFAULT_PORT=62595
-MIN_PORT=1024
-MAX_PORT=65535
 
 # 系统信息
 SYSTEM_INFO=""
 PHP_VERSION=""
 MYSQL_VERSION=""
-APACHE_VERSION=""
 
 # 安装配置
 INSTALL_DIR=""
-CUSTOM_PORT=""
-DB_HOST="mysql14.serv00.com"
-DB_NAME="em9785_environment_manager"
-DB_USER="m9785_s14kook"
+DB_HOST=""
+DB_NAME=""
+DB_USER=""
 DB_PASS=""
-DOMAIN_NAME="do.kandy.dpdns.org"
+DOMAIN_NAME=""
+
+# Serv00 平台检测
+SERV00_SERVER=""
+DETECTED_USER=""
 
 # 打印带颜色的消息
 print_message() {
@@ -83,151 +82,246 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# 检测系统信息
-detect_system() {
-    print_step "检测系统环境..."
-    
+# 检测 Serv00 环境
+detect_serv00_environment() {
+    print_step "检测 Serv00 环境..."
+
     # 检测操作系统
     if [[ "$OSTYPE" == "freebsd"* ]]; then
         SYSTEM_INFO="FreeBSD (Serv00)"
-        print_success "检测到 FreeBSD 系统 (Serv00)"
+        print_success "✓ 检测到 FreeBSD 系统 (Serv00)"
     else
         SYSTEM_INFO="$OSTYPE"
-        print_warning "检测到非 FreeBSD 系统: $OSTYPE"
+        print_warning "⚠ 检测到非 FreeBSD 系统: $OSTYPE"
+        print_warning "此脚本专为 Serv00 平台设计，其他平台可能不兼容"
     fi
-    
+
+    # 检测当前用户
+    DETECTED_USER=$(whoami)
+    print_info "当前用户: $DETECTED_USER"
+
+    # 检测服务器编号
+    if [[ $(hostname) =~ s([0-9]+)\.serv00\.com ]]; then
+        SERV00_SERVER="s${BASH_REMATCH[1]}"
+        print_success "✓ 检测到 Serv00 服务器: $SERV00_SERVER"
+    else
+        print_warning "⚠ 无法检测 Serv00 服务器编号"
+        SERV00_SERVER="s0"  # 默认值
+    fi
+
     # 检测 PHP
     if command_exists php; then
-        PHP_VERSION=$(php -v | head -n1 | cut -d' ' -f2)
-        print_success "PHP 版本: $PHP_VERSION"
+        PHP_VERSION=$(php -v | head -n1 | cut -d' ' -f2 | cut -d'-' -f1)
+        print_success "✓ PHP 版本: $PHP_VERSION"
+
+        # 检查 PHP 扩展
+        local required_extensions=("pdo" "pdo_mysql" "session" "json")
+        for ext in "${required_extensions[@]}"; do
+            if php -m | grep -q "^$ext$"; then
+                print_success "  ✓ PHP 扩展 $ext 已安装"
+            else
+                print_error "  ✗ PHP 扩展 $ext 未安装"
+                exit 1
+            fi
+        done
     else
-        print_error "未找到 PHP，请先安装 PHP"
+        print_error "未找到 PHP，请联系 Serv00 支持"
         exit 1
     fi
-    
-    # 检测 MySQL/MariaDB
+
+    # 检测 MySQL 客户端
     if command_exists mysql; then
-        MYSQL_VERSION=$(mysql --version | cut -d' ' -f6)
-        print_success "MySQL 版本: $MYSQL_VERSION"
+        MYSQL_VERSION=$(mysql --version | cut -d' ' -f6 | cut -d',' -f1)
+        print_success "✓ MySQL 客户端版本: $MYSQL_VERSION"
     else
-        print_warning "未找到 MySQL 客户端"
+        print_warning "⚠ 未找到 MySQL 客户端，将尝试继续安装"
     fi
-    
-    # 检测 Apache
-    if command_exists httpd; then
-        APACHE_VERSION=$(httpd -v | head -n1 | cut -d' ' -f3)
-        print_success "Apache 版本: $APACHE_VERSION"
+
+    # 检测目录权限
+    local home_dir="/usr/home/$DETECTED_USER"
+    if [ -d "$home_dir" ] && [ -w "$home_dir" ]; then
+        print_success "✓ 用户主目录权限正常"
     else
-        print_warning "未找到 Apache"
+        print_error "✗ 用户主目录权限异常: $home_dir"
+        exit 1
     fi
 }
 
-# 验证端口
-validate_port() {
-    local port=$1
-    if [[ ! $port =~ ^[0-9]+$ ]] || [ $port -lt $MIN_PORT ] || [ $port -gt $MAX_PORT ]; then
-        return 1
-    fi
-    return 0
-}
+# 自动检测 Serv00 配置
+auto_detect_serv00_config() {
+    print_step "自动检测 Serv00 配置..."
 
-# 检查端口是否可用
-check_port_available() {
-    local port=$1
-    if command_exists netstat; then
-        if netstat -an | grep ":$port " >/dev/null 2>&1; then
-            return 1
+    # 检测服务器编号并设置 MySQL 主机
+    if [[ $(hostname) =~ s([0-9]+)\.serv00\.com ]]; then
+        local server_num="${BASH_REMATCH[1]}"
+        DB_HOST="mysql${server_num}.serv00.com"
+        print_success "✓ 自动检测 MySQL 主机: $DB_HOST"
+    else
+        DB_HOST="mysql0.serv00.com"  # 默认值
+        print_warning "⚠ 无法检测服务器编号，使用默认 MySQL 主机: $DB_HOST"
+    fi
+
+    # 检测用户名并生成数据库配置
+    local user=$(whoami)
+    if [[ $user =~ ^([a-z]+)([0-9]+)$ ]]; then
+        local user_prefix="${BASH_REMATCH[1]}"
+        local user_number="${BASH_REMATCH[2]}"
+
+        # 生成默认数据库配置
+        DB_USER="${user_prefix}${user_number}_admin"
+        DB_NAME="${user_prefix}${user_number}_envmgr"
+
+        print_success "✓ 自动生成数据库用户: $DB_USER"
+        print_success "✓ 自动生成数据库名称: $DB_NAME"
+    else
+        print_warning "⚠ 无法解析用户名格式，需要手动配置"
+    fi
+
+    # 检测域名配置
+    local domains_dir="/usr/home/$user/domains"
+    if [ -d "$domains_dir" ]; then
+        local domain_count=$(ls -1 "$domains_dir" 2>/dev/null | wc -l)
+        if [ "$domain_count" -gt 0 ]; then
+            local first_domain=$(ls -1 "$domains_dir" | head -n1)
+            DOMAIN_NAME="$first_domain"
+            INSTALL_DIR="$domains_dir/$first_domain/public_html"
+            print_success "✓ 自动检测域名: $DOMAIN_NAME"
+            print_success "✓ 自动设置安装目录: $INSTALL_DIR"
+        else
+            print_warning "⚠ 未找到已配置的域名"
         fi
+    else
+        print_warning "⚠ 域名目录不存在: $domains_dir"
     fi
-    return 0
 }
 
 # 交互式配置
 interactive_config() {
-    print_title "交互式配置"
-    
-    # 安装目录
-    echo -n "请输入安装目录 [默认: ~/domains/do.kandy.dpdns.org/public_html]: "
-    read INSTALL_DIR
+    print_title "Serv00 环境管理系统配置"
+
+    echo
+    print_message $CYAN "📋 自动检测到的配置:"
+    echo "   域名: ${DOMAIN_NAME:-'未检测到'}"
+    echo "   安装目录: ${INSTALL_DIR:-'未检测到'}"
+    echo "   数据库主机: ${DB_HOST:-'未检测到'}"
+    echo "   数据库用户: ${DB_USER:-'未检测到'}"
+    echo "   数据库名称: ${DB_NAME:-'未检测到'}"
+    echo
+
+    # 确认或修改安装目录
     if [ -z "$INSTALL_DIR" ]; then
-        INSTALL_DIR="$HOME/domains/do.kandy.dpdns.org/public_html"
+        echo -n "请输入安装目录 [例如: ~/domains/yourdomain.com/public_html]: "
+        read INSTALL_DIR
+        while [ -z "$INSTALL_DIR" ]; do
+            print_error "安装目录不能为空"
+            echo -n "请输入安装目录: "
+            read INSTALL_DIR
+        done
+    else
+        echo -n "确认安装目录 [$INSTALL_DIR] (回车确认，或输入新路径): "
+        read input_dir
+        if [ -n "$input_dir" ]; then
+            INSTALL_DIR="$input_dir"
+        fi
     fi
-    
+
+    # 展开波浪号
+    INSTALL_DIR="${INSTALL_DIR/#\~/$HOME}"
+
     # 创建安装目录
     mkdir -p "$INSTALL_DIR"
-    print_success "安装目录: $INSTALL_DIR"
-    
-    # 自定义端口配置
-    while true; do
-        echo -n "请输入自定义端口 [默认: $DEFAULT_PORT]: "
-        read CUSTOM_PORT
-        if [ -z "$CUSTOM_PORT" ]; then
-            CUSTOM_PORT=$DEFAULT_PORT
+    if [ ! -w "$INSTALL_DIR" ]; then
+        print_error "安装目录不可写: $INSTALL_DIR"
+        exit 1
+    fi
+    print_success "✓ 安装目录: $INSTALL_DIR"
+
+    # 确认或修改数据库配置
+    if [ -z "$DB_HOST" ]; then
+        echo -n "请输入数据库主机 [例如: mysql0.serv00.com]: "
+        read DB_HOST
+        while [ -z "$DB_HOST" ]; do
+            print_error "数据库主机不能为空"
+            echo -n "请输入数据库主机: "
+            read DB_HOST
+        done
+    else
+        echo -n "确认数据库主机 [$DB_HOST] (回车确认，或输入新主机): "
+        read input_host
+        if [ -n "$input_host" ]; then
+            DB_HOST="$input_host"
         fi
+    fi
 
-        if validate_port $CUSTOM_PORT; then
-            if check_port_available $CUSTOM_PORT; then
-                print_success "端口 $CUSTOM_PORT 可用"
-                break
-            else
-                print_error "端口 $CUSTOM_PORT 已被占用，请选择其他端口"
-            fi
-        else
-            print_error "无效端口号，请输入 $MIN_PORT-$MAX_PORT 之间的数字"
+    if [ -z "$DB_NAME" ]; then
+        echo -n "请输入数据库名称: "
+        read DB_NAME
+        while [ -z "$DB_NAME" ]; do
+            print_error "数据库名称不能为空"
+            echo -n "请输入数据库名称: "
+            read DB_NAME
+        done
+    else
+        echo -n "确认数据库名称 [$DB_NAME] (回车确认，或输入新名称): "
+        read input_name
+        if [ -n "$input_name" ]; then
+            DB_NAME="$input_name"
         fi
-    done
-    
-    # 数据库配置
-    echo -n "数据库主机 [默认: mysql14.serv00.com]: "
-    read input_db_host
-    if [ -z "$input_db_host" ]; then
-        DB_HOST="mysql14.serv00.com"
-    else
-        DB_HOST="$input_db_host"
     fi
 
-    echo -n "数据库名称 [默认: m9785_environment_manager]: "
-    read input_db_name
-    if [ -z "$input_db_name" ]; then
-        DB_NAME="m9785_environment_manager"
-    else
-        DB_NAME="$input_db_name"
-    fi
-
-    echo -n "数据库用户名 [默认: m9785_s14kook]: "
-    read input_db_user
-    if [ -z "$input_db_user" ]; then
-        DB_USER="m9785_s14kook"
-    else
-        DB_USER="$input_db_user"
-    fi
-
-    while [ -z "$DB_USER" ]; do
-        print_error "数据库用户名不能为空"
-        echo -n "数据库用户名: "
+    if [ -z "$DB_USER" ]; then
+        echo -n "请输入数据库用户名: "
         read DB_USER
-    done
+        while [ -z "$DB_USER" ]; do
+            print_error "数据库用户名不能为空"
+            echo -n "请输入数据库用户名: "
+            read DB_USER
+        done
+    else
+        echo -n "确认数据库用户名 [$DB_USER] (回车确认，或输入新用户名): "
+        read input_user
+        if [ -n "$input_user" ]; then
+            DB_USER="$input_user"
+        fi
+    fi
 
-    echo -n "数据库密码: "
+    # 数据库密码（必须输入）
+    echo -n "请输入数据库密码: "
     read -s DB_PASS
     echo
     while [ -z "$DB_PASS" ]; do
         print_error "数据库密码不能为空"
-        echo -n "数据库密码: "
+        echo -n "请输入数据库密码: "
         read -s DB_PASS
         echo
     done
-    
-    # 域名配置
-    echo -n "域名 [默认: do.kandy.dpdns.org]: "
-    read input_domain
-    if [ -z "$input_domain" ]; then
-        DOMAIN_NAME="do.kandy.dpdns.org"
+
+    # 确认或修改域名
+    if [ -z "$DOMAIN_NAME" ]; then
+        echo -n "请输入域名 [例如: yourdomain.com]: "
+        read DOMAIN_NAME
+        while [ -z "$DOMAIN_NAME" ]; do
+            print_error "域名不能为空"
+            echo -n "请输入域名: "
+            read DOMAIN_NAME
+        done
     else
-        DOMAIN_NAME="$input_domain"
+        echo -n "确认域名 [$DOMAIN_NAME] (回车确认，或输入新域名): "
+        read input_domain
+        if [ -n "$input_domain" ]; then
+            DOMAIN_NAME="$input_domain"
+        fi
     fi
-    
-    print_success "配置完成"
+
+    echo
+    print_success "✓ 配置完成"
+    print_info "最终配置:"
+    echo "   安装目录: $INSTALL_DIR"
+    echo "   数据库主机: $DB_HOST"
+    echo "   数据库名称: $DB_NAME"
+    echo "   数据库用户: $DB_USER"
+    echo "   域名: $DOMAIN_NAME"
+    echo
 }
 
 # 创建 index.html 入口文件
@@ -392,34 +486,120 @@ fix_build_issues() {
     print_success "构建问题修复完成"
 }
 
-# 下载项目文件
-download_project() {
-    print_step "下载项目文件..."
-    
-    # 创建临时目录用于下载
-    temp_dir="$INSTALL_DIR/temp_${PROJECT_NAME}_$(date +%Y%m%d_%H%M%S)"
-    mkdir -p "$temp_dir"
-    cd "$temp_dir"
+# 准备项目文件
+prepare_project_files() {
+    print_step "准备项目文件..."
 
-    # 下载项目到临时目录
-    if command_exists git; then
-        git clone -b "$GITHUB_BRANCH" "$GITHUB_REPO" "$PROJECT_NAME"
+    # 确保在安装目录
+    cd "$INSTALL_DIR"
+
+    # 创建临时目录用于下载数据库文件
+    local temp_dir="temp_download_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$temp_dir"
+
+    # 只下载必要的数据库文件
+    if command_exists curl; then
+        print_step "下载数据库初始化文件..."
+
+        # 创建 database 目录
+        mkdir -p database
+
+        # 下载数据库初始化文件
+        local init_sql_url="https://raw.githubusercontent.com/kookhr/demoguanli/serv00/database/init.sql"
+        if curl -s -f "$init_sql_url" -o "database/init.sql"; then
+            print_success "✓ 数据库初始化文件下载完成"
+        else
+            print_warning "⚠ 无法下载数据库文件，将创建基础表结构"
+            create_basic_database_schema
+        fi
     else
-        # 使用 curl 下载 zip 文件
-        curl -L "${GITHUB_REPO}/archive/${GITHUB_BRANCH}.zip" -o "${PROJECT_NAME}.zip"
-        unzip "${PROJECT_NAME}.zip"
-        mv "${PROJECT_NAME}-${GITHUB_BRANCH}" "$PROJECT_NAME"
-        rm "${PROJECT_NAME}.zip"
+        print_warning "⚠ curl 不可用，将创建基础表结构"
+        create_basic_database_schema
     fi
 
-    cd "$PROJECT_NAME"
-    print_success "项目文件下载完成"
+    # 清理临时目录
+    rm -rf "$temp_dir"
+
+    print_success "✓ 项目文件准备完成"
 }
 
-# 跳过前端构建（传统 Web 应用不需要）
-skip_frontend_build() {
-    print_step "跳过前端构建（传统 Web 应用模式）..."
-    print_success "传统 Web 应用不需要前端构建步骤"
+# 创建基础数据库表结构
+create_basic_database_schema() {
+    print_step "创建基础数据库表结构..."
+
+    mkdir -p database
+
+    cat > database/init.sql << 'EOF'
+-- 环境管理系统数据库初始化脚本
+-- 适用于 Serv00 MySQL 8.0
+
+-- 创建环境表
+CREATE TABLE IF NOT EXISTS environments (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    description TEXT,
+    version VARCHAR(50),
+    network_type ENUM('internal', 'external') DEFAULT 'external',
+    environment_type ENUM('development', 'testing', 'staging', 'production') DEFAULT 'development',
+    tags JSON,
+    created_by VARCHAR(36),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    INDEX idx_name (name),
+    INDEX idx_type (environment_type),
+    INDEX idx_network (network_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建用户表
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(36) PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(255),
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'user') DEFAULT 'user',
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_username (username),
+    INDEX idx_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 创建状态历史表
+CREATE TABLE IF NOT EXISTS status_history (
+    id VARCHAR(36) PRIMARY KEY,
+    environment_id VARCHAR(36) NOT NULL,
+    status ENUM('available', 'unreachable', 'checking') NOT NULL,
+    response_time INT,
+    status_code INT,
+    error_message TEXT,
+    checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_env_id (environment_id),
+    INDEX idx_status (status),
+    INDEX idx_checked_at (checked_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 插入默认管理员用户 (密码: admin123)
+INSERT IGNORE INTO users (id, username, email, password_hash, role, is_active)
+VALUES (
+    'admin-001',
+    'admin',
+    'admin@localhost',
+    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    'admin',
+    TRUE
+);
+
+-- 插入示例环境数据
+INSERT IGNORE INTO environments (id, name, url, description, environment_type, network_type, created_by) VALUES
+('env-001', '开发环境', 'https://dev.example.com', '主要开发环境', 'development', 'external', 'admin-001'),
+('env-002', '测试环境', 'https://test.example.com', '功能测试环境', 'testing', 'external', 'admin-001'),
+('env-003', '生产环境', 'https://prod.example.com', '生产环境', 'production', 'external', 'admin-001');
+EOF
+
+    print_success "✓ 基础数据库表结构已创建"
 }
 
 # 配置数据库和连接检查
@@ -1501,81 +1681,104 @@ verify_installation() {
 
 # 显示安装结果
 show_results() {
-    print_title "传统 Web 应用安装完成"
+    print_title "🎉 Serv00 环境管理系统部署成功"
 
     echo
-    print_message $GREEN "🎉 环境管理系统（传统 Web 应用版）安装成功！"
+    print_message $GREEN "✅ 传统 PHP Web 应用已成功部署到 Serv00 平台！"
     echo
-    print_message $CYAN "📋 安装信息:"
-    echo "   安装目录: $INSTALL_DIR"
-    echo "   应用架构: 传统 PHP Web 应用（表单提交 + Session 认证）"
-    echo "   数据库主机: $DB_HOST"
-    echo "   数据库名称: $DB_NAME"
-    echo "   数据库用户: $DB_USER"
-    echo "   域名: $DOMAIN_NAME"
+
+    # 系统信息
+    print_message $CYAN "📋 系统信息:"
+    echo "   🖥️  平台: Serv00 FreeBSD"
+    echo "   🐘 PHP 版本: $PHP_VERSION"
+    echo "   🗄️  MySQL 版本: ${MYSQL_VERSION:-'未检测'}"
+    echo "   📁 安装目录: $INSTALL_DIR"
+    echo "   🌐 域名: $DOMAIN_NAME"
+    echo "   🔗 数据库: $DB_USER@$DB_HOST/$DB_NAME"
     echo
+
+    # 访问地址
     print_message $CYAN "🌐 访问地址:"
-    echo "   主页: https://$DOMAIN_NAME/"
-    echo "   登录页面: https://$DOMAIN_NAME/login.php"
-    echo "   环境管理: https://$DOMAIN_NAME/index.php"
+    echo "   🏠 主页: https://$DOMAIN_NAME/"
+    echo "   🔐 登录: https://$DOMAIN_NAME/login.php"
+    echo "   ➕ 添加环境: https://$DOMAIN_NAME/add-environment.php"
     echo
-    print_message $CYAN "🔧 管理功能:"
-    echo "   添加环境: https://$DOMAIN_NAME/add-environment.php"
-    echo "   编辑环境: 在主页点击环境卡片的编辑按钮"
-    echo "   删除环境: 在主页点击环境卡片的删除按钮"
+
+    # 测试和诊断
+    print_message $CYAN "� 测试和诊断:"
+    echo "   🧪 基础测试: https://$DOMAIN_NAME/test-basic.php"
+    echo "   📊 PHP 信息: https://$DOMAIN_NAME/test.php"
+    echo "   🔌 数据库测试: https://$DOMAIN_NAME/test-db-connection.php"
     echo
-    print_message $CYAN "🔍 测试和诊断:"
-    echo "   基础 PHP 测试: https://$DOMAIN_NAME/test-basic.php"
-    echo "   PHP 信息页面: https://$DOMAIN_NAME/test.php"
-    echo "   数据库连接测试: https://$DOMAIN_NAME/test-db-connection.php"
-    echo
+
+    # 默认账户
     print_message $CYAN "👤 默认管理员账户:"
     echo "   用户名: admin"
     echo "   密码: admin123"
     echo
-    print_message $YELLOW "⚠️  重要提示:"
-    echo "   1. 请立即登录并修改默认管理员密码"
-    echo "   2. 此版本使用传统 Web 表单，完全避开 Serv00 的 API 限制"
-    echo "   3. 所有操作通过 POST 表单提交，使用 PHP Session 认证"
-    echo "   4. 定期备份数据库数据"
+
+    # 重要提示
+    print_message $YELLOW "⚠️  安全提示:"
+    echo "   1. 🔒 立即登录并修改默认管理员密码"
+    echo "   2. 🛡️  定期备份数据库数据"
+    echo "   3. 📝 查看错误日志: tail -f /tmp/serv00-php-errors.log"
     echo
-    print_message $BLUE "🔍 故障排除:"
-    echo "   查看PHP错误日志: tail -f /tmp/serv00-php-errors.log"
-    echo "   测试数据库连接: mysql -h$DB_HOST -u$DB_USER -p$DB_PASS $DB_NAME"
-    echo "   检查文件权限: ls -la $INSTALL_DIR"
-    echo "   检查配置文件: cat $INSTALL_DIR/config.php"
+
+    # 技术特点
+    print_message $BLUE "🏗️  架构特点 (完全兼容 Serv00):"
+    echo "   ✅ 传统 PHP Web 应用 (非 SPA)"
+    echo "   ✅ HTML 表单提交 (非 REST API)"
+    echo "   ✅ PHP Session 认证 (非 JWT)"
+    echo "   ✅ 页面重定向 (非 JSON 响应)"
+    echo "   ✅ 直接数据库操作 (非 API 调用)"
     echo
-    print_message $BLUE "📚 技术特点:"
-    echo "   ✅ 传统 PHP Web 应用架构"
-    echo "   ✅ HTML 表单 + POST 提交"
-    echo "   ✅ PHP Session 用户认证"
-    echo "   ✅ 直接数据库操作"
-    echo "   ✅ 完全兼容 Serv00 平台限制"
+
+    # 快速验证步骤
+    print_message $PURPLE "� 快速验证步骤:"
+    echo "   1. 访问 https://$DOMAIN_NAME/test-basic.php 验证 PHP 功能"
+    echo "   2. 访问 https://$DOMAIN_NAME/login.php 测试登录功能"
+    echo "   3. 使用 admin/admin123 登录系统"
+    echo "   4. 添加第一个环境测试 CRUD 功能"
     echo
-    print_message $BLUE "📚 更多信息:"
-    echo "   项目文档: https://github.com/kookhr/demoguanli/tree/serv00"
-    echo "   技术支持: https://github.com/kookhr/demoguanli/issues"
+
+    # 故障排除
+    print_message $RED "� 如遇问题，请检查:"
+    echo "   📋 基础测试: curl https://$DOMAIN_NAME/test-basic.php"
+    echo "   🔌 数据库连接: mysql -h$DB_HOST -u$DB_USER -p$DB_PASS $DB_NAME"
+    echo "   📁 文件权限: ls -la $INSTALL_DIR"
+    echo "   📄 错误日志: tail -f /tmp/serv00-php-errors.log"
     echo
+
+    # 项目信息
+    print_message $BLUE "📚 项目信息:"
+    echo "   📖 文档: https://github.com/kookhr/demoguanli/tree/serv00"
+    echo "   🐛 问题反馈: https://github.com/kookhr/demoguanli/issues"
+    echo "   💬 技术支持: 基于传统 Web 应用架构，完全避开 Serv00 API 限制"
+    echo
+
+    print_message $GREEN "🎊 部署完成！请开始使用您的环境管理系统！"
 }
 
 # 主函数
 main() {
     print_title "Serv00 环境管理系统一键部署 - 传统 Web 应用版"
 
-    # 定义临时目录变量
-    local temp_dir=""
+    echo
+    print_message $CYAN "🚀 开始部署适配 Serv00 平台的传统 PHP Web 应用"
+    print_message $YELLOW "📋 架构特点: HTML 表单 + PHP Session + MySQL"
+    echo
 
-    # 检测系统
-    detect_system
+    # 检测 Serv00 环境
+    detect_serv00_environment
 
-    # 交互式配置
+    # 自动检测配置
+    auto_detect_serv00_config
+
+    # 交互式配置确认
     interactive_config
 
-    # 下载项目
-    download_project
-
-    # 跳过前端构建
-    skip_frontend_build
+    # 准备项目文件
+    prepare_project_files
 
     # 配置数据库
     setup_database
@@ -1598,12 +1801,8 @@ main() {
     # 显示结果
     show_results
 
-    # 清理临时目录
-    if [ -d "$temp_dir" ]; then
-        print_step "清理临时文件..."
-        rm -rf "$temp_dir"
-        print_success "临时文件清理完成"
-    fi
+    echo
+    print_message $GREEN "🎉 部署完成！请访问您的域名测试系统功能"
 }
 
 # 错误处理
