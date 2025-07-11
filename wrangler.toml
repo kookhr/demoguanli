@@ -2,13 +2,13 @@ name = "environment-manager"
 main = "src/worker.js"
 compatibility_date = "2025-01-15"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = true
 
 [assets]
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# KV 存储绑定 - 防止部署时被覆盖
 [[kv_namespaces]]
 binding = "ENV_CONFIG"
 id = "4a3aeaec065946a4a23f9c249537def3"
@@ -16,6 +16,3 @@ preview_id = "4a3aeaec065946a4a23f9c249537def3"
 
 # 敏感环境变量在 Cloudflare Dashboard 中配置:
 # - JWT_SECRET
-
-workers_dev = true
-
