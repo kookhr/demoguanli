@@ -579,7 +579,7 @@ VALUES (
     'admin-001',
     'admin',
     'admin@localhost',
-    '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    '$2y$10$TKh8H1.PfQx37YgCzwiKb.KjNyWgaHb9cbcoQgdIVFlYg7B77UdFm',
     'admin',
     TRUE
 );
@@ -743,6 +743,34 @@ try {
 EOF
 
     print_success "数据库连接测试文件已创建"
+
+    # 创建密码重置工具
+    cat > reset-admin-password.php << 'EOF'
+<?php
+// 管理员密码重置工具
+require_once 'config.php';
+
+try {
+    $pdo = getDatabase();
+
+    // 生成新的密码哈希 (admin123)
+    $new_password = 'admin123';
+    $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+
+    // 更新管理员密码
+    $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE username = 'admin'");
+    $stmt->execute([$password_hash]);
+
+    echo "管理员密码已重置为: admin123\n";
+    echo "请立即登录并修改密码\n";
+
+} catch (Exception $e) {
+    echo "密码重置失败: " . $e->getMessage() . "\n";
+}
+?>
+EOF
+
+    print_success "密码重置工具已创建"
 }
 
 # 配置传统 PHP Web 应用
@@ -1709,6 +1737,13 @@ show_results() {
     print_message $CYAN "👤 默认管理员账户:"
     echo "   用户名: admin"
     echo "   密码: admin123"
+    echo
+
+    # 密码问题解决方案
+    print_message $YELLOW "🔐 如果密码不正确:"
+    echo "   1. 在服务器上运行: php reset-admin-password.php"
+    echo "   2. 或者访问: https://$DOMAIN_NAME/reset-admin-password.php"
+    echo "   3. 然后使用 admin/admin123 重新登录"
     echo
 
     # 重要提示
