@@ -7,6 +7,11 @@ const KV_KEY = 'environments';
 
 // 获取所有环境配置
 export const getEnvironments = async () => {
+  // 在开发环境中直接使用默认数据
+  if (import.meta.env.DEV) {
+    return defaultEnvironments;
+  }
+
   try {
     // 尝试从 KV 获取
     const environments = await kvApi.get(KV_KEY);

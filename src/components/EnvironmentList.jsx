@@ -48,47 +48,12 @@ const EnvironmentList = () => {
 
 
 
-  // 页面加载完成后自动检测状态
-  useEffect(() => {
-    if (environments.length > 0) {
-      // 延迟1秒后开始检测，确保页面渲染完成
-      const timer = setTimeout(() => {
-        handleCheckAll();
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [environments]);
-
-  // 监听页面可见性变化，当用户回到页面时重新检测
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && environments.length > 0) {
-        // 延迟500ms后检测，避免频繁切换
-        setTimeout(() => {
-          if (!isChecking) {
-            handleCheckAll();
-          }
-        }, 500);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [environments, isChecking]);
-
-
-
   const loadEnvironments = async () => {
     try {
       setLoading(true);
       setError(null);
 
       const envs = await getEnvironments();
-
       setEnvironments(envs);
       setFilteredEnvironments(envs);
     } catch (err) {
@@ -105,7 +70,6 @@ const EnvironmentList = () => {
 
   // 检测单个环境状态
   const handleCheckSingle = useCallback(async (environment) => {
-
     setEnvironmentStatuses(prev => ({
       ...prev,
       [environment.id]: { ...prev[environment.id], isChecking: true }
@@ -156,7 +120,39 @@ const EnvironmentList = () => {
       setIsChecking(false);
       setCheckProgress(null);
     }
-  }, [environments]);
+  }, [environments, isChecking]);
+
+  // 页面加载完成后自动检测状态
+  useEffect(() => {
+    if (environments.length > 0) {
+      // 延迟1秒后开始检测，确保页面渲染完成
+      const timer = setTimeout(() => {
+        handleCheckAll();
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [environments, handleCheckAll]);
+
+  // 监听页面可见性变化，当用户回到页面时重新检测
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && environments.length > 0) {
+        // 延迟500ms后检测，避免频繁切换
+        setTimeout(() => {
+          if (!isChecking) {
+            handleCheckAll();
+          }
+        }, 500);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [environments, isChecking, handleCheckAll]);
 
   // 获取环境状态 - 使用useCallback优化
   const getEnvironmentStatus = useCallback((envId) => {
@@ -204,7 +200,7 @@ const EnvironmentList = () => {
     });
 
     return summary;
-  }, [environments, environmentStatuses, getEnvironmentStatus]);
+  }, [environments, getEnvironmentStatus]);
 
   // 右键菜单操作处理 - 使用useCallback优化
   const handleContextMenuAction = useCallback((action, environment) => {
@@ -342,6 +338,8 @@ const EnvironmentList = () => {
                 <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
                 {isChecking ? '检测中...' : '检测所有'}
               </button>
+
+
             </div>
           </div>
 
