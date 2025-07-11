@@ -145,9 +145,19 @@ async function handleAuthAPI(request, env) {
 
     if (request.method === 'POST') {
       if (path === '/login') {
-        return await handleLogin(request, env);
+        const response = await handleLogin(request, env);
+        // 确保登录响应不被缓存
+        response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        response.headers.set('Pragma', 'no-cache');
+        response.headers.set('Expires', '0');
+        return response;
       } else if (path === '/register') {
-        return await handleRegister(request, env);
+        const response = await handleRegister(request, env);
+        // 确保注册响应不被缓存
+        response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        response.headers.set('Pragma', 'no-cache');
+        response.headers.set('Expires', '0');
+        return response;
       } else if (path === '/logout') {
         return await handleLogout(request, env);
       }
