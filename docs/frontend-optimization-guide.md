@@ -78,11 +78,10 @@ useNetworkStatus(); // 自动显示网络状态变化
 #### **4. 搜索和筛选功能**
 ```jsx
 // 高级搜索和筛选
-<SearchAndFilter
+<AdvancedSearch
   environments={environments}
   onFilteredResults={setFilteredEnvironments}
-  onViewModeChange={setViewMode}
-  viewMode={viewMode}
+  className="mb-6"
 />
 ```
 

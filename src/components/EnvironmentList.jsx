@@ -13,7 +13,7 @@ import {
   checkEnvironmentStatus,
   checkMultipleEnvironments
 } from '../utils/simpleNetworkCheck';
-import EnvironmentFilter from './EnvironmentFilter';
+
 import EnvironmentCard from './EnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
@@ -28,7 +28,7 @@ const EnvironmentList = () => {
   const [filteredEnvironments, setFilteredEnvironments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchResults, setSearchResults] = useState([]);
+
 
   // 增强版Toast通知系统
   const { success: showSuccess, info: showInfo, error: showError } = useToast();
@@ -76,10 +76,7 @@ const EnvironmentList = () => {
     }
   };
 
-  // 处理过滤变化 - 使用 useCallback 避免无限循环
-  const handleFilterChange = useCallback((filtered) => {
-    setFilteredEnvironments(filtered);
-  }, []);
+
 
   // 检测单个环境状态
   const handleCheckSingle = useCallback(async (environment) => {
@@ -340,10 +337,7 @@ const EnvironmentList = () => {
         <EnhancedErrorBoundary>
           <AdvancedSearch
             environments={environments}
-            onFilteredResults={(results) => {
-              setSearchResults(results);
-              setFilteredEnvironments(results);
-            }}
+            onFilteredResults={setFilteredEnvironments}
             className="mb-6"
           />
         </EnhancedErrorBoundary>
@@ -446,12 +440,7 @@ const EnvironmentList = () => {
           </div>
         </div>
 
-        {/* 搜索和过滤 */}
-        <EnvironmentFilter
-          environments={environments}
-          onFilterChange={handleFilterChange}
-          className="mb-8"
-        />
+
 
         {/* 历史面板 */}
         {showHistory && selectedEnvironmentForHistory && (
