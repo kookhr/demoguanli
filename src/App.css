@@ -33,10 +33,80 @@
   background: #a8a8a8;
 }
 
-/* 响应式设计 */
+/* 响应式设计增强 */
+@media (max-width: 640px) {
+  /* 移动端优化 */
+  .container {
+    padding: 1rem;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* 移动端卡片优化 */
+  .environment-card {
+    padding: 1rem;
+  }
+
+  /* 移动端按钮优化 */
+  .mobile-button {
+    min-height: 44px; /* iOS推荐的最小触摸目标 */
+    padding: 0.75rem 1rem;
+  }
+
+  /* 移动端表单优化 */
+  .mobile-input {
+    font-size: 16px; /* 防止iOS缩放 */
+    padding: 0.75rem;
+  }
+
+  /* 移动端导航优化 */
+  .mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 0.5rem;
+    z-index: 50;
+  }
+
+  /* 移动端搜索栏优化 */
+  .mobile-search {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: white;
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+}
+
 @media (max-width: 768px) {
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  /* 平板端优化 */
+  .tablet-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  /* 桌面端优化 */
+  .desktop-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  /* 大屏优化 */
+  .large-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
