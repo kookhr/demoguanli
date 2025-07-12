@@ -115,8 +115,12 @@ const VirtualizedList = ({
     >
       <div
         ref={scrollElementRef}
-        className="h-full overflow-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent"
+        className="h-full overflow-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent touch-pan-y"
         onScroll={handleScroll}
+        style={{
+          WebkitOverflowScrolling: 'touch', // iOS 平滑滚动
+          overscrollBehavior: 'contain' // 防止过度滚动
+        }}
       >
         {/* 虚拟容器 */}
         <div style={{ height: totalHeight, position: 'relative' }}>
@@ -140,7 +144,7 @@ const VirtualizedList = ({
 
       {/* 滚动指示器 */}
       {items.length > 0 && (
-        <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded pointer-events-none">
+        <div className="absolute top-2 right-2 bg-black/50 text-white text-xs sm:text-sm px-2 py-1 rounded pointer-events-none z-10">
           {Math.floor(scrollTop / itemHeight) + 1} / {items.length}
         </div>
       )}

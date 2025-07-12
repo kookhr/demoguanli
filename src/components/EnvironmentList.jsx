@@ -367,9 +367,9 @@ const EnvironmentList = () => {
               环境状态监控
             </h3>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-3">
               {lastCheckTime && (
-                <span className="text-sm text-gray-500 dark:text-gray-400 order-2 sm:order-1">
+                <span className="text-sm text-gray-500 dark:text-gray-400 order-2 sm:order-1 text-center sm:text-left">
                   最后检测: {formatLastChecked(lastCheckTime)}
                 </span>
               )}
@@ -377,7 +377,7 @@ const EnvironmentList = () => {
               <button
                 onClick={handleCheckAll}
                 disabled={isChecking || environments.length === 0}
-                className={`btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50 transition-all duration-200 w-full sm:w-auto order-1 sm:order-2 min-h-[44px] ${
+                className={`btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50 transition-all duration-200 w-full sm:w-auto order-1 sm:order-2 min-h-[48px] sm:min-h-[44px] touch-manipulation ${
                   isChecking
                     ? 'bg-blue-600 dark:bg-blue-500 cursor-wait'
                     : 'hover:bg-blue-700 dark:hover:bg-blue-600 active:scale-95'
@@ -420,22 +420,22 @@ const EnvironmentList = () => {
           )}
 
           {/* 状态统计 - 移动端优化版 */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">{statusSummary.total}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">总计</div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700 min-h-[80px] flex flex-col justify-center">
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-1">{statusSummary.total}</div>
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">总计</div>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">{statusSummary.available}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">可达</div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700 min-h-[80px] flex flex-col justify-center">
+              <div className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400 mb-1">{statusSummary.available}</div>
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">可达</div>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400 mb-1">{statusSummary.unreachable}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">不可达</div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700 min-h-[80px] flex flex-col justify-center">
+              <div className="text-2xl sm:text-3xl font-bold text-red-600 dark:text-red-400 mb-1">{statusSummary.unreachable}</div>
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">不可达</div>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">{statusSummary.checking}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">检测中</div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700 min-h-[80px] flex flex-col justify-center">
+              <div className="text-2xl sm:text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">{statusSummary.checking}</div>
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">检测中</div>
             </div>
           </div>
         </div>
@@ -484,7 +484,7 @@ const EnvironmentList = () => {
             />
           ) : (
             // 少量数据时使用普通网格
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
               {sortedEnvironments.map(env => (
                 <div
                   key={env.id}

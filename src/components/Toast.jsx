@@ -46,21 +46,22 @@ const Toast = ({ message, type = 'info', duration = 1500, onClose }) => {
 
   return (
     <div
-      className={`fixed top-4 right-4 z-50 max-w-sm w-full transition-all duration-300 transform ${
+      className={`fixed top-4 left-4 right-4 sm:top-4 sm:right-4 sm:left-auto z-50 max-w-sm sm:w-full transition-all duration-300 transform ${
         isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       }`}
     >
       <div className={`p-4 rounded-lg border shadow-lg ${getBackgroundColor()}`}>
         <div className="flex items-start gap-3">
           {getIcon()}
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">
               {message}
             </p>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex-shrink-0 p-1 -m-1 touch-manipulation"
+            aria-label="关闭通知"
           >
             <X className="w-4 h-4" />
           </button>

@@ -146,7 +146,7 @@ const AdvancedSearch = ({
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 ${className}`}>
       {/* 搜索栏 */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
@@ -154,23 +154,25 @@ const AdvancedSearch = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="搜索环境名称、URL、描述或标签..."
-            className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+            className="w-full pl-10 pr-14 py-3 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-lg
                      bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
                      focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                     placeholder-gray-500 dark:placeholder-gray-400"
+                     placeholder-gray-500 dark:placeholder-gray-400 text-base sm:text-sm
+                     touch-manipulation"
           />
-          
+
           {/* 过滤器按钮 */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-md transition-colors
-                      ${showFilters || activeFilterCount > 0 
-                        ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+            className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-md transition-colors touch-manipulation
+                      ${showFilters || activeFilterCount > 0
+                        ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
                         : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+            aria-label={showFilters ? '隐藏过滤器' : '显示过滤器'}
           >
             <Filter className="w-5 h-5" />
             {activeFilterCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center min-w-[16px]">
                 {activeFilterCount}
               </span>
             )}
@@ -186,8 +188,9 @@ const AdvancedSearch = ({
                 <button
                   key={index}
                   onClick={() => setSearchTerm(term)}
-                  className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 
-                           rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  className="px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300
+                           rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors
+                           touch-manipulation min-h-[36px] flex items-center"
                 >
                   {term}
                 </button>
@@ -199,13 +202,13 @@ const AdvancedSearch = ({
 
       {/* 过滤器面板 */}
       {showFilters && (
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
+        <div className="border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4 space-y-4">
           {/* 状态过滤 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               状态
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2">
               {[
                 { value: 'online', label: '在线', icon: CheckCircle, color: 'text-green-600' },
                 { value: 'offline', label: '离线', icon: XCircle, color: 'text-red-600' },
@@ -214,14 +217,14 @@ const AdvancedSearch = ({
                 <button
                   key={value}
                   onClick={() => toggleFilter('status', value)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors
+                  className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-3 sm:px-3 sm:py-2 rounded-lg border transition-colors touch-manipulation min-h-[44px]
                             ${activeFilters.status.includes(value)
                               ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
                               : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                             }`}
                 >
                   <Icon className={`w-4 h-4 ${color}`} />
-                  <span className="text-sm">{label}</span>
+                  <span className="text-sm font-medium">{label}</span>
                 </button>
               ))}
             </div>
@@ -229,10 +232,10 @@ const AdvancedSearch = ({
 
           {/* 网络类型过滤 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               网络类型
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
               {[
                 { value: 'internal', label: '内网', icon: Shield },
                 { value: 'external', label: '外网', icon: Globe }
@@ -240,14 +243,14 @@ const AdvancedSearch = ({
                 <button
                   key={value}
                   onClick={() => toggleFilter('network', value)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors
+                  className={`flex items-center justify-center sm:justify-start gap-2 px-4 py-3 sm:px-3 sm:py-2 rounded-lg border transition-colors touch-manipulation min-h-[44px]
                             ${activeFilters.network.includes(value)
                               ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
                               : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                             }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="text-sm">{label}</span>
+                  <span className="text-sm font-medium">{label}</span>
                 </button>
               ))}
             </div>
@@ -256,7 +259,7 @@ const AdvancedSearch = ({
           {/* 标签过滤 */}
           {availableTags.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                 标签
               </label>
               <div className="flex flex-wrap gap-2">
@@ -264,14 +267,14 @@ const AdvancedSearch = ({
                   <button
                     key={tag}
                     onClick={() => toggleFilter('tags', tag)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors
+                    className={`flex items-center gap-2 px-3 py-2 sm:px-3 sm:py-2 rounded-lg border transition-colors touch-manipulation min-h-[40px]
                               ${activeFilters.tags.includes(tag)
                                 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300'
                                 : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                               }`}
                   >
                     <Tag className="w-4 h-4" />
-                    <span className="text-sm">{tag}</span>
+                    <span className="text-sm font-medium">{tag}</span>
                   </button>
                 ))}
               </div>
@@ -280,11 +283,13 @@ const AdvancedSearch = ({
 
           {/* 清除过滤器 */}
           {activeFilterCount > 0 && (
-            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 
-                         hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                className="flex items-center justify-center sm:justify-start gap-2 px-4 py-3 sm:px-3 sm:py-2 text-sm text-gray-600 dark:text-gray-400
+                         hover:text-gray-800 dark:hover:text-gray-200 transition-colors w-full sm:w-auto
+                         border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700
+                         touch-manipulation min-h-[44px]"
               >
                 <X className="w-4 h-4" />
                 清除所有过滤器

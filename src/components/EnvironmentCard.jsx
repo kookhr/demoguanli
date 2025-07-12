@@ -222,15 +222,15 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
     }`}>
       <div className="p-6 mobile-env-card">
         {/* 头部：环境名称和操作区 */}
-        <div className="flex items-start justify-between mb-4 mobile-env-header">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-3 mobile-env-header">
           <div className="flex-1 min-w-0">
             {/* 环境名称和版本号 */}
-            <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate mobile-env-title">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate mobile-env-title">
                 {environment.name}
               </h3>
               {environment.version && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 liquid-glass-surface px-2 py-1 rounded-xl font-mono flex-shrink-0 backdrop-blur-sm">
+                <span className="text-xs text-gray-500 dark:text-gray-400 liquid-glass-surface px-2 py-1 rounded-xl font-mono flex-shrink-0 backdrop-blur-sm self-start sm:self-auto">
                   v{environment.version}
                 </span>
               )}
@@ -245,9 +245,9 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           </div>
 
           {/* 右上角操作区 */}
-          <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 self-start sm:ml-4">
             {/* 网络类型标签 */}
-            <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700" title={`网络类型: ${environment.network === 'internal' ? '内网' : '外网'} (仅作分类标签)`}>
+            <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 touch-manipulation" title={`网络类型: ${environment.network === 'internal' ? '内网' : '外网'} (仅作分类标签)`}>
               {environment.network === 'internal' ? (
                 <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               ) : (
@@ -259,7 +259,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
             <button
               onClick={() => onStatusCheck && onStatusCheck(environment)}
               disabled={isChecking}
-              className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 mobile-env-button ${
+              className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 mobile-env-button touch-manipulation min-h-[44px] min-w-[44px] ${
                 isChecking
                   ? 'bg-primary-200 dark:bg-primary-800/50 cursor-wait'
                   : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50 active:scale-90'
@@ -298,12 +298,14 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
 
                 {/* 右侧：垂直排列的时间信息 */}
                 {!isChecking && (status?.lastChecked || status?.responseTime) && (
-                  <div className="flex flex-col items-end gap-1 text-xs text-gray-500 dark:text-gray-400 ml-4">
+                  <div className="flex flex-col sm:items-end gap-1 text-xs text-gray-500 dark:text-gray-400 ml-2 sm:ml-4">
                     {/* 最后检测时间 */}
                     {status?.lastChecked && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {formatLastChecked(status.lastChecked)}
+                        <span className="truncate max-w-[80px] sm:max-w-none">
+                          {formatLastChecked(status.lastChecked)}
+                        </span>
                       </span>
                     )}
 
@@ -311,7 +313,9 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
                     {status?.responseTime && (
                       <span className="flex items-center gap-1">
                         <Activity className="w-3 h-3" />
-                        {formatResponseTime(status.responseTime)}
+                        <span className="truncate max-w-[60px] sm:max-w-none">
+                          {formatResponseTime(status.responseTime)}
+                        </span>
                       </span>
                     )}
                   </div>
@@ -335,12 +339,12 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
 
 
         {/* 操作按钮区 */}
-        <div className="flex items-center justify-between gap-3 mobile-env-actions">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mobile-env-actions">
           <a
             href={environment.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primary flex-1 mobile-env-button"
+            className="btn btn-primary flex-1 mobile-env-button touch-manipulation min-h-[48px] sm:min-h-[44px] flex items-center justify-center"
           >
             <ExternalLink className="w-4 h-4 mr-2" />
             快速访问
@@ -350,9 +354,10 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           {environment.services && environment.services.length > 0 && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mobile-env-button"
+              className="flex items-center justify-center sm:justify-start gap-2 px-4 py-3 sm:py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mobile-env-button touch-manipulation min-h-[48px] sm:min-h-[44px] w-full sm:w-auto"
             >
               <Server className="w-4 h-4" />
+              <span className="sm:hidden">服务详情</span>
               <span className="hidden sm:inline">服务详情</span>
               <span className="text-xs bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded">
                 {environment.services.length}
@@ -365,9 +370,9 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         {/* 服务详情（可展开） */}
         {isExpanded && environment.services && environment.services.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 animate-slide-up">
-            <div className="space-y-2">
+            <div className="space-y-3">
               {environment.services.map((service, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors gap-3 sm:gap-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <Server className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                     <span className="text-sm text-gray-700 dark:text-gray-300 font-medium truncate">{service.name}</span>
@@ -379,7 +384,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
                     href={service.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-medium transition-colors flex-shrink-0 ml-2"
+                    className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-medium transition-colors flex-shrink-0 touch-manipulation py-2 px-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-center sm:text-left sm:bg-transparent sm:p-0"
                   >
                     访问
                   </a>
