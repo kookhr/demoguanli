@@ -17,8 +17,8 @@ import EnvironmentFilter from './EnvironmentFilter';
 import EnvironmentCard from './EnvironmentCard';
 import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
-import Toast from './Toast';
-import { useToast } from '../hooks/useToast';
+import { useToast } from './EnhancedToast';
+import { EnvironmentListSkeleton, BatchOperationProgress } from './LoadingStates';
 
 const EnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
@@ -26,8 +26,8 @@ const EnvironmentList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Toast通知系统
-  const { toasts, removeToast, showSuccess, showInfo, showError } = useToast();
+  // 增强版Toast通知系统
+  const { success: showSuccess, info: showInfo, error: showError } = useToast();
 
   // 状态检测相关状态
   const [environmentStatuses, setEnvironmentStatuses] = useState({});
@@ -258,11 +258,12 @@ const EnvironmentList = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载环境配置中...</p>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">环境管理</h1>
+          <p className="text-gray-600 dark:text-gray-400">正在加载环境配置...</p>
         </div>
+        <EnvironmentListSkeleton count={6} />
       </div>
     );
   }
@@ -505,18 +506,19 @@ const EnvironmentList = () => {
           isFavorite={contextMenu.environment ? isFavorite(contextMenu.environment.id) : false}
         />
 
-        {/* Toast通知 */}
-        {toasts.map(toast => (
-          <Toast
-            key={toast.id}
-            message={toast.message}
-            type={toast.type}
-            duration={toast.duration}
-            onClose={() => removeToast(toast.id)}
-          />
-        ))}
+        {/* 增强版Toast系统已全局集成，无需在此处渲染 */}
 
       </div>
+
+      {/* 批量操作进度显示 */}
+      {isChecking && checkProgress && (
+        <BatchOperationProgress
+          current={checkProgress.completed}
+          total={checkProgress.total}
+          currentItem={checkProgress.current}
+          operation="状态检查"
+        />
+      )}
     </div>
   );
 };

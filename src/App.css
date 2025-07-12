@@ -83,6 +83,21 @@
     padding: 1rem;
     border-bottom: 1px solid #e5e7eb;
   }
+
+  /* 触摸友好的交互 */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* 移动端Toast优化 */
+  .toast-container {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    right: 1rem;
+    z-index: 60;
+  }
 }
 
 @media (max-width: 768px) {
@@ -94,12 +109,24 @@
   .tablet-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  /* 平板端按钮组优化 */
+  .button-group {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
 
 @media (min-width: 1024px) {
   /* 桌面端优化 */
   .desktop-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* 桌面端悬浮效果 */
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   }
 }
 

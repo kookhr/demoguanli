@@ -6,6 +6,7 @@ import EnvironmentList from './components/EnvironmentList'
 import ConfigPage from './components/ConfigPage'
 import UserManagementPage from './components/UserManagementPage'
 import LoginPage from './components/LoginPage'
+import { ToastProvider } from './components/EnhancedToast'
 import './App.css'
 
 // 管理员路由保护组件
@@ -82,7 +83,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </AuthProvider>
     </Router>
   )

@@ -217,7 +217,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className={`card card-hover liquid-hover inner-glow animate-fade-in border-l-4 ${statusBorderColor} ${
+    <div className={`card card-hover liquid-hover inner-glow animate-fade-in border-l-4 hover-lift transition-all duration-300 ${statusBorderColor} ${
       isChecking ? 'animate-pulse' : ''
     }`}>
       <div className="p-6">
