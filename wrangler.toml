@@ -16,6 +16,15 @@ preview_id = "4a3aeaec065946a4a23f9c249537def3"
 
 # 环境变量配置
 [vars]
+# 版本控制 - 更新版本号会强制刷新缓存
+APP_VERSION = "2.1.0"
+BUILD_TIME = "2025-01-15T18:30:00Z"
+ENVIRONMENT = "production"
+
+# 缓存控制
+CACHE_BUST_ENABLED = "true"      # 启用缓存破坏
+FORCE_REFRESH = "false"          # 强制刷新开关
+
 # 缓存配置（秒）- 可根据需要调整
 CACHE_STATIC_ASSETS = "604800"   # 7天（您之前设置的值）
 CACHE_API_RESPONSES = "300"      # 5分钟（您之前设置的值）

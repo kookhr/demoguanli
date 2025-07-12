@@ -91,15 +91,29 @@ async function handleAPI(request, env, ctx) {
   if (url.pathname === '/api/info') {
     return jsonResponse({
       worker: 'environment-manager',
-      version: env.APP_VERSION || '2.0.0',
+      version: env.APP_VERSION || '2.1.0',
+      buildTime: env.BUILD_TIME || new Date().toISOString(),
       environment: env.ENVIRONMENT || 'production',
       features: {
         kv: !!env.ENV_CONFIG,
         assets: !!env.ASSETS,
-        smartPlacement: true
+        smartPlacement: true,
+        cacheBust: env.CACHE_BUST_ENABLED === 'true'
+      },
+      cache: {
+        forceRefresh: env.FORCE_REFRESH === 'true',
+        staticAssets: parseInt(env.CACHE_STATIC_ASSETS) || 604800,
+        apiResponses: parseInt(env.CACHE_API_RESPONSES) || 300,
+        healthCheck: parseInt(env.CACHE_HEALTH_CHECK) || 60,
+        kvCache: parseInt(env.CACHE_KV_CACHE) || 36000
       },
       message: env.ENV_CONFIG ? 'KV storage available' : 'KV storage not configured (can be added later)'
     });
+  }
+
+  // 缓存管理API
+  if (url.pathname.startsWith('/api/cache')) {
+    return await handleCacheAPI(request, env);
   }
 
 
@@ -377,16 +391,36 @@ async function handleStaticAssets(request, env) {
                        url.pathname.endsWith('.jpg');
 
         const cacheConfig = getCacheConfig(env);
-        const cacheControl = isAsset
-          ? `public, max-age=${cacheConfig.STATIC_ASSETS}, immutable`
-          : 'public, max-age=3600';
+
+        // 检查是否需要强制刷新
+        const forceRefreshUntil = await env.ENV_CONFIG?.get('force_refresh_until');
+        const shouldForceRefresh = forceRefreshUntil && parseInt(forceRefreshUntil) > Date.now();
+
+        // 添加版本控制和缓存破坏
+        const version = env.APP_VERSION || '2.1.0';
+        const buildTime = env.BUILD_TIME || new Date().toISOString();
+
+        let cacheControl;
+        if (shouldForceRefresh || env.FORCE_REFRESH === 'true') {
+          // 强制刷新模式：不缓存
+          cacheControl = 'no-cache, no-store, must-revalidate';
+        } else if (isAsset) {
+          // 静态资源：长期缓存但添加版本控制
+          cacheControl = `public, max-age=${cacheConfig.STATIC_ASSETS}, immutable`;
+        } else {
+          // HTML文件：短期缓存
+          cacheControl = 'public, max-age=3600';
+        }
 
         return new Response(response.body, {
           status: response.status,
           headers: {
             ...Object.fromEntries(response.headers),
             'Cache-Control': cacheControl,
-            'X-Edge-Cache': 'optimized'
+            'X-Edge-Cache': 'optimized',
+            'X-App-Version': version,
+            'X-Build-Time': buildTime,
+            'X-Force-Refresh': shouldForceRefresh ? 'true' : 'false'
           }
         });
       }
@@ -867,6 +901,147 @@ async function deleteEnvironmentHistory(envId, env) {
 }
 
 
+
+// 缓存管理API处理
+async function handleCacheAPI(request, env) {
+  const url = new URL(request.url);
+  const path = url.pathname.replace('/api/cache', '');
+
+  try {
+    // 验证管理员权限
+    const authResult = await verifyAuthToken(request, env);
+    if (!authResult.valid || authResult.user.role !== 'admin') {
+      return errorResponse('Admin access required', 403);
+    }
+
+    if (request.method === 'POST') {
+      if (path === '/clear') {
+        return await clearAllCaches(env);
+      } else if (path === '/purge') {
+        return await purgeSpecificCache(request, env);
+      } else if (path === '/force-refresh') {
+        return await enableForceRefresh(env);
+      }
+    } else if (request.method === 'GET') {
+      if (path === '/status') {
+        return await getCacheStatus(env);
+      }
+    }
+
+    return errorResponse('Cache endpoint not found', 404);
+  } catch (error) {
+    return errorResponse(error.message, 500);
+  }
+}
+
+// 清除所有缓存
+async function clearAllCaches(env) {
+  try {
+    // 清除Cloudflare缓存
+    const cache = caches.default;
+
+    // 获取当前域名的所有缓存键
+    const cacheKeys = [
+      new Request(`${env.WORKER_URL || 'https://your-domain.com'}/`),
+      new Request(`${env.WORKER_URL || 'https://your-domain.com'}/api/environments`),
+      new Request(`${env.WORKER_URL || 'https://your-domain.com'}/api/health`)
+    ];
+
+    // 删除缓存
+    await Promise.all(cacheKeys.map(key => cache.delete(key)));
+
+    // 更新强制刷新标志
+    await env.ENV_CONFIG?.put('force_refresh_until', Date.now() + 300000); // 5分钟内强制刷新
+
+    return jsonResponse({
+      success: true,
+      message: 'All caches cleared successfully',
+      timestamp: new Date().toISOString(),
+      forceRefreshUntil: new Date(Date.now() + 300000).toISOString()
+    });
+  } catch (error) {
+    return errorResponse('Failed to clear caches', 500);
+  }
+}
+
+// 清除特定缓存
+async function purgeSpecificCache(request, env) {
+  try {
+    const { urls } = await request.json();
+
+    if (!Array.isArray(urls)) {
+      return errorResponse('URLs must be an array', 400);
+    }
+
+    const cache = caches.default;
+    const results = [];
+
+    for (const url of urls) {
+      try {
+        const cacheKey = new Request(url);
+        const deleted = await cache.delete(cacheKey);
+        results.push({ url, deleted });
+      } catch (error) {
+        results.push({ url, error: error.message });
+      }
+    }
+
+    return jsonResponse({
+      success: true,
+      message: 'Cache purge completed',
+      results,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return errorResponse('Failed to purge cache', 500);
+  }
+}
+
+// 启用强制刷新
+async function enableForceRefresh(env) {
+  try {
+    const duration = 600000; // 10分钟
+    const until = Date.now() + duration;
+
+    await env.ENV_CONFIG?.put('force_refresh_until', until.toString());
+
+    return jsonResponse({
+      success: true,
+      message: 'Force refresh enabled',
+      duration: duration / 1000,
+      until: new Date(until).toISOString(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return errorResponse('Failed to enable force refresh', 500);
+  }
+}
+
+// 获取缓存状态
+async function getCacheStatus(env) {
+  try {
+    const forceRefreshUntil = await env.ENV_CONFIG?.get('force_refresh_until');
+    const isForceRefreshActive = forceRefreshUntil && parseInt(forceRefreshUntil) > Date.now();
+
+    return jsonResponse({
+      version: env.APP_VERSION || '2.1.0',
+      buildTime: env.BUILD_TIME || new Date().toISOString(),
+      forceRefresh: {
+        active: isForceRefreshActive,
+        until: forceRefreshUntil ? new Date(parseInt(forceRefreshUntil)).toISOString() : null
+      },
+      cacheConfig: {
+        staticAssets: parseInt(env.CACHE_STATIC_ASSETS) || 604800,
+        apiResponses: parseInt(env.CACHE_API_RESPONSES) || 300,
+        healthCheck: parseInt(env.CACHE_HEALTH_CHECK) || 60,
+        kvCache: parseInt(env.CACHE_KV_CACHE) || 36000
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return errorResponse('Failed to get cache status', 500);
+  }
+}
 
 // 工具函数
 function generateId() {
