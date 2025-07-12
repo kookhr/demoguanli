@@ -738,10 +738,18 @@ async function signJWT(data, env) {
     .join('');
 }
 
-// 环境管理相关函数
+// 环境管理相关函数 - 优化KV读取
 async function handleGetEnvironments(env) {
-  const environments = await env.ENV_CONFIG.get('environments', 'json') || [];
-  return jsonResponse({ environments });
+  try {
+    const environments = await env.ENV_CONFIG.get('environments', 'json') || [];
+    return jsonResponse({
+      environments,
+      count: environments.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    return errorResponse('Failed to fetch environments', 500);
+  }
 }
 
 async function handleGetEnvironment(envId, env) {
