@@ -19,12 +19,16 @@ import StatusHistoryChart from './StatusHistoryChart';
 import ContextMenu, { useContextMenu } from './ContextMenu';
 import { useToast } from './EnhancedToast';
 import { EnvironmentListSkeleton, BatchOperationProgress } from './LoadingStates';
+import AdvancedSearch from './AdvancedSearch';
+import VirtualizedList from './VirtualizedList';
+import EnhancedErrorBoundary from './EnhancedErrorBoundary';
 
 const EnvironmentList = () => {
   const [environments, setEnvironments] = useState([]);
   const [filteredEnvironments, setFilteredEnvironments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchResults, setSearchResults] = useState([]);
 
   // 增强版Toast通知系统
   const { success: showSuccess, info: showInfo, error: showError } = useToast();
@@ -332,6 +336,17 @@ const EnvironmentList = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 高级搜索组件 */}
+        <EnhancedErrorBoundary>
+          <AdvancedSearch
+            environments={environments}
+            onFilteredResults={(results) => {
+              setSearchResults(results);
+              setFilteredEnvironments(results);
+            }}
+            className="mb-6"
+          />
+        </EnhancedErrorBoundary>
 
         {/* 状态监控面板 */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6 transition-colors duration-300">
@@ -448,28 +463,62 @@ const EnvironmentList = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {sortedEnvironments.map(env => (
-            <div
-              key={env.id}
-              onContextMenu={(e) => openContextMenu(e, env)}
-              className="relative"
-            >
-              <EnvironmentCard
-                environment={env}
-                status={getEnvironmentStatus(env.id)}
-                onStatusCheck={handleCheckSingle}
-              />
+        {/* 环境列表 - 支持虚拟滚动 */}
+        <EnhancedErrorBoundary>
+          {sortedEnvironments.length > 20 ? (
+            // 大量数据时使用虚拟滚动
+            <VirtualizedList
+              items={sortedEnvironments}
+              itemHeight={160}
+              containerHeight={600}
+              renderItem={({ item: env }) => (
+                <div
+                  key={env.id}
+                  onContextMenu={(e) => openContextMenu(e, env)}
+                  className="relative p-3"
+                >
+                  <EnvironmentCard
+                    environment={env}
+                    status={getEnvironmentStatus(env.id)}
+                    onStatusCheck={handleCheckSingle}
+                  />
 
-              {/* 收藏标识 */}
-              {isFavorite(env.id) && (
-                <div className="absolute top-2 right-2">
-                  <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                  {/* 收藏标识 */}
+                  {isFavorite(env.id) && (
+                    <div className="absolute top-5 right-5">
+                      <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                    </div>
+                  )}
                 </div>
               )}
+              className="border border-gray-200 dark:border-gray-700 rounded-lg"
+            />
+          ) : (
+            // 少量数据时使用普通网格
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {sortedEnvironments.map(env => (
+                <div
+                  key={env.id}
+                  onContextMenu={(e) => openContextMenu(e, env)}
+                  className="relative"
+                >
+                  <EnvironmentCard
+                    environment={env}
+                    status={getEnvironmentStatus(env.id)}
+                    onStatusCheck={handleCheckSingle}
+                  />
+
+                  {/* 收藏标识 */}
+                  {isFavorite(env.id) && (
+                    <div className="absolute top-2 right-2">
+                      <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </EnhancedErrorBoundary>
 
         {filteredEnvironments.length === 0 && environments.length > 0 && (
           <div className="text-center py-12">
