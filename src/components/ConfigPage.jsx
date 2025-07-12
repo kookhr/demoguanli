@@ -44,7 +44,7 @@ const ConfigPage = () => {
   // 显示消息
   const showMessage = (type, text) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    setTimeout(() => setMessage({ type: '', text: '' }), 1500);
   };
 
   // 添加新环境

@@ -20,7 +20,7 @@ export const ToastProvider = ({ children }) => {
     const id = Date.now() + Math.random();
     const newToast = {
       id,
-      duration: 4000,
+      duration: 1500,
       ...toast
     };
     setToasts(prev => [...prev, newToast]);
@@ -37,7 +37,7 @@ export const ToastProvider = ({ children }) => {
 
   // 便捷方法
   const success = (message, options = {}) => addToast({ type: 'success', message, ...options });
-  const error = (message, options = {}) => addToast({ type: 'error', message, duration: 6000, ...options });
+  const error = (message, options = {}) => addToast({ type: 'error', message, duration: 1500, ...options });
   const warning = (message, options = {}) => addToast({ type: 'warning', message, ...options });
   const info = (message, options = {}) => addToast({ type: 'info', message, ...options });
   const offline = () => addToast({ 
@@ -50,11 +50,11 @@ export const ToastProvider = ({ children }) => {
       onClick: () => window.location.reload()
     }
   });
-  const online = () => addToast({ 
-    type: 'online', 
+  const online = () => addToast({
+    type: 'online',
     title: '网络已恢复',
     message: '连接正常',
-    duration: 2000
+    duration: 1500
   });
 
   const value = {

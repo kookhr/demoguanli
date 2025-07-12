@@ -217,16 +217,16 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
   const StatusIcon = statusInfo.icon;
 
   return (
-    <div className={`card card-hover liquid-hover inner-glow animate-fade-in border-l-4 hover-lift transition-all duration-300 ${statusBorderColor} ${
+    <div className={`card card-hover liquid-hover inner-glow animate-fade-in border-l-4 hover-lift transition-all duration-300 mobile-env-card ${statusBorderColor} ${
       isChecking ? 'animate-pulse' : ''
     }`}>
-      <div className="p-6">
+      <div className="p-6 mobile-env-card">
         {/* 头部：环境名称和操作区 */}
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-4 mobile-env-header">
           <div className="flex-1 min-w-0">
             {/* 环境名称和版本号 */}
             <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate mobile-env-title">
                 {environment.name}
               </h3>
               {environment.version && (
@@ -235,7 +235,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
                 </span>
               )}
             </div>
-            
+
             {/* 环境描述 */}
             {environment.description && (
               <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
@@ -254,12 +254,12 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
                 <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
               )}
             </div>
-            
+
             {/* 检测按钮 */}
             <button
               onClick={() => onStatusCheck && onStatusCheck(environment)}
               disabled={isChecking}
-              className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 ${
+              className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 mobile-env-button ${
                 isChecking
                   ? 'bg-primary-200 dark:bg-primary-800/50 cursor-wait'
                   : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50 active:scale-90'
@@ -335,12 +335,12 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
 
 
         {/* 操作按钮区 */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 mobile-env-actions">
           <a
             href={environment.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-primary flex-1"
+            className="btn btn-primary flex-1 mobile-env-button"
           >
             <ExternalLink className="w-4 h-4 mr-2" />
             快速访问
@@ -350,7 +350,7 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
           {environment.services && environment.services.length > 0 && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mobile-env-button"
             >
               <Server className="w-4 h-4" />
               <span className="hidden sm:inline">服务详情</span>

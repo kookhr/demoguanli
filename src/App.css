@@ -37,66 +37,144 @@
 @media (max-width: 640px) {
   /* 移动端优化 */
   .container {
-    padding: 1rem;
+    padding: 0.75rem !important;
   }
 
   .grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
   }
 
-  /* 移动端卡片优化 */
-  .environment-card {
-    padding: 1rem;
+  /* 强制移动端布局 */
+  .flex.items-center.justify-between {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
   }
 
-  /* 移动端按钮优化 */
-  .mobile-button {
-    min-height: 44px; /* iOS推荐的最小触摸目标 */
-    padding: 0.75rem 1rem;
+  /* 移动端按钮组 */
+  .flex.items-center.gap-3 {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 0.5rem !important;
   }
 
-  /* 移动端表单优化 */
-  .mobile-input {
-    font-size: 16px; /* 防止iOS缩放 */
-    padding: 0.75rem;
+  /* 移动端网格布局强制 */
+  .grid.grid-cols-2.md\\:grid-cols-4,
+  .grid.grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
   }
 
-  /* 移动端导航优化 */
-  .mobile-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    border-top: 1px solid #e5e7eb;
-    padding: 0.5rem;
-    z-index: 50;
+  /* 移动端卡片间距优化 */
+  .card {
+    margin-bottom: 0.75rem !important;
   }
 
-  /* 移动端搜索栏优化 */
-  .mobile-search {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    background: white;
-    padding: 1rem;
-    border-bottom: 1px solid #e5e7eb;
+  /* 移动端文字大小调整 */
+  .text-2xl {
+    font-size: 1.5rem !important;
   }
 
-  /* 触摸友好的交互 */
-  .touch-target {
-    min-height: 44px;
-    min-width: 44px;
+  .text-lg {
+    font-size: 1rem !important;
   }
 
-  /* 移动端Toast优化 */
-  .toast-container {
-    position: fixed;
-    top: 1rem;
-    left: 1rem;
-    right: 1rem;
-    z-index: 60;
+  .text-sm {
+    font-size: 0.75rem !important;
+  }
+
+  .text-xs {
+    font-size: 0.625rem !important;
+  }
+
+  /* 移动端状态监控区域优化 */
+  .mobile-status-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .mobile-status-controls {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .mobile-last-check {
+    font-size: 0.75rem !important;
+    order: 2 !important;
+  }
+
+  .mobile-check-button {
+    order: 1 !important;
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem !important;
+    min-height: 44px !important;
+  }
+
+  /* 移动端状态统计优化 */
+  .mobile-stats-grid,
+  .grid.grid-cols-2.md\\:grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+    margin-top: 1rem !important;
+  }
+
+  .mobile-stat-card,
+  .text-center {
+    text-align: center !important;
+    padding: 1rem 0.75rem !important;
+    border-radius: 0.5rem !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .dark .mobile-stat-card,
+  .dark .text-center {
+    background: rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .mobile-stat-number,
+  .text-2xl.font-bold {
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .mobile-stat-label,
+  .text-sm {
+    font-size: 0.75rem !important;
+    opacity: 0.8 !important;
+  }
+
+  /* 移动端环境卡片优化 */
+  .mobile-env-card {
+    padding: 1rem !important;
+    margin-bottom: 0.75rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .mobile-env-actions {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    margin-top: 0.75rem !important;
+  }
+
+  .mobile-env-button {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 0.625rem 1rem !important;
+    font-size: 0.875rem !important;
+    min-height: 40px !important;
   }
 }
 

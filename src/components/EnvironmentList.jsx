@@ -352,25 +352,23 @@ const EnvironmentList = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Activity className="w-5 h-5" />
               环境状态监控
             </h3>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
               {lastCheckTime && (
-                <span className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="text-sm text-gray-500 dark:text-gray-400 order-2 sm:order-1">
                   最后检测: {formatLastChecked(lastCheckTime)}
                 </span>
               )}
 
-
-
               <button
                 onClick={handleCheckAll}
                 disabled={isChecking || environments.length === 0}
-                className={`btn btn-primary flex items-center gap-2 disabled:opacity-50 transition-all duration-200 ${
+                className={`btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50 transition-all duration-200 w-full sm:w-auto order-1 sm:order-2 min-h-[44px] ${
                   isChecking
                     ? 'bg-blue-600 dark:bg-blue-500 cursor-wait'
                     : 'hover:bg-blue-700 dark:hover:bg-blue-600 active:scale-95'
@@ -379,8 +377,6 @@ const EnvironmentList = () => {
                 <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
                 {isChecking ? '检测中...' : '检测所有'}
               </button>
-
-
             </div>
           </div>
 
@@ -414,23 +410,23 @@ const EnvironmentList = () => {
             </div>
           )}
 
-          {/* 状态统计 - 极简版 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{statusSummary.total}</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">总计</div>
+          {/* 状态统计 - 移动端优化版 */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">{statusSummary.total}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">总计</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{statusSummary.available}</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">可达</div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">{statusSummary.available}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">可达</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{statusSummary.unreachable}</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">不可达</div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400 mb-1">{statusSummary.unreachable}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">不可达</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statusSummary.checking}</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">检测中</div>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">{statusSummary.checking}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">检测中</div>
             </div>
           </div>
         </div>
