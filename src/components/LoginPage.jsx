@@ -16,6 +16,9 @@ const LoginPage = ({ onLoginSuccess }) => {
   const [success, setSuccess] = useState('');
   const [registrationDisabled, setRegistrationDisabled] = useState(false);
 
+  // 检测是否为开发环境
+  const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
+
   // 检测深色模式
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -177,10 +180,28 @@ const LoginPage = ({ onLoginSuccess }) => {
 
         {/* 登录/注册表单 */}
         <div className={`rounded-xl shadow-xl p-8 transition-all duration-300 ${
-          isDarkMode 
-            ? 'bg-gray-800/80 backdrop-blur-sm border border-gray-700' 
+          isDarkMode
+            ? 'bg-gray-800/80 backdrop-blur-sm border border-gray-700'
             : 'bg-white/80 backdrop-blur-sm border border-gray-200'
         }`}>
+          {/* 开发环境提示 */}
+          {isDevelopment && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-blue-800 dark:text-blue-300">开发环境</span>
+              </div>
+              <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">
+                当前运行在开发模式，使用模拟数据
+              </p>
+              <div className="text-xs text-blue-600 dark:text-blue-400">
+                <p>测试账户：</p>
+                <p>• 管理员：admin / admin123</p>
+                <p>• 普通用户：user / user123</p>
+              </div>
+            </div>
+          )}
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* 用户名输入 */}
             <div>

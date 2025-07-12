@@ -4,6 +4,36 @@
 
 const API_BASE = '/api';
 
+// 检测是否为开发环境
+const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
+
+// 开发环境模拟数据
+const DEV_USERS = {
+  'admin': { username: 'admin', password: 'admin123', role: 'admin' },
+  'user': { username: 'user', password: 'user123', role: 'user' }
+};
+
+const DEV_ENVIRONMENTS = [
+  {
+    id: 'env_1',
+    name: '生产环境',
+    url: 'https://example.com',
+    type: 'production',
+    network: 'external',
+    description: '主要生产环境',
+    tags: ['重要', '生产']
+  },
+  {
+    id: 'env_2',
+    name: '测试环境',
+    url: 'https://test.example.com',
+    type: 'staging',
+    network: 'internal',
+    description: '测试环境',
+    tags: ['测试']
+  }
+];
+
 // 获取认证token
 function getAuthToken() {
   return localStorage.getItem('auth_token');
@@ -19,8 +49,50 @@ function clearAuthToken() {
   localStorage.removeItem('auth_token');
 }
 
+// 开发环境模拟API响应
+async function mockApiRequest(endpoint, options = {}) {
+  // 模拟网络延迟
+  await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+
+  const method = options.method || 'GET';
+  const body = options.body ? JSON.parse(options.body) : null;
+
+  // 模拟登录
+  if (endpoint === '/auth/login' && method === 'POST') {
+    const { username, password } = body;
+    const user = DEV_USERS[username];
+
+    if (user && user.password === password) {
+      const token = `dev_token_${username}_${Date.now()}`;
+      return {
+        success: true,
+        user: { username: user.username, role: user.role },
+        token
+      };
+    } else {
+      throw new Error('用户名或密码错误');
+    }
+  }
+
+  // 模拟获取环境列表
+  if (endpoint === '/environments' && method === 'GET') {
+    return {
+      success: true,
+      environments: DEV_ENVIRONMENTS
+    };
+  }
+
+  // 模拟其他API
+  return { success: true, message: '开发环境模拟响应' };
+}
+
 // 通用API请求函数
 async function apiRequest(endpoint, options = {}) {
+  // 开发环境使用模拟API
+  if (isDevelopment) {
+    return mockApiRequest(endpoint, options);
+  }
+
   const token = getAuthToken();
   const headers = {
     'Content-Type': 'application/json',

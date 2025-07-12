@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { RefreshCw, Activity, Star, BarChart3 } from 'lucide-react';
 import { getEnvironments } from '../utils/configManager';
 import { addStatusRecord } from '../utils/statusHistory';
@@ -33,6 +33,7 @@ const EnvironmentList = () => {
   const [environmentStatuses, setEnvironmentStatuses] = useState({});
   const [isChecking, setIsChecking] = useState(false);
   const [checkProgress, setCheckProgress] = useState(null);
+  const hasInitialChecked = useRef(false);
   const [lastCheckTime, setLastCheckTime] = useState(null);
 
   // 新功能状态
@@ -111,12 +112,22 @@ const EnvironmentList = () => {
   // 批量检测所有环境状态
   const handleCheckAll = useCallback(async () => {
     console.log('[CHECK] handleCheckAll被调用', {
-      isChecking,
       environmentsLength: environments.length,
       environments: environments.map(e => ({ id: e.id, name: e.name }))
     });
-    if (isChecking || environments.length === 0) {
-      console.log('[CHECK] 检测被跳过:', { isChecking, environmentsLength: environments.length });
+
+    // 使用函数式更新检查当前状态
+    let shouldSkip = false;
+    setIsChecking(current => {
+      if (current || environments.length === 0) {
+        console.log('[CHECK] 检测被跳过:', { isChecking: current, environmentsLength: environments.length });
+        shouldSkip = true;
+        return current;
+      }
+      return true; // 开始检测
+    });
+
+    if (shouldSkip) {
       return;
     }
     console.log('[CHECK] 开始批量检测...');
@@ -124,7 +135,6 @@ const EnvironmentList = () => {
     // 显示开始检测的通知
     showInfo(`开始检测 ${environments.length} 个环境...`, 2000);
 
-    setIsChecking(true);
     setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
 
     try {
@@ -146,11 +156,12 @@ const EnvironmentList = () => {
       setIsChecking(false);
       setCheckProgress(null);
     }
-  }, [environments, isChecking]);
+  }, [environments]);
 
   // 页面加载完成后自动检测状态
   useEffect(() => {
-    if (environments.length > 0) {
+    if (environments.length > 0 && !hasInitialChecked.current) {
+      hasInitialChecked.current = true;
       // 延迟1秒后开始检测，确保页面渲染完成
       const timer = setTimeout(() => {
         handleCheckAll();
@@ -160,25 +171,7 @@ const EnvironmentList = () => {
     }
   }, [environments, handleCheckAll]);
 
-  // 监听页面可见性变化，当用户回到页面时重新检测
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && environments.length > 0) {
-        // 延迟500ms后检测，避免频繁切换
-        setTimeout(() => {
-          if (!isChecking) {
-            handleCheckAll();
-          }
-        }, 500);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [environments, isChecking, handleCheckAll]);
+  // 页面可见性变化检测已移除 - 避免频繁的自动检测
 
   // 获取环境状态 - 使用useCallback优化
   const getEnvironmentStatus = useCallback((envId) => {
