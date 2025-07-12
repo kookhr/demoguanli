@@ -1,4 +1,3 @@
-import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, ProtectedRoute, useAuth } from './components/AuthProvider'
 import { isAdmin, hasPermission } from './utils/auth'
@@ -8,8 +7,6 @@ import ConfigPage from './components/ConfigPage'
 import UserManagementPage from './components/UserManagementPage'
 import LoginPage from './components/LoginPage'
 import './App.css'
-
-
 
 // 管理员路由保护组件
 const AdminRoute = ({ children }) => {

@@ -13,12 +13,7 @@ function getCacheConfig(env) {
   };
 }
 
-// 安全配置
-const SECURITY_CONFIG = {
-  MAX_LOGIN_ATTEMPTS: 5,   // 最大登录尝试次数
-  LOGIN_COOLDOWN: 900,     // 登录冷却时间15分钟
-  JWT_EXPIRY: 86400       // JWT过期时间24小时
-};
+
 
 export default {
   async fetch(request, env, ctx) {
@@ -42,7 +37,7 @@ async function handleRequest(request, env, ctx) {
   }
 
   // 静态资源处理（带缓存）
-  return await handleStaticAssets(request, env, ctx);
+  return await handleStaticAssets(request, env);
 }
 
 // API 路由处理器
@@ -69,41 +64,7 @@ async function handleAPI(request, env, ctx) {
     return await handleEnvironmentsAPI(request, env);
   }
 
-  // 调试端点 - 检查用户数据
-  if (url.pathname === '/api/debug/users') {
-    if (!env.ENV_CONFIG) {
-      return errorResponse('KV not configured', 503);
-    }
 
-    const adminData = await env.ENV_CONFIG.get('user:admin', 'json');
-    const userList = await env.ENV_CONFIG.get('user_list', 'json');
-
-    return jsonResponse({
-      adminExists: !!adminData,
-      adminData: adminData ? {
-        username: adminData.username,
-        email: adminData.email,
-        role: adminData.role,
-        enabled: adminData.enabled,
-        hasPassword: !!adminData.password
-      } : null,
-      userList: userList || [],
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  // 临时端点 - 生成密码哈希
-  if (url.pathname === '/api/debug/hash') {
-    const url_obj = new URL(request.url);
-    const password = url_obj.searchParams.get('password') || 'admin123';
-    const hash = await hashPassword(password);
-
-    return jsonResponse({
-      password: password,
-      hash: hash,
-      timestamp: new Date().toISOString()
-    });
-  }
 
   // 健康检查端点（带缓存）
   if (url.pathname === '/api/health') {
@@ -206,7 +167,7 @@ async function handleEnvironmentsAPI(request, env) {
 
     if (request.method === 'GET') {
       if (path === '' || path === '/') {
-        return await handleGetEnvironments(request, env);
+        return await handleGetEnvironments(env);
       } else if (path.startsWith('/')) {
         const envId = path.substring(1);
         return await handleGetEnvironment(envId, env);
@@ -223,7 +184,7 @@ async function handleEnvironmentsAPI(request, env) {
     } else if (request.method === 'DELETE') {
       if (path.startsWith('/')) {
         const envId = path.substring(1);
-        return await handleDeleteEnvironment(envId, env, authResult.user);
+        return await handleDeleteEnvironment(envId, env);
       }
     }
 
@@ -381,7 +342,7 @@ async function handleKVPost(request, env) {
 }
 
 // 静态资源处理（带智能缓存）
-async function handleStaticAssets(request, env, ctx) {
+async function handleStaticAssets(request, env) {
   const url = new URL(request.url);
 
   try {
@@ -653,7 +614,7 @@ async function handleRegister(request, env) {
   });
 }
 
-async function handleLogout(request, env) {
+async function handleLogout() {
   // 在无状态JWT系统中，登出主要是客户端删除token
   return jsonResponse({ message: 'Logged out successfully' });
 }
@@ -778,7 +739,7 @@ async function signJWT(data, env) {
 }
 
 // 环境管理相关函数
-async function handleGetEnvironments(request, env) {
+async function handleGetEnvironments(env) {
   const environments = await env.ENV_CONFIG.get('environments', 'json') || [];
   return jsonResponse({ environments });
 }
@@ -847,7 +808,7 @@ async function handleUpdateEnvironment(envId, request, env, user) {
   return jsonResponse({ environment: updatedEnv });
 }
 
-async function handleDeleteEnvironment(envId, env, user) {
+async function handleDeleteEnvironment(envId, env) {
   const existingEnv = await env.ENV_CONFIG.get(`environment:${envId}`, 'json');
   if (!existingEnv) {
     return errorResponse('Environment not found', 404);
@@ -901,7 +862,7 @@ async function deleteEnvironmentHistory(envId, env) {
 
 // 工具函数
 function generateId() {
-  return 'env_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return 'env_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
 // 基础HTML页面（降级使用）

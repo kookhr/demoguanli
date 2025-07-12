@@ -16,13 +16,11 @@ preview_id = "4a3aeaec065946a4a23f9c249537def3"
 
 # 环境变量配置
 [vars]
-APP_VERSION = "2.0.0"
-ENVIRONMENT = "production"
 # 缓存配置（秒）- 可根据需要调整
 CACHE_STATIC_ASSETS = "604800"   # 7天（您之前设置的值）
 CACHE_API_RESPONSES = "300"      # 5分钟（您之前设置的值）
 CACHE_HEALTH_CHECK = "60"        # 1分钟（您之前设置的值）
-CACHE_KV_CACHE = "3600"         # 1小时（您之前设置的值）
+CACHE_KV_CACHE = "36000"         # 1小时（您之前设置的值）
 
 # 敏感环境变量在 Cloudflare Dashboard 中配置:
 # - JWT_SECRET
