@@ -40,6 +40,26 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
     return tags;
   }, [environment.type, environment.tags]);
 
+  // 获取检测方法描述
+  const getMethodDescription = (method) => {
+    switch (method) {
+      case 'fetch-no-cors':
+        return 'Fetch探测';
+      case 'fetch-success':
+        return 'Fetch成功';
+      case 'image-load':
+        return '图像加载';
+      case 'image-error-reachable':
+        return '图像探测';
+      case 'enhanced-check':
+        return '增强检测';
+      case 'all-methods-failed':
+        return '多方法探测';
+      default:
+        return '标准检测';
+    }
+  };
+
   // 根据HTTP状态码和检测结果获取详细状态描述
   const getDetailedStatusDescription = (status) => {
     if (!status) return null;
@@ -315,6 +335,15 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
                         <Activity className="w-3 h-3" />
                         <span className="truncate max-w-[60px] sm:max-w-none">
                           {formatResponseTime(status.responseTime)}
+                        </span>
+                      </span>
+                    )}
+
+                    {/* 检测方法 */}
+                    {status?.method && (
+                      <span className="flex items-center gap-1" title={status.details || '检测方法'}>
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-400">
+                          {getMethodDescription(status.method)}
                         </span>
                       </span>
                     )}

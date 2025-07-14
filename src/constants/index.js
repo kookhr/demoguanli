@@ -25,6 +25,20 @@ export const STATUS_TYPES = {
   CHECKING: 'checking'        // 检测中
 };
 
+// 检测方法类型
+export const DETECTION_METHODS = {
+  FETCH_NO_CORS: 'fetch-no-cors',
+  FETCH_SUCCESS: 'fetch-success',
+  FETCH_FAILED: 'fetch-failed',
+  IMAGE_LOAD: 'image-load',
+  IMAGE_ERROR_REACHABLE: 'image-error-reachable',
+  IMAGE_TIMEOUT: 'image-timeout',
+  IMAGE_EXCEPTION: 'image-exception',
+  ALL_METHODS_FAILED: 'all-methods-failed',
+  ENHANCED_CHECK: 'enhanced-check',
+  EXCEPTION: 'exception'
+};
+
 // 用户角色
 export const USER_ROLES = {
   ADMIN: 'admin',
@@ -53,7 +67,19 @@ export const SIMPLE_NETWORK_CONFIG = {
   TIMEOUT: 5000,              // 检测超时时间
   RETRY_COUNT: 1,             // 重试次数
   CONCURRENCY: 4,             // 并发数
-  CACHE_DURATION: 30000       // 缓存时间
+  CACHE_DURATION: 30000,      // 缓存时间
+  IMAGE_PROBE_TIMEOUT: 3000,  // 图像探测超时时间
+  ENABLE_IMAGE_PROBE: true,   // 启用图像探测
+  PROBE_PATHS: [              // 探测路径
+    '/favicon.ico',
+    '/ping',
+    '/health',
+    '/status',
+    '/robots.txt',
+    '/',
+    '/api/health',
+    '/actuator/health'
+  ]
 };
 
 // 标签颜色配置
