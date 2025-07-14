@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Settings, Monitor, Sparkles, Users, Wifi } from 'lucide-react';
+import { Home, Settings, Monitor, Sparkles, Users } from 'lucide-react';
 import { UserInfo, useAuth } from './AuthProvider';
 import { hasPermission } from '../utils/auth';
 import DarkModeToggle from './DarkModeToggle';
@@ -38,13 +38,6 @@ const Navigation = () => {
       label: '用户管理',
       icon: Users,
       description: '管理用户账户和权限',
-      permission: 'user_management'
-    },
-    {
-      path: '/network-test',
-      label: '网络测试',
-      icon: Wifi,
-      description: '测试IP+端口探测功能',
       permission: 'user_management'
     }
   ];

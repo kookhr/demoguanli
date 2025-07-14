@@ -446,25 +446,5 @@ export const getCacheStats = () => {
   };
 };
 
-/**
- * 启用/禁用调试模式
- */
-export const setDebugMode = (enabled) => {
-  SIMPLE_CHECK_CONFIG.debugMode = enabled;
-  debugLog('调试模式已' + (enabled ? '启用' : '禁用'));
-};
-
-/**
- * 获取当前配置
- */
-export const getConfig = () => {
-  return { ...SIMPLE_CHECK_CONFIG };
-};
-
-/**
- * 更新配置
- */
-export const updateConfig = (newConfig) => {
-  Object.assign(SIMPLE_CHECK_CONFIG, newConfig);
-  debugLog('配置已更新', SIMPLE_CHECK_CONFIG);
-};
+// 调试模式可以通过修改配置启用
+// SIMPLE_CHECK_CONFIG.debugMode = true;
