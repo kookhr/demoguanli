@@ -1,5 +1,5 @@
 // 用户管理工具
-import { kvAPI } from './apiClient';
+import { kvAPI, usersAPI } from './apiClient';
 import { authManager } from './auth';
 
 // 用户管理类
@@ -32,7 +32,22 @@ class UserManager {
   // 加载所有用户数据
   async loadAllUsers() {
     try {
-      // 尝试从KV存储获取用户列表
+      // 尝试使用用户管理API获取所有用户
+      try {
+        const allUsers = await usersAPI.getAll();
+        if (allUsers && Array.isArray(allUsers)) {
+          // 清空现有用户并添加新用户
+          this.users.clear();
+          for (const userData of allUsers) {
+            this.users.set(userData.username, userData);
+          }
+          return; // 成功获取用户，直接返回
+        }
+      } catch (apiError) {
+        console.warn('无法通过API获取用户列表，尝试KV存储:', apiError);
+      }
+
+      // 如果API失败，尝试从KV存储获取用户列表
       const userList = await kvAPI.get('user_list');
       if (userList && Array.isArray(userList)) {
         // 加载每个用户的详细数据
@@ -51,6 +66,7 @@ class UserManager {
         await this.scanExistingUsers();
       }
     } catch (error) {
+      console.error('加载用户数据失败:', error);
       // KV存储不可用时，从本地存储加载
       this.loadUsersFromLocalStorage();
     }

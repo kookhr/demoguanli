@@ -5,6 +5,7 @@ import Navigation from './components/Navigation'
 import EnvironmentList from './components/EnvironmentList'
 import ConfigPage from './components/ConfigPage'
 import UserManagementPage from './components/UserManagementPage'
+import TestUserManagement from './components/TestUserManagement'
 import LoginPage from './components/LoginPage'
 import { ToastProvider } from './components/EnhancedToast'
 import './App.css'
@@ -70,6 +71,13 @@ const AppContent = () => {
           <ProtectedRoute>
             <AdminRoute>
               <UserManagementPage />
+            </AdminRoute>
+          </ProtectedRoute>
+        } />
+        <Route path="/test-users" element={
+          <ProtectedRoute>
+            <AdminRoute>
+              <TestUserManagement />
             </AdminRoute>
           </ProtectedRoute>
         } />

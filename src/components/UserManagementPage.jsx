@@ -476,9 +476,9 @@ const UserManagementPage = () => {
                                 <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">(当前用户)</span>
                               )}
                             </div>
-                            {user.email && (
-                              <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
-                            )}
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {user.email || '未设置邮箱'}
+                            </div>
                           </div>
                         </div>
                       </td>

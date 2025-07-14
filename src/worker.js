@@ -64,6 +64,11 @@ async function handleAPI(request, env, ctx) {
     return await handleEnvironmentsAPI(request, env);
   }
 
+  // 用户管理API
+  if (url.pathname.startsWith('/api/users')) {
+    return await handleUsersAPI(request, env);
+  }
+
 
 
   // 健康检查端点（带缓存）
@@ -189,6 +194,52 @@ async function handleEnvironmentsAPI(request, env) {
     }
 
     return errorResponse('Environment endpoint not found', 404);
+  } catch (error) {
+    return errorResponse(error.message, 500);
+  }
+}
+
+// 用户管理API处理
+async function handleUsersAPI(request, env) {
+  const url = new URL(request.url);
+  const path = url.pathname.replace('/api/users', '');
+
+  try {
+    if (!env.ENV_CONFIG) {
+      return errorResponse('KV binding not configured', 503);
+    }
+
+    // 验证用户权限
+    const authResult = await verifyAuthToken(request, env);
+    if (!authResult.valid) {
+      return errorResponse('Unauthorized', 401);
+    }
+
+    // 只有管理员可以访问用户管理API
+    if (authResult.user.role !== 'admin') {
+      return errorResponse('Admin access required', 403);
+    }
+
+    if (request.method === 'GET') {
+      if (path === '' || path === '/') {
+        return await handleGetAllUsers(env);
+      } else if (path.startsWith('/')) {
+        const username = path.substring(1);
+        return await handleGetUserByUsername(username, env);
+      }
+    } else if (request.method === 'PUT') {
+      if (path.startsWith('/')) {
+        const username = path.substring(1);
+        return await handleUpdateUser(username, request, env);
+      }
+    } else if (request.method === 'DELETE') {
+      if (path.startsWith('/')) {
+        const username = path.substring(1);
+        return await handleDeleteUserByUsername(username, env, authResult.user);
+      }
+    }
+
+    return errorResponse('Users endpoint not found', 404);
   } catch (error) {
     return errorResponse(error.message, 500);
   }
@@ -574,8 +625,13 @@ async function handleLogin(request, env) {
 async function handleRegister(request, env) {
   const { username, password, email } = await request.json();
 
-  if (!username || !password || !email) {
-    return errorResponse('Username, password and email required', 400);
+  if (!username || !password) {
+    return errorResponse('Username and password required', 400);
+  }
+
+  // 验证邮箱格式（如果提供了邮箱）
+  if (email && !/\S+@\S+\.\S+/.test(email)) {
+    return errorResponse('Invalid email format', 400);
   }
 
   // 检查用户是否已存在
@@ -588,7 +644,7 @@ async function handleRegister(request, env) {
   const hashedPassword = await hashPassword(password);
   const userData = {
     username,
-    email,
+    email: email || null, // 邮箱可选
     password: hashedPassword,
     role: 'user', // 默认角色
     createdAt: new Date().toISOString(),
@@ -961,4 +1017,117 @@ function getIndexHTML() {
     </script>
 </body>
 </html>`;
+}
+
+// 用户管理相关处理函数
+
+// 获取所有用户
+async function handleGetAllUsers(env) {
+  try {
+    // 获取用户列表
+    const userList = await env.ENV_CONFIG.get('user_list', 'json') || [];
+    const users = [];
+
+    // 获取每个用户的详细信息
+    for (const username of userList) {
+      try {
+        const userData = await env.ENV_CONFIG.get(`user:${username}`, 'json');
+        if (userData) {
+          // 移除敏感信息
+          const { password, ...safeUserData } = userData;
+          users.push(safeUserData);
+        }
+      } catch (error) {
+        console.warn(`Failed to load user ${username}:`, error);
+      }
+    }
+
+    return jsonResponse({
+      users: users.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    });
+  } catch (error) {
+    return errorResponse('Failed to get users: ' + error.message, 500);
+  }
+}
+
+// 根据用户名获取用户
+async function handleGetUserByUsername(username, env) {
+  try {
+    const userData = await env.ENV_CONFIG.get(`user:${username}`, 'json');
+    if (!userData) {
+      return errorResponse('User not found', 404);
+    }
+
+    // 移除敏感信息
+    const { password, ...safeUserData } = userData;
+    return jsonResponse({ user: safeUserData });
+  } catch (error) {
+    return errorResponse('Failed to get user: ' + error.message, 500);
+  }
+}
+
+// 更新用户信息
+async function handleUpdateUser(username, request, env) {
+  try {
+    const updates = await request.json();
+    const userData = await env.ENV_CONFIG.get(`user:${username}`, 'json');
+
+    if (!userData) {
+      return errorResponse('User not found', 404);
+    }
+
+    // 合并更新数据
+    const updatedUser = {
+      ...userData,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+
+    // 如果更新了密码，需要重新哈希
+    if (updates.password) {
+      updatedUser.password = await hashPassword(updates.password);
+    }
+
+    // 保存更新后的用户数据
+    await env.ENV_CONFIG.put(`user:${username}`, JSON.stringify(updatedUser));
+
+    // 返回安全的用户数据
+    const { password, ...safeUserData } = updatedUser;
+    return jsonResponse({
+      message: 'User updated successfully',
+      user: safeUserData
+    });
+  } catch (error) {
+    return errorResponse('Failed to update user: ' + error.message, 500);
+  }
+}
+
+// 删除用户
+async function handleDeleteUserByUsername(username, env, currentUser) {
+  try {
+    // 防止删除自己
+    if (currentUser.username === username) {
+      return errorResponse('Cannot delete your own account', 400);
+    }
+
+    // 检查用户是否存在
+    const userData = await env.ENV_CONFIG.get(`user:${username}`, 'json');
+    if (!userData) {
+      return errorResponse('User not found', 404);
+    }
+
+    // 从KV存储删除用户数据
+    await env.ENV_CONFIG.delete(`user:${username}`);
+
+    // 从用户列表中移除
+    const userList = await env.ENV_CONFIG.get('user_list', 'json') || [];
+    const updatedUserList = userList.filter(u => u !== username);
+    await env.ENV_CONFIG.put('user_list', JSON.stringify(updatedUserList));
+
+    return jsonResponse({
+      message: `User ${username} deleted successfully`
+    });
+  } catch (error) {
+    return errorResponse('Failed to delete user: ' + error.message, 500);
+  }
 }

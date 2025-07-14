@@ -72,27 +72,28 @@ const LoginPage = ({ onLoginSuccess }) => {
       setError('请输入用户名');
       return false;
     }
-    
+
     if (formData.username.length < 3) {
       setError('用户名至少需要3个字符');
       return false;
     }
-    
+
     if (!formData.password) {
       setError('请输入密码');
       return false;
     }
-    
+
     if (formData.password.length < 6) {
       setError('密码至少需要6个字符');
       return false;
     }
-    
-    if (!isLogin && formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+
+    // 注册时，如果提供了邮箱，验证邮箱格式
+    if (!isLogin && formData.email && formData.email.trim() && !/\S+@\S+\.\S+/.test(formData.email)) {
       setError('请输入有效的邮箱地址');
       return false;
     }
-    
+
     return true;
   };
 
@@ -116,8 +117,9 @@ const LoginPage = ({ onLoginSuccess }) => {
           onLoginSuccess && onLoginSuccess(result.user);
         }, 500);
       } else {
-        // 注册
-        await register(formData.username, formData.password, formData.email);
+        // 注册 - 只传递非空邮箱
+        const emailToSubmit = formData.email && formData.email.trim() ? formData.email.trim() : null;
+        await register(formData.username, formData.password, emailToSubmit);
         setSuccess('注册成功！请登录');
 
         // 自动切换到登录模式

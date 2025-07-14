@@ -9,8 +9,36 @@ const isDevelopment = import.meta.env.DEV || window.location.hostname === 'local
 
 // 开发环境模拟数据
 const DEV_USERS = {
-  'admin': { username: 'admin', password: 'admin123', role: 'admin' },
-  'user': { username: 'user', password: 'user123', role: 'user' }
+  'admin': {
+    username: 'admin',
+    password: 'admin123',
+    role: 'admin',
+    email: 'admin@example.com',
+    enabled: true,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    lastLogin: '2024-12-20T10:00:00.000Z',
+    loginCount: 15
+  },
+  'user': {
+    username: 'user',
+    password: 'user123',
+    role: 'user',
+    email: null, // 测试无邮箱用户
+    enabled: true,
+    createdAt: '2024-01-15T00:00:00.000Z',
+    lastLogin: '2024-12-19T15:30:00.000Z',
+    loginCount: 8
+  },
+  'testuser': {
+    username: 'testuser',
+    password: 'test123',
+    role: 'user',
+    email: 'test@example.com',
+    enabled: false,
+    createdAt: '2024-02-01T00:00:00.000Z',
+    lastLogin: null,
+    loginCount: 0
+  }
 };
 
 const DEV_ENVIRONMENTS = [
@@ -74,6 +102,94 @@ async function mockApiRequest(endpoint, options = {}) {
     }
   }
 
+  // 模拟注册
+  if (endpoint === '/auth/register' && method === 'POST') {
+    const { username, password, email } = body;
+
+    if (DEV_USERS[username]) {
+      throw new Error('用户已存在');
+    }
+
+    // 模拟创建新用户
+    DEV_USERS[username] = {
+      username,
+      password,
+      email: email || null,
+      role: 'user',
+      enabled: true,
+      createdAt: new Date().toISOString(),
+      lastLogin: null,
+      loginCount: 0
+    };
+
+    return {
+      success: true,
+      message: 'User created successfully',
+      user: {
+        username,
+        email: email || null,
+        role: 'user'
+      }
+    };
+  }
+
+  // 模拟获取所有用户
+  if (endpoint === '/users' && method === 'GET') {
+    const users = Object.values(DEV_USERS).map(user => {
+      const { password, ...safeUser } = user;
+      return safeUser;
+    });
+    return {
+      success: true,
+      users
+    };
+  }
+
+  // 模拟获取单个用户
+  if (endpoint.startsWith('/users/') && method === 'GET') {
+    const username = endpoint.split('/')[2];
+    const user = DEV_USERS[username];
+    if (!user) {
+      throw new Error('用户不存在');
+    }
+    const { password, ...safeUser } = user;
+    return {
+      success: true,
+      user: safeUser
+    };
+  }
+
+  // 模拟更新用户
+  if (endpoint.startsWith('/users/') && method === 'PUT') {
+    const username = endpoint.split('/')[2];
+    const user = DEV_USERS[username];
+    if (!user) {
+      throw new Error('用户不存在');
+    }
+
+    // 更新用户数据
+    Object.assign(user, body, { updatedAt: new Date().toISOString() });
+    const { password, ...safeUser } = user;
+    return {
+      success: true,
+      message: 'User updated successfully',
+      user: safeUser
+    };
+  }
+
+  // 模拟删除用户
+  if (endpoint.startsWith('/users/') && method === 'DELETE') {
+    const username = endpoint.split('/')[2];
+    if (!DEV_USERS[username]) {
+      throw new Error('用户不存在');
+    }
+    delete DEV_USERS[username];
+    return {
+      success: true,
+      message: `User ${username} deleted successfully`
+    };
+  }
+
   // 模拟获取环境列表
   if (endpoint === '/environments' && method === 'GET') {
     return {
@@ -132,9 +248,15 @@ export const authAPI = {
   },
 
   async register(username, password, email) {
+    const requestBody = { username, password };
+    // 只有当邮箱不为空时才添加到请求体中
+    if (email) {
+      requestBody.email = email;
+    }
+
     return apiRequest('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ username, password, email })
+      body: JSON.stringify(requestBody)
     });
   },
 
@@ -248,6 +370,33 @@ export const kvAPI = {
     return apiRequest('/kv', {
       method: 'POST',
       body: JSON.stringify({ action: 'init_admin' })
+    });
+  }
+};
+
+// 用户管理API
+export const usersAPI = {
+  async getAll() {
+    const result = await apiRequest('/users');
+    return result.users || [];
+  },
+
+  async getByUsername(username) {
+    const result = await apiRequest(`/users/${username}`);
+    return result.user;
+  },
+
+  async update(username, userData) {
+    const result = await apiRequest(`/users/${username}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData)
+    });
+    return result.user;
+  },
+
+  async delete(username) {
+    return apiRequest(`/users/${username}`, {
+      method: 'DELETE'
     });
   }
 };

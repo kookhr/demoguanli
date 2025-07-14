@@ -39,6 +39,13 @@ const Navigation = () => {
       icon: Users,
       description: '管理用户账户和权限',
       permission: 'user_management'
+    },
+    {
+      path: '/test-users',
+      label: '用户测试',
+      icon: Users,
+      description: '测试用户注册和管理功能',
+      permission: 'user_management'
     }
   ];
 
