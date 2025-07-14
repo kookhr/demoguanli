@@ -34,6 +34,8 @@ export const DETECTION_METHODS = {
   IMAGE_ERROR_REACHABLE: 'image-error-reachable',
   IMAGE_TIMEOUT: 'image-timeout',
   IMAGE_EXCEPTION: 'image-exception',
+  MIXED_CONTENT_IMAGE_PROBE: 'mixed-content-image-probe',
+  MIXED_CONTENT_BLOCKED: 'mixed-content-blocked',
   ALL_METHODS_FAILED: 'all-methods-failed',
   ENHANCED_CHECK: 'enhanced-check',
   EXCEPTION: 'exception'

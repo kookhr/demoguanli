@@ -51,6 +51,10 @@ const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
         return '图像加载';
       case 'image-error-reachable':
         return '图像探测';
+      case 'mixed-content-image-probe':
+        return '混合内容探测';
+      case 'mixed-content-blocked':
+        return '混合内容阻止';
       case 'enhanced-check':
         return '增强检测';
       case 'all-methods-failed':

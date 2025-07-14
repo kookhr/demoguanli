@@ -169,6 +169,20 @@ const buildProbeUrls = (baseUrl) => {
 };
 
 /**
+ * 检测是否为混合内容（HTTPS页面访问HTTP资源）
+ */
+const isMixedContent = (targetUrl) => {
+  try {
+    const currentProtocol = window.location.protocol;
+    const targetProtocol = new URL(targetUrl).protocol;
+
+    return currentProtocol === 'https:' && targetProtocol === 'http:';
+  } catch {
+    return false;
+  }
+};
+
+/**
  * 检测是否为 IP+端口 格式的地址
  */
 const isIpPortAddress = (url) => {
@@ -222,28 +236,67 @@ const checkNetworkReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeo
  */
 const checkEnhancedReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeout) => {
   const isIpPort = isIpPortAddress(url);
+  const isMixedContentIssue = isMixedContent(url);
 
-  debugLog('开始增强探测', { url, isIpPort, timeout });
+  debugLog('开始增强探测', { url, isIpPort, isMixedContentIssue, timeout });
 
-  // 对于 IP+端口 地址，优先使用 img 探测
-  if (isIpPort) {
-    debugLog('检测到IP+端口地址，使用增强探测', url);
+  // 对于混合内容或IP+端口地址，优先使用 img 探测
+  if (isMixedContentIssue || isIpPort) {
+    debugLog('检测到混合内容或IP+端口地址，优先使用img探测', { url, isMixedContentIssue, isIpPort });
 
-    // 1. 首先尝试 fetch 探测
-    debugLog('尝试fetch探测', url);
-    const fetchResult = await checkNetworkReachability(url, timeout);
-    if (fetchResult.reachable) {
-      debugLog('fetch探测成功', fetchResult);
+    // 1. 对于混合内容，直接使用 img 探测（跳过fetch避免被阻止）
+    if (isMixedContentIssue && SIMPLE_CHECK_CONFIG.enableImageProbe) {
+      debugLog('混合内容检测，直接使用img探测', url);
+      const probeUrls = buildProbeUrls(url);
+      debugLog('构建探测URL列表', probeUrls);
+
+      for (const probeUrl of probeUrls) {
+        try {
+          debugLog('尝试img探测（混合内容）', probeUrl);
+          const imgResult = await checkImageProbe(probeUrl, Math.min(timeout, SIMPLE_CHECK_CONFIG.imageProbeTimeout));
+          if (imgResult.reachable) {
+            debugLog('img探测成功（混合内容）', { probeUrl, result: imgResult });
+            return {
+              reachable: true,
+              method: 'mixed-content-image-probe',
+              details: `混合内容img探测成功: ${probeUrl}`,
+              probeUrl: probeUrl,
+              mixedContent: true
+            };
+          }
+        } catch (error) {
+          debugLog('img探测异常（混合内容）', { probeUrl, error: error.message });
+          continue;
+        }
+      }
+
+      // 混合内容img探测失败
       return {
-        ...fetchResult,
-        method: 'fetch-success',
-        details: 'fetch探测成功'
+        reachable: false,
+        method: 'mixed-content-blocked',
+        details: '混合内容被阻止，img探测也失败',
+        mixedContent: true,
+        attemptedUrls: probeUrls
       };
     }
 
-    // 2. fetch 失败时，尝试 img 探测
+    // 2. 对于IP地址（非混合内容），先尝试 fetch
+    if (!isMixedContentIssue) {
+      debugLog('尝试fetch探测', url);
+      const fetchResult = await checkNetworkReachability(url, timeout);
+      if (fetchResult.reachable) {
+        debugLog('fetch探测成功', fetchResult);
+        return {
+          ...fetchResult,
+          method: 'fetch-success',
+          details: 'fetch探测成功'
+        };
+      }
+    }
+
+    // 3. fetch失败或跳过时，尝试 img 探测
     if (SIMPLE_CHECK_CONFIG.enableImageProbe) {
-      debugLog('fetch探测失败，尝试img探测');
+      debugLog('fetch探测失败或跳过，尝试img探测');
       const probeUrls = buildProbeUrls(url);
       debugLog('构建探测URL列表', probeUrls);
 
@@ -267,16 +320,17 @@ const checkEnhancedReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.time
       }
     }
 
-    // 3. 所有方法都失败
+    // 4. 所有方法都失败
     debugLog('所有探测方法均失败', url);
     return {
       reachable: false,
       method: 'all-methods-failed',
-      details: 'fetch和img探测均失败',
-      attemptedUrls: buildProbeUrls(url)
+      details: isMixedContentIssue ? '混合内容限制，所有探测方法失败' : 'fetch和img探测均失败',
+      attemptedUrls: buildProbeUrls(url),
+      mixedContent: isMixedContentIssue
     };
   } else {
-    // 对于域名地址，使用标准 fetch 探测
+    // 对于域名地址（非混合内容），使用标准 fetch 探测
     debugLog('域名地址，使用标准fetch探测', url);
     return await checkNetworkReachability(url, timeout);
   }

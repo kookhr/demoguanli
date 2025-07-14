@@ -28,6 +28,7 @@ const NetworkProbeTest = () => {
 
   // 预设的测试地址
   const presetUrls = [
+    'http://demo-itam.cloudwise.com:18088', // 您提到的问题地址
     'http://192.168.1.1:80',      // 常见路由器
     'http://127.0.0.1:3000',      // 本地开发服务器
     'http://10.0.0.1:8080',       // 内网服务
@@ -114,6 +115,10 @@ const NetworkProbeTest = () => {
       case 'image-load':
       case 'image-error-reachable':
         return 'bg-green-100 text-green-800';
+      case 'mixed-content-image-probe':
+        return 'bg-orange-100 text-orange-800';
+      case 'mixed-content-blocked':
+        return 'bg-red-100 text-red-800';
       case 'enhanced-check':
         return 'bg-purple-100 text-purple-800';
       case 'all-methods-failed':
@@ -135,6 +140,17 @@ const NetworkProbeTest = () => {
     }
   };
 
+  // 判断是否为混合内容
+  const isMixedContent = (url) => {
+    try {
+      const currentProtocol = window.location.protocol;
+      const targetProtocol = new URL(url).protocol;
+      return currentProtocol === 'https:' && targetProtocol === 'http:';
+    } catch {
+      return false;
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="mb-8">
@@ -144,6 +160,27 @@ const NetworkProbeTest = () => {
         <p className="text-gray-600 dark:text-gray-400">
           测试基于 img 标签的 IP+端口 探测功能，支持绕过 CORS 限制的网络可达性检测
         </p>
+
+        {/* 混合内容警告 */}
+        {window.location.protocol === 'https:' && (
+          <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Activity className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-medium text-orange-800 dark:text-orange-200">
+                  混合内容检测模式
+                </h3>
+                <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                  当前页面使用 HTTPS，测试 HTTP 地址时会触发混合内容限制。
+                  系统会自动使用 img 标签探测来绕过这些限制。
+                </p>
+                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                  💡 提示：img 探测可以检测服务可达性，但无法获取详细的 HTTP 状态码
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 测试控制面板 */}
@@ -349,6 +386,12 @@ const NetworkProbeTest = () => {
                             <Shield className="w-4 h-4 text-blue-600" title="IP地址" />
                           ) : (
                             <Globe className="w-4 h-4 text-green-600" title="域名" />
+                          )}
+                          {isMixedContent(result.url) && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs">
+                              <Activity className="w-3 h-3" />
+                              <span>混合内容</span>
+                            </div>
                           )}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
