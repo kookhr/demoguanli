@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Globe,
-  Shield,
   Activity,
   Clock,
   ExternalLink,
@@ -43,6 +42,13 @@ const EnvironmentCard = ({
 
     switch (status?.status) {
       case 'available':
+      case 'online':
+      case 'cors-bypassed':
+      case 'image-reachable':
+      case 'port-reachable':
+      case 'assumed-reachable':
+      case 'reachable-unverified':
+      case 'mixed-content-service-reachable':
         return {
           icon: CheckCircle,
           color: 'text-emerald-500 dark:text-emerald-400',
@@ -52,6 +58,12 @@ const EnvironmentCard = ({
           pulse: false
         };
       case 'unreachable':
+      case 'offline':
+      case 'error':
+      case 'server-error':
+      case 'timeout':
+      case 'unknown':
+      case 'mixed-content-service-unreachable':
         return {
           icon: XCircle,
           color: 'text-red-500 dark:text-red-400',

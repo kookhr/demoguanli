@@ -5,7 +5,7 @@ import Navigation from './components/Navigation'
 import EnvironmentList from './components/EnvironmentList'
 import ConfigPage from './components/ConfigPage'
 import UserManagementPage from './components/UserManagementPage'
-import CardDesignTest from './components/CardDesignTest'
+
 import LoginPage from './components/LoginPage'
 import { ToastProvider } from './components/EnhancedToast'
 import './App.css'
@@ -74,13 +74,7 @@ const AppContent = () => {
             </AdminRoute>
           </ProtectedRoute>
         } />
-        <Route path="/card-design-test" element={
-          <ProtectedRoute>
-            <AdminRoute>
-              <CardDesignTest />
-            </AdminRoute>
-          </ProtectedRoute>
-        } />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

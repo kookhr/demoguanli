@@ -469,7 +469,9 @@ const EnvironmentList = () => {
                   <EnvironmentCard
                     environment={env}
                     status={getEnvironmentStatus(env.id)}
+                    isChecking={getEnvironmentStatus(env.id).isChecking}
                     onStatusCheck={handleCheckSingle}
+                    onVisit={(environment) => window.open(environment.url, '_blank')}
                   />
 
                   {/* 收藏标识 */}
@@ -494,7 +496,9 @@ const EnvironmentList = () => {
                   <EnvironmentCard
                     environment={env}
                     status={getEnvironmentStatus(env.id)}
+                    isChecking={getEnvironmentStatus(env.id).isChecking}
                     onStatusCheck={handleCheckSingle}
+                    onVisit={(environment) => window.open(environment.url, '_blank')}
                   />
 
                   {/* 收藏标识 */}

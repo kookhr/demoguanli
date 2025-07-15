@@ -182,8 +182,8 @@ const UserManagement = lazy(() => import('./components/UserManagementPage'));
 const ConfigPage = lazy(() => import('./components/ConfigPage'));
 
 // 组件级别的懒加载
-const EnhancedEnvironmentCard = lazy(() => 
-  import('./components/EnhancedEnvironmentCard')
+const EnvironmentCard = lazy(() =>
+  import('./components/EnvironmentCard')
 );
 ```
 
