@@ -1,434 +1,487 @@
-import React, { useState, memo, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   Globe,
   Shield,
+  Activity,
+  Clock,
+  ExternalLink,
   CheckCircle,
   XCircle,
-  AlertTriangle,
-  RefreshCw,
-  ExternalLink,
+  Loader2,
+  Wifi,
   Server,
+  Database,
+  Cloud,
   ChevronDown,
-  ChevronUp,
-  AlertCircle,
-  Clock,
-  Activity,
-  HelpCircle
+  ChevronUp
 } from 'lucide-react';
-import { SimpleTagList } from './SimpleTagList';
-import { formatResponseTime, formatLastChecked } from '../utils/common';
 
-const EnvironmentCard = ({ environment, status, onStatusCheck }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const EnvironmentCard = ({
+  environment,
+  status,
+  isChecking = false,
+  onVisit,
+  onStatusCheck,
+  className = ""
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isServicesExpanded, setIsServicesExpanded] = useState(false);
 
-
-
-  // 合并环境类型和现有标签 - 使用useMemo优化
-  const allTags = useMemo(() => {
-    const tags = [];
-
-    // 添加环境类型作为第一个标签
-    if (environment.type) {
-      tags.push(environment.type);
+  // 获取状态相关的样式和图标
+  const getStatusInfo = () => {
+    if (isChecking) {
+      return {
+        icon: Loader2,
+        color: 'text-blue-500 dark:text-blue-400',
+        bgColor: 'bg-blue-50/80 dark:bg-blue-900/20',
+        borderColor: 'border-blue-200/50 dark:border-blue-700/50',
+        text: '检测中...',
+        pulse: true,
+        checking: true
+      };
     }
 
-    // 添加现有标签
-    if (environment.tags && environment.tags.length > 0) {
-      tags.push(...environment.tags);
+    switch (status?.status) {
+      case 'available':
+        return {
+          icon: CheckCircle,
+          color: 'text-emerald-500 dark:text-emerald-400',
+          bgColor: 'bg-emerald-50/80 dark:bg-emerald-900/20',
+          borderColor: 'border-emerald-200/50 dark:border-emerald-700/50',
+          text: '可达',
+          pulse: false
+        };
+      case 'unreachable':
+        return {
+          icon: XCircle,
+          color: 'text-red-500 dark:text-red-400',
+          bgColor: 'bg-red-50/80 dark:bg-red-900/20',
+          borderColor: 'border-red-200/50 dark:border-red-700/50',
+          text: '不可达',
+          pulse: false
+        };
+      default:
+        return {
+          icon: Activity,
+          color: 'text-gray-500 dark:text-gray-400',
+          bgColor: 'bg-gray-50/80 dark:bg-gray-900/20',
+          borderColor: 'border-gray-200/50 dark:border-gray-700/50',
+          text: '未知',
+          pulse: false
+        };
     }
+  };
 
-    return tags;
-  }, [environment.type, environment.tags]);
+  // 获取环境类型图标
+  const getTypeIcon = () => {
+    switch (environment.type) {
+      case 'production': return Server;
+      case 'staging': return Cloud;
+      case 'development': return Database;
+      default: return Globe;
+    }
+  };
+
+  // 获取环境类型样式
+  const getTypeStyle = () => {
+    switch (environment.type) {
+      case 'production':
+        return 'bg-red-100/80 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+      case 'staging':
+        return 'bg-yellow-100/80 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'development':
+        return 'bg-blue-100/80 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+      default:
+        return 'bg-gray-100/80 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300';
+    }
+  };
+
+  // 获取网络类型样式
+  const getNetworkStyle = () => {
+    switch (environment.network) {
+      case 'internal':
+        return 'bg-purple-100/80 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
+      case 'external':
+        return 'bg-green-100/80 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+      default:
+        return 'bg-gray-100/80 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300';
+    }
+  };
 
   // 获取检测方法描述
   const getMethodDescription = (method) => {
     switch (method) {
-      case 'fetch-no-cors':
-        return 'Fetch探测';
-      case 'fetch-success':
-        return 'Fetch成功';
-      case 'image-load':
-        return '图像加载';
-      case 'image-error-reachable':
-        return '图像探测';
-      case 'mixed-content-image-probe':
-        return '混合内容探测';
-      case 'mixed-content-blocked':
-        return '混合内容阻止';
-      case 'enhanced-check':
-        return '增强检测';
-      case 'all-methods-failed':
-        return '多方法探测';
-      default:
-        return '标准检测';
+      case 'fetch-success': return 'Fetch';
+      case 'image-load': return 'Image';
+      case 'mixed-content-image-probe': return 'Mixed';
+      case 'enhanced-check': return 'Enhanced';
+      default: return 'Standard';
     }
   };
 
-  // 根据HTTP状态码和检测结果获取详细状态描述
-  const getDetailedStatusDescription = (status) => {
-    if (!status) return null;
+  // 获取版本号样式
+  const getVersionStyle = (version) => {
+    if (!version) return '';
 
-    // 如果有具体的HTTP状态码，优先使用状态码描述
-    if (status.statusCode) {
-      const code = status.statusCode;
+    const versionLower = version.toLowerCase();
 
-      // 2xx 成功状态
-      if (code >= 200 && code < 300) {
-        switch (code) {
-          case 200: return "服务正常运行";
-          case 201: return "资源创建成功";
-          case 202: return "请求已接受";
-          case 204: return "请求成功，无内容返回";
-          default: return "服务响应正常";
-        }
-      }
-
-      // 3xx 重定向状态
-      if (code >= 300 && code < 400) {
-        switch (code) {
-          case 301: return "资源已永久移动";
-          case 302: return "资源临时重定向";
-          case 304: return "资源未修改";
-          default: return "请求被重定向";
-        }
-      }
-
-      // 4xx 客户端错误
-      if (code >= 400 && code < 500) {
-        switch (code) {
-          case 400: return "请求格式错误";
-          case 401: return "需要身份验证";
-          case 403: return "访问被拒绝";
-          case 404: return "页面未找到";
-          case 405: return "请求方法不允许";
-          case 408: return "请求超时";
-          case 429: return "请求过于频繁";
-          default: return "客户端请求错误";
-        }
-      }
-
-      // 5xx 服务器错误
-      if (code >= 500 && code < 600) {
-        switch (code) {
-          case 500: return "服务器内部错误";
-          case 501: return "功能未实现";
-          case 502: return "网关错误";
-          case 503: return "服务不可用";
-          case 504: return "网关超时";
-          default: return "服务器错误";
-        }
-      }
-    }
-
-    // 根据检测状态返回描述 - 极简版
-    switch (status.status) {
-      case 'available':
-      case 'online':
-      case 'cors-bypassed':
-      case 'image-reachable':
-      case 'port-reachable':
-      case 'assumed-reachable':
-      case 'reachable-unverified':
-      case 'mixed-content-service-reachable':
-        return "网络可达";
-      case 'unreachable':
-      case 'offline':
-      case 'error':
-      case 'server-error':
-      case 'timeout':
-      case 'unknown':
-      case 'mixed-content-service-unreachable':
-      default:
-        return "网络不可达";
+    if (versionLower.includes('alpha')) {
+      return 'bg-red-100/80 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+    } else if (versionLower.includes('beta')) {
+      return 'bg-orange-100/80 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+    } else if (versionLower.includes('rc')) {
+      return 'bg-yellow-100/80 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+    } else {
+      return 'bg-indigo-100/80 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300';
     }
   };
 
-  // 获取状态信息 - 极简版
-  const statusInfo = useMemo(() => {
-    switch (status?.status) {
-      case 'available':
-      case 'online':
-      case 'cors-bypassed':
-      case 'image-reachable':
-      case 'port-reachable':
-      case 'assumed-reachable':
-      case 'reachable-unverified':
-      case 'mixed-content-service-reachable':
-        return {
-          icon: CheckCircle,
-          color: 'text-success-600 dark:text-success-400',
-          border: 'border-success-200 dark:border-success-700',
-          text: '可达',
-          description: '网络可达'
-        };
-      case 'unreachable':
-      case 'offline':
-      case 'error':
-      case 'server-error':
-      case 'timeout':
-      case 'unknown':
-      case 'mixed-content-service-unreachable':
+  // 格式化响应时间
+  const formatResponseTime = (time) => {
+    if (!time) return '';
+    return time < 1000 ? `${time}ms` : `${(time / 1000).toFixed(1)}s`;
+  };
+
+  // 访问服务
+  const handleServiceVisit = (service) => {
+    try {
+      const baseUrl = new URL(environment.url);
+      const serviceUrl = `${baseUrl.protocol}//${baseUrl.hostname}:${service.port}`;
+      window.open(serviceUrl, '_blank');
+    } catch (error) {
+      console.error('无法构造服务URL:', error);
+      // 如果URL构造失败，尝试简单拼接
+      const serviceUrl = `${environment.url.replace(/:\d+$/, '')}:${service.port}`;
+      window.open(serviceUrl, '_blank');
+    }
+  };
+
+  // 获取服务状态样式
+  const getServiceStatusStyle = (status) => {
+    switch (status) {
+      case 'running':
+        return 'text-green-600 dark:text-green-400 bg-green-50/80 dark:bg-green-900/20';
+      case 'stopped':
+        return 'text-red-600 dark:text-red-400 bg-red-50/80 dark:bg-red-900/20';
+      case 'warning':
+        return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50/80 dark:bg-yellow-900/20';
       default:
-        return {
-          icon: XCircle,
-          color: 'text-danger-600 dark:text-danger-400',
-          border: 'border-danger-200 dark:border-danger-700',
-          text: '不可达',
-          description: '网络不可达'
-        };
+        return 'text-gray-600 dark:text-gray-400 bg-gray-50/80 dark:bg-gray-900/20';
     }
-  }, [status]);
+  };
 
-  // 获取状态样式类
-  const getStatusClass = useMemo(() => {
-    if (status?.isChecking) {
-      return 'status-checking';
-    }
-
-    switch (status?.status) {
-      case 'available':
-      case 'online':
-      case 'cors-bypassed':
-      case 'image-reachable':
-      case 'port-reachable':
-      case 'assumed-reachable':
-      case 'reachable-unverified':
-      case 'mixed-content-service-reachable':
-        return 'status-available';
-      case 'unreachable':
-      case 'offline':
-      case 'error':
-      case 'server-error':
-      case 'timeout':
-      case 'unknown':
-      case 'mixed-content-service-unreachable':
-      default:
-        return 'status-unreachable';
-    }
-  }, [status]);
-
-
-
-  // 获取状态边框颜色 - 极简版
-  const statusBorderColor = useMemo(() => {
-    if (status?.isChecking) {
-      return 'border-blue-400 dark:border-blue-500';
-    }
-
-    switch (status?.status) {
-      case 'available':
-      case 'online':
-      case 'cors-bypassed':
-      case 'image-reachable':
-      case 'port-reachable':
-      case 'assumed-reachable':
-      case 'reachable-unverified':
-      case 'mixed-content-service-reachable':
-        return 'border-success-500 dark:border-success-400';
-      case 'unreachable':
-      case 'offline':
-      case 'error':
-      case 'server-error':
-      case 'timeout':
-      case 'unknown':
-      case 'mixed-content-service-unreachable':
-      default:
-        return 'border-danger-500 dark:border-danger-400';
-    }
-  }, [status]);
-
-  const isChecking = status?.isChecking || false;
+  const statusInfo = getStatusInfo();
   const StatusIcon = statusInfo.icon;
+  const TypeIcon = getTypeIcon();
 
   return (
-    <div className={`card card-hover liquid-hover inner-glow animate-fade-in border-l-4 hover-lift transition-all duration-300 mobile-env-card ${statusBorderColor} ${
-      isChecking ? 'animate-pulse' : ''
-    }`}>
-      <div className="p-6 mobile-env-card">
-        {/* 头部：环境名称和操作区 */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-3 mobile-env-header">
+    <div
+      className={`
+        group relative overflow-hidden
+        bg-white/80 dark:bg-gray-800/80
+        backdrop-blur-xl backdrop-saturate-150
+        border border-gray-200/50 dark:border-gray-700/50
+        rounded-2xl
+        shadow-sm hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50
+        transition-all duration-500 ease-out
+        hover:scale-[1.02] hover:-translate-y-2
+        ${isHovered ? 'shadow-xl shadow-gray-200/50 dark:shadow-gray-900/50' : ''}
+        ${className}
+      `}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* 背景渐变效果 */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent dark:from-gray-700/20 pointer-events-none" />
+
+      {/* 状态指示条 */}
+      <div className={`absolute top-0 left-0 right-0 h-1 ${statusInfo.bgColor} ${statusInfo.borderColor}`} />
+
+      <div className="relative p-6">
+        {/* 头部区域 */}
+        <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0">
-            {/* 环境名称和版本号 */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 truncate mobile-env-title">
-                {environment.name}
-              </h3>
-              {environment.version && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 liquid-glass-surface px-2 py-1 rounded-xl font-mono flex-shrink-0 backdrop-blur-sm self-start sm:self-auto">
-                  v{environment.version}
-                </span>
-              )}
-            </div>
+            {/* 环境名称 */}
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1 truncate">
+              {environment.name}
+            </h3>
 
             {/* 环境描述 */}
             {environment.description && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed">
                 {environment.description}
               </p>
             )}
           </div>
 
-          {/* 右上角操作区 */}
-          <div className="flex items-center gap-2 flex-shrink-0 self-start sm:ml-4">
-            {/* 网络类型标签 */}
-            <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 touch-manipulation" title={`网络类型: ${environment.network === 'internal' ? '内网' : '外网'} (仅作分类标签)`}>
-              {environment.network === 'internal' ? (
-                <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              ) : (
-                <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
+          {/* 状态指示器 - 可点击按钮 */}
+          <button
+            onClick={() => onStatusCheck?.(environment)}
+            disabled={isChecking}
+            className={`
+              group/status flex items-center gap-2 px-3 py-1.5 rounded-full
+              ${statusInfo.bgColor} ${statusInfo.borderColor} border
+              backdrop-blur-sm
+              transition-all duration-300 hover:scale-105 active:scale-95
+              shadow-sm hover:shadow-lg
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500/20
+              disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100
+              cursor-pointer hover:brightness-110
+              relative overflow-hidden
+            `}
+            title={isChecking ? '检测中...' : `点击检测 ${environment.name} 的网络状态`}
+          >
+            {/* 悬停时的光晕效果 */}
+            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/status:opacity-100 transition-opacity duration-300 rounded-full" />
+
+            <StatusIcon
+              className={`w-4 h-4 ${statusInfo.color} ${statusInfo.pulse ? 'animate-spin' : ''} relative z-10`}
+            />
+            <span className={`text-sm font-medium ${statusInfo.color} relative z-10`}>
+              {statusInfo.text}
+            </span>
+
+            {/* 检测中的脉冲效果 */}
+            {isChecking && (
+              <div className="absolute inset-0 rounded-full">
+                <div className="absolute inset-0 rounded-full bg-blue-400/20 animate-ping" />
+                <div className="absolute inset-0 rounded-full bg-blue-400/10 animate-pulse" />
+              </div>
+            )}
+
+            {/* 点击波纹效果指示 */}
+            {!isChecking && (
+              <div className="absolute inset-0 rounded-full opacity-0 group-hover/status:opacity-100 transition-opacity duration-300">
+                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
+              </div>
+            )}
+          </button>
+        </div>
+
+        {/* 环境信息区域 */}
+        <div className="space-y-3 mb-4">
+          {/* URL */}
+          <div className="flex items-center gap-2 text-sm">
+            <Globe className="w-4 h-4 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+            <span className="text-gray-700 dark:text-gray-300 truncate font-mono text-xs">
+              {environment.url}
+            </span>
+          </div>
+
+          {/* 类型、网络和版本标签 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className={`
+              flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium
+              ${getTypeStyle()}
+              transition-colors duration-200
+            `}>
+              <TypeIcon className="w-3.5 h-3.5" />
+              <span>{environment.type || 'unknown'}</span>
+            </div>
+
+            <div className={`
+              flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium
+              ${getNetworkStyle()}
+              transition-colors duration-200
+            `}>
+              <Wifi className="w-3.5 h-3.5" />
+              <span>{environment.network || 'unknown'}</span>
+            </div>
+
+            {/* 版本号标签 */}
+            {environment.version && (
+              <div className={`
+                flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium
+                transition-colors duration-200
+                ${getVersionStyle(environment.version)}
+              `}>
+                <span className="font-mono">v{environment.version}</span>
+              </div>
+            )}
+          </div>
+
+          {/* 标签 */}
+          {environment.tags && environment.tags.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {environment.tags.slice(0, 3).map((tag, index) => (
+                <span
+                  key={index}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg
+                           bg-gray-100/80 text-gray-700 dark:bg-gray-700/50 dark:text-gray-300
+                           border border-gray-200/50 dark:border-gray-600/50
+                           backdrop-blur-sm
+                           transition-all duration-200 hover:scale-105 hover:bg-gray-200/80 dark:hover:bg-gray-600/50"
+                >
+                  {tag}
+                </span>
+              ))}
+              {environment.tags.length > 3 && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                  +{environment.tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 状态详情区域 */}
+        {status && (
+          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-4">
+            <div className="flex items-center gap-3">
+              {/* 响应时间 */}
+              {status.responseTime && (
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{formatResponseTime(status.responseTime)}</span>
+                </div>
+              )}
+
+              {/* 检测方法 */}
+              {status.method && (
+                <div className="flex items-center gap-1">
+                  <Activity className="w-3.5 h-3.5" />
+                  <span>{getMethodDescription(status.method)}</span>
+                </div>
               )}
             </div>
 
-            {/* 检测按钮 */}
-            <button
-              onClick={() => onStatusCheck && onStatusCheck(environment)}
-              disabled={isChecking}
-              className={`p-2 rounded-lg transition-all duration-200 disabled:opacity-50 mobile-env-button touch-manipulation min-h-[44px] min-w-[44px] ${
-                isChecking
-                  ? 'bg-primary-200 dark:bg-primary-800/50 cursor-wait'
-                  : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50 active:scale-90'
-              }`}
-              title={isChecking ? '检测中...' : '检测状态'}
-            >
-              <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
-            </button>
+            {/* 最后检测时间 */}
+            {status.lastChecked && (
+              <span className="text-xs">
+                {new Date(status.lastChecked).toLocaleTimeString()}
+              </span>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* 状态信息区 */}
-        <div className="mb-4">
-          <div className={`flex items-start gap-3 px-4 py-2.5 rounded-2xl status-glass-surface ${getStatusClass}`}>
-            <StatusIcon className={`w-5 h-5 ${statusInfo.color} flex-shrink-0 mt-0.5 ${isChecking ? 'animate-spin' : ''}`} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  {/* 状态文字 */}
-                  <div className="mb-0.5">
-                    <span className={`text-sm font-semibold ${statusInfo.color} leading-tight`}>
-                      {isChecking ? '检测中...' : statusInfo.text}
-                    </span>
-                  </div>
-
-                  {/* 状态描述 */}
-                  {!isChecking && (() => {
-                    const description = getDetailedStatusDescription(status);
-                    return description ? (
-                      <div className="text-xs text-gray-600 dark:text-gray-400 leading-tight">
-                        {description}
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-
-                {/* 右侧：垂直排列的时间信息 */}
-                {!isChecking && (status?.lastChecked || status?.responseTime) && (
-                  <div className="flex flex-col sm:items-end gap-1 text-xs text-gray-500 dark:text-gray-400 ml-2 sm:ml-4">
-                    {/* 最后检测时间 */}
-                    {status?.lastChecked && (
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span className="truncate max-w-[80px] sm:max-w-none">
-                          {formatLastChecked(status.lastChecked)}
-                        </span>
-                      </span>
-                    )}
-
-                    {/* 响应时间 */}
-                    {status?.responseTime && (
-                      <span className="flex items-center gap-1">
-                        <Activity className="w-3 h-3" />
-                        <span className="truncate max-w-[60px] sm:max-w-none">
-                          {formatResponseTime(status.responseTime)}
-                        </span>
-                      </span>
-                    )}
-
-                    {/* 检测方法 */}
-                    {status?.method && (
-                      <span className="flex items-center gap-1" title={status.details || '检测方法'}>
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-400">
-                          {getMethodDescription(status.method)}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 标签区域 */}
-        {allTags.length > 0 ? (
-            <div className="mb-4">
-              <SimpleTagList
-                tags={allTags}
-                maxVisible={6}
-                size="sm"
-              />
-            </div>
-          ) : null}
-
-
-
-        {/* 操作按钮区 */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mobile-env-actions">
-          <a
-            href={environment.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-primary flex-1 mobile-env-button touch-manipulation min-h-[48px] sm:min-h-[44px] flex items-center justify-center"
+        {/* 操作按钮区域 */}
+        <div className="flex items-center gap-3">
+          {/* 访问按钮 */}
+          <button
+            onClick={() => onVisit?.(environment)}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5
+                     bg-blue-500/10 hover:bg-blue-500/20 dark:bg-blue-400/10 dark:hover:bg-blue-400/20
+                     text-blue-600 dark:text-blue-400 font-medium text-sm
+                     rounded-xl border border-blue-200/50 dark:border-blue-700/50
+                     transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
+                     focus:outline-none focus:ring-2 focus:ring-blue-500/20
+                     disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
-            <ExternalLink className="w-4 h-4 mr-2" />
-            快速访问
-          </a>
+            <ExternalLink className="w-4 h-4" />
+            <span>访问</span>
+          </button>
 
-          {/* 服务详情按钮 */}
+          {/* 服务详情切换按钮 - 仅在有服务数据时显示 */}
           {environment.services && environment.services.length > 0 && (
             <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center justify-center sm:justify-start gap-2 px-4 py-3 sm:py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mobile-env-button touch-manipulation min-h-[48px] sm:min-h-[44px] w-full sm:w-auto"
+              onClick={() => setIsServicesExpanded(!isServicesExpanded)}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 sm:px-4
+                       bg-purple-500/10 hover:bg-purple-500/20 dark:bg-purple-400/10 dark:hover:bg-purple-400/20
+                       text-purple-600 dark:text-purple-400 font-medium text-sm
+                       rounded-xl border border-purple-200/50 dark:border-purple-700/50
+                       transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]
+                       focus:outline-none focus:ring-2 focus:ring-purple-500/20
+                       min-w-0 flex-shrink-0"
+              title={`${isServicesExpanded ? '收起' : '展开'}服务列表 (${environment.services.length}个服务)`}
             >
               <Server className="w-4 h-4" />
-              <span className="sm:hidden">服务详情</span>
-              <span className="hidden sm:inline">服务详情</span>
-              <span className="text-xs bg-gray-200 dark:bg-gray-600 px-1.5 py-0.5 rounded">
+              <span className="hidden sm:inline">
+                {isServicesExpanded ? '收起服务' : '服务详情'}
+              </span>
+              <span className="sm:hidden text-xs">
                 {environment.services.length}
               </span>
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {isServicesExpanded ? (
+                <ChevronUp className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
             </button>
           )}
         </div>
 
-        {/* 服务详情（可展开） */}
-        {isExpanded && environment.services && environment.services.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 animate-slide-up">
-            <div className="space-y-3">
-              {environment.services.map((service, index) => (
-                <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors gap-3 sm:gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Server className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300 font-medium truncate">{service.name}</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded flex-shrink-0">
-                      :{service.port}
-                    </span>
-                  </div>
-                  <a
-                    href={service.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-medium transition-colors flex-shrink-0 touch-manipulation py-2 px-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg text-center sm:text-left sm:bg-transparent sm:p-0"
+        {/* 服务列表 - 下拉展示 */}
+        {environment.services && environment.services.length > 0 && (
+          <div className={`
+            overflow-hidden transition-all duration-300 ease-out
+            ${isServicesExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+          `}>
+            <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                <Server className="w-4 h-4" />
+                服务列表 ({environment.services.length})
+              </h4>
+              <div className="space-y-2">
+                {environment.services.map((service, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 rounded-lg
+                             bg-gray-50/80 dark:bg-gray-700/50 border border-gray-200/50 dark:border-gray-600/50
+                             hover:bg-gray-100/80 dark:hover:bg-gray-600/50
+                             transition-all duration-200 hover:scale-[1.01]
+                             animate-in slide-in-from-top-2 fade-in duration-300"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    访问
-                  </a>
-                </div>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
+                          {service.name}
+                        </span>
+                        <span className={`
+                          px-2 py-0.5 rounded-md text-xs font-medium transition-colors duration-200
+                          ${getServiceStatusStyle(service.status)}
+                        `}>
+                          {service.status === 'running' ? '运行中' :
+                           service.status === 'stopped' ? '已停止' :
+                           service.status === 'warning' ? '警告' :
+                           service.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        端口: {service.port}
+                      </div>
+                    </div>
+
+                    {/* 服务访问按钮 */}
+                    {service.status === 'running' && (
+                      <button
+                        onClick={() => handleServiceVisit(service)}
+                        className="ml-3 flex items-center gap-1 px-2 py-1
+                                 bg-blue-500/10 hover:bg-blue-500/20 dark:bg-blue-400/10 dark:hover:bg-blue-400/20
+                                 text-blue-600 dark:text-blue-400 text-xs font-medium
+                                 rounded-md border border-blue-200/50 dark:border-blue-700/50
+                                 transition-all duration-200 hover:scale-105 active:scale-95
+                                 focus:outline-none focus:ring-1 focus:ring-blue-500/20"
+                        title={`访问 ${service.name}`}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span className="hidden sm:inline">访问</span>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* 悬停时的光晕效果 */}
+      <div className={`
+        absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100
+        bg-gradient-to-br from-blue-500/8 via-purple-500/8 to-pink-500/8
+        transition-opacity duration-500 pointer-events-none
+      `} />
+
+      {/* 顶部光线效果 */}
+      <div className={`
+        absolute top-0 left-1/4 right-1/4 h-px
+        bg-gradient-to-r from-transparent via-white/50 to-transparent
+        opacity-0 group-hover:opacity-100
+        transition-opacity duration-500 pointer-events-none
+      `} />
     </div>
   );
 };
 
-export default memo(EnvironmentCard);
+export default EnvironmentCard;
