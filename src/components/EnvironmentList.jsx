@@ -133,8 +133,8 @@ const EnvironmentList = () => {
     }
     console.log('[CHECK] 开始批量检测...');
 
-    // 显示开始检测的通知
-    showInfo(`开始检测 ${environments.length} 个环境...`, 2000);
+    // 静默开始检测 - 不显示通知
+    // showInfo(`开始检测 ${environments.length} 个环境...`, 2000);
 
     setCheckProgress({ completed: 0, total: environments.length, percentage: 0 });
 
@@ -147,12 +147,14 @@ const EnvironmentList = () => {
       setEnvironmentStatuses(results);
       setLastCheckTime(new Date().toISOString());
 
-      // 显示检测完成通知
-      const availableCount = Object.values(results).filter(r => r.status === 'online').length;
-      const totalCount = Object.keys(results).length;
-      showSuccess(`检测完成！${availableCount}/${totalCount} 个环境可用`, 3000);
+      // 静默检测完成 - 不显示通知
+      // const availableCount = Object.values(results).filter(r => r.status === 'online').length;
+      // const totalCount = Object.keys(results).length;
+      // showSuccess(`检测完成！${availableCount}/${totalCount} 个环境可用`, 3000);
     } catch (error) {
-      showError('检测过程中出现错误，请重试', 3000);
+      // 静默处理错误 - 不显示通知，但保留控制台日志
+      console.error('[CHECK] 检测过程中出现错误:', error);
+      // showError('检测过程中出现错误，请重试', 3000);
     } finally {
       setIsChecking(false);
       setCheckProgress(null);
