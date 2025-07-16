@@ -69,13 +69,31 @@ const cleanExpiredCache = () => {
 };
 
 /**
- * 基于 img 标签的网络探测方法
+ * 检测是否为内网IP地址
+ */
+const isPrivateIP = (hostname) => {
+  // IPv4 内网地址范围
+  const privateRanges = [
+    /^10\./,                    // 10.0.0.0/8
+    /^192\.168\./,              // 192.168.0.0/16
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./, // 172.16.0.0/12
+    /^127\./,                   // 127.0.0.0/8 (localhost)
+    /^169\.254\./,              // 169.254.0.0/16 (link-local)
+  ];
+
+  return privateRanges.some(range => range.test(hostname));
+};
+
+/**
+ * 基于 img 标签的网络探测方法（修复版）
  * 适用于 IP+端口 格式的地址检测，可绕过 CORS 限制
+ * 修复了错误地将网络不可达判断为可达的问题
  */
 const checkImageProbe = async (url, timeout = 3000) => {
   return new Promise((resolve) => {
     const img = new Image();
     let isResolved = false;
+    const startTime = Date.now();
 
     // 超时处理
     const timeoutId = setTimeout(() => {
@@ -85,34 +103,77 @@ const checkImageProbe = async (url, timeout = 3000) => {
         resolve({
           reachable: false,
           method: 'image-timeout',
-          error: '探测超时'
+          error: '探测超时',
+          responseTime: Date.now() - startTime
         });
       }
     }, timeout);
 
-    // 成功加载（即使是404等错误，也说明服务可达）
+    // 成功加载（图像资源存在且可访问）
     img.onload = () => {
       if (!isResolved) {
         isResolved = true;
         clearTimeout(timeoutId);
+        const responseTime = Date.now() - startTime;
         resolve({
           reachable: true,
           method: 'image-load',
-          details: '图像加载成功'
+          details: '图像加载成功',
+          responseTime
         });
       }
     };
 
-    // 加载错误（但服务可达，返回了错误响应）
+    // 加载错误 - 需要根据响应时间和URL类型判断是否可达
     img.onerror = () => {
       if (!isResolved) {
         isResolved = true;
         clearTimeout(timeoutId);
-        resolve({
-          reachable: true,
-          method: 'image-error-reachable',
-          details: '服务可达但资源不存在'
-        });
+        const responseTime = Date.now() - startTime;
+
+        try {
+          const urlObj = new URL(url);
+          const isPrivate = isPrivateIP(urlObj.hostname);
+
+          // 对于内网IP，快速失败通常表示网络不可达
+          if (isPrivate && responseTime < 200) {
+            resolve({
+              reachable: false,
+              method: 'image-error-network-unreachable',
+              error: '内网地址快速失败，可能不存在',
+              responseTime,
+              details: `响应时间: ${responseTime}ms，判断为网络不可达`
+            });
+            return;
+          }
+
+          // 对于外网或响应时间较长的情况，可能是服务可达但资源不存在
+          if (responseTime > 500) {
+            resolve({
+              reachable: true,
+              method: 'image-error-reachable',
+              details: `服务可达但资源不存在 (响应时间: ${responseTime}ms)`,
+              responseTime
+            });
+          } else {
+            // 中等响应时间，需要更谨慎判断
+            resolve({
+              reachable: false,
+              method: 'image-error-uncertain',
+              error: `响应时间 ${responseTime}ms，无法确定可达性`,
+              responseTime,
+              details: '建议使用其他方法验证'
+            });
+          }
+        } catch (parseError) {
+          // URL解析失败，判断为不可达
+          resolve({
+            reachable: false,
+            method: 'image-error-invalid-url',
+            error: 'URL解析失败',
+            responseTime
+          });
+        }
       }
     };
 
@@ -126,7 +187,8 @@ const checkImageProbe = async (url, timeout = 3000) => {
         resolve({
           reachable: false,
           method: 'image-exception',
-          error: error.message
+          error: error.message,
+          responseTime: Date.now() - startTime
         });
       }
     }
@@ -203,14 +265,51 @@ const isIpPortAddress = (url) => {
 };
 
 /**
- * 极简网络可达性检测
+ * 改进的网络可达性检测（修复版）
+ * 添加了更严格的错误判断和内网IP特殊处理
  */
 const checkNetworkReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeout) => {
   const controller = new AbortController();
+  const startTime = Date.now();
+
+  // 设置超时
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // 直接使用no-cors模式，只检测网络可达性
+    const urlObj = new URL(url);
+    const isPrivate = isPrivateIP(urlObj.hostname);
+
+    // 对于内网IP，使用更严格的检测
+    if (isPrivate) {
+      // 先尝试HEAD请求（更轻量）
+      try {
+        const response = await fetch(url, {
+          method: 'HEAD',
+          mode: 'no-cors',
+          signal: controller.signal,
+          cache: 'no-cache',
+          credentials: 'omit'
+        });
+
+        clearTimeout(timeoutId);
+        const responseTime = Date.now() - startTime;
+
+        // 对于内网，快速响应通常表示真正可达
+        if (responseTime < 1000) {
+          return {
+            reachable: true,
+            method: 'fetch-head-success',
+            responseTime,
+            details: `内网地址HEAD请求成功 (${responseTime}ms)`
+          };
+        }
+      } catch (headError) {
+        // HEAD失败，尝试GET
+        debugLog('HEAD请求失败，尝试GET', { url, error: headError.message });
+      }
+    }
+
+    // 标准GET请求
     await fetch(url, {
       method: 'GET',
       mode: 'no-cors',
@@ -220,19 +319,120 @@ const checkNetworkReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeo
     });
 
     clearTimeout(timeoutId);
-    return { reachable: true, method: 'fetch-no-cors' };
+    const responseTime = Date.now() - startTime;
 
-  } catch {
+    return {
+      reachable: true,
+      method: 'fetch-no-cors',
+      responseTime,
+      details: `fetch请求成功 (${responseTime}ms)`
+    };
+
+  } catch (error) {
     clearTimeout(timeoutId);
-    return { reachable: false, method: 'fetch-failed' };
+    const responseTime = Date.now() - startTime;
+
+    // 分析错误类型
+    if (error.name === 'AbortError') {
+      return {
+        reachable: false,
+        method: 'fetch-timeout',
+        error: '请求超时',
+        responseTime
+      };
+    }
+
+    // 对于内网IP的快速失败，更可能是网络不可达
+    try {
+      const urlObj = new URL(url);
+      if (isPrivateIP(urlObj.hostname) && responseTime < 100) {
+        return {
+          reachable: false,
+          method: 'fetch-network-unreachable',
+          error: '内网地址快速失败，可能不存在',
+          responseTime,
+          details: `响应时间: ${responseTime}ms`
+        };
+      }
+    } catch (parseError) {
+      // URL解析失败
+    }
+
+    return {
+      reachable: false,
+      method: 'fetch-failed',
+      error: error.message,
+      responseTime
+    };
   }
 };
 
 
 
 /**
- * 增强的网络探测方法
+ * 双重验证机制 - 对可疑结果进行二次确认
+ */
+const verifyReachability = async (url, primaryResult, timeout = 2000) => {
+  debugLog('开始双重验证', { url, primaryResult });
+
+  try {
+    const urlObj = new URL(url);
+    const isPrivate = isPrivateIP(urlObj.hostname);
+
+    // 只对内网IP的可疑"可达"结果进行验证
+    if (!isPrivate || !primaryResult.reachable) {
+      return primaryResult;
+    }
+
+    // 使用不同的探测路径进行验证
+    const verifyUrls = [
+      `${urlObj.protocol}//${urlObj.host}/`,
+      `${urlObj.protocol}//${urlObj.host}/ping`,
+      `${urlObj.protocol}//${urlObj.host}/health`
+    ];
+
+    let verificationPassed = false;
+
+    for (const verifyUrl of verifyUrls) {
+      try {
+        const result = await checkImageProbe(verifyUrl, timeout);
+        if (result.reachable && result.responseTime > 100) {
+          verificationPassed = true;
+          break;
+        }
+      } catch (error) {
+        continue;
+      }
+    }
+
+    if (!verificationPassed) {
+      debugLog('双重验证失败，修正结果为不可达', { url, primaryResult });
+      return {
+        reachable: false,
+        method: 'verification-failed',
+        error: '双重验证失败，判断为不可达',
+        details: `原始结果: ${primaryResult.method}，验证失败`,
+        originalResult: primaryResult
+      };
+    }
+
+    debugLog('双重验证通过', { url, primaryResult });
+    return {
+      ...primaryResult,
+      verified: true,
+      details: `${primaryResult.details || ''} (已验证)`
+    };
+
+  } catch (error) {
+    debugLog('双重验证异常', { url, error: error.message });
+    return primaryResult;
+  }
+};
+
+/**
+ * 增强的网络探测方法（修复版）
  * 结合 fetch 和 img 探测，提供更准确的检测结果
+ * 添加了双重验证机制防止误报
  */
 const checkEnhancedReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeout) => {
   const isIpPort = isIpPortAddress(url);
@@ -305,13 +505,21 @@ const checkEnhancedReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.time
           debugLog('尝试img探测', probeUrl);
           const imgResult = await checkImageProbe(probeUrl, Math.min(timeout, SIMPLE_CHECK_CONFIG.imageProbeTimeout));
           if (imgResult.reachable) {
-            debugLog('img探测成功', { probeUrl, result: imgResult });
-            return {
+            debugLog('img探测成功，进行双重验证', { probeUrl, result: imgResult });
+            const verifiedResult = await verifyReachability(url, {
               reachable: true,
               method: imgResult.method,
               details: `img探测成功: ${probeUrl}`,
-              probeUrl: probeUrl
-            };
+              probeUrl: probeUrl,
+              responseTime: imgResult.responseTime
+            });
+
+            if (verifiedResult.reachable) {
+              return verifiedResult;
+            } else {
+              debugLog('双重验证失败，继续尝试其他探测路径', { probeUrl, verifiedResult });
+              continue;
+            }
           }
         } catch (error) {
           debugLog('img探测异常', { probeUrl, error: error.message });
@@ -446,5 +654,5 @@ export const getCacheStats = () => {
   };
 };
 
-// 调试模式可以通过修改配置启用
+// 调试模式可以通过修改配置启用（生产环境建议关闭）
 // SIMPLE_CHECK_CONFIG.debugMode = true;

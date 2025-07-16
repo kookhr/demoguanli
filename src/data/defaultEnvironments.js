@@ -41,5 +41,18 @@ export const environments = [
       { name: 'Web应用', url: 'http://localhost:5173', port: 5173 },
       { name: 'HMR', url: 'ws://localhost:5173', port: 5173 }
     ]
+  },
+  {
+    id: 'test-unreachable',
+    name: '测试不可达地址',
+    type: '测试环境',
+    network: 'internal',
+    url: 'http://10.0.1.77:18080',
+    version: 'v1.0.0-test',
+    description: '用于测试网络检测修复的不可达内网地址',
+    tags: ['测试', '内网', '不可达', '验证'],
+    services: [
+      { name: '测试服务', url: 'http://10.0.1.77:18080', port: 18080 }
+    ]
   }
 ];

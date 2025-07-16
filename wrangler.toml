@@ -24,3 +24,6 @@ CACHE_KV_CACHE = "36000"         # 1小时（您之前设置的值）
 
 # 敏感环境变量在 Cloudflare Dashboard 中配置:
 # - JWT_SECRET
+
+[observability.logs]
+enabled = true

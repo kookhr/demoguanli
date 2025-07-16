@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络检测修复验证</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: #fafafa;
+        }
+        .test-url {
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: #f0f0f0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 8px 0;
+        }
+        .result {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .result.unreachable {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+        .debug-info {
+            background: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 8px;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 网络检测修复验证</h1>
+        <p>测试修复后的网络检测功能，验证对不可达地址的准确判断。</p>
+        
+        <div>
+            <button onclick="testAll()">🚀 测试所有地址</button>
+            <button onclick="clearResults()">🧹 清除结果</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📋 测试用例</h2>
+        
+        <div class="test-item">
+            <h3>❌ 不存在的内网地址（应该返回unreachable）</h3>
+            <div class="test-url">http://10.0.1.77:18080</div>
+            <button onclick="testSingle('http://10.0.1.77:18080', 'unreachable-internal-1')">测试此地址</button>
+            <div id="unreachable-internal-1" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>❌ 另一个不存在的内网地址</h3>
+            <div class="test-url">http://192.168.99.99:8080</div>
+            <button onclick="testSingle('http://192.168.99.99:8080', 'unreachable-internal-2')">测试此地址</button>
+            <div id="unreachable-internal-2" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>❌ 不存在的外网地址</h3>
+            <div class="test-url">http://nonexistent-domain-12345.com</div>
+            <button onclick="testSingle('http://nonexistent-domain-12345.com', 'unreachable-external')">测试此地址</button>
+            <div id="unreachable-external" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>✅ 可达的地址（对照组）</h3>
+            <div class="test-url">https://www.baidu.com</div>
+            <button onclick="testSingle('https://www.baidu.com', 'reachable-external')">测试此地址</button>
+            <div id="reachable-external" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>✅ 本地地址（如果存在）</h3>
+            <div class="test-url">http://localhost:5173</div>
+            <button onclick="testSingle('http://localhost:5173', 'reachable-local')">测试此地址</button>
+            <div id="reachable-local" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 模拟网络检测函数（简化版，用于测试）
+        window.testNetworkDetection = async function(url) {
+            const startTime = Date.now();
+            
+            try {
+                // 模拟检测逻辑
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname;
+                
+                // 检测是否为内网IP
+                const isPrivateIP = (hostname) => {
+                    const privateRanges = [
+                        /^10\./,
+                        /^192\.168\./,
+                        /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+                        /^127\./,
+                        /^169\.254\./,
+                    ];
+                    return privateRanges.some(range => range.test(hostname));
+                };
+                
+                const isPrivate = isPrivateIP(hostname);
+                
+                // 使用图像探测方法
+                const result = await new Promise((resolve) => {
+                    const img = new Image();
+                    let isResolved = false;
+                    const probeStartTime = Date.now();
+                    
+                    const timeout = setTimeout(() => {
+                        if (!isResolved) {
+                            isResolved = true;
+                            img.src = '';
+                            resolve({
+                                reachable: false,
+                                method: 'image-timeout',
+                                error: '探测超时',
+                                responseTime: Date.now() - probeStartTime
+                            });
+                        }
+                    }, 5000);
+                    
+                    img.onload = () => {
+                        if (!isResolved) {
+                            isResolved = true;
+                            clearTimeout(timeout);
+                            resolve({
+                                reachable: true,
+                                method: 'image-load',
+                                details: '图像加载成功',
+                                responseTime: Date.now() - probeStartTime
+                            });
+                        }
+                    };
+                    
+                    img.onerror = () => {
+                        if (!isResolved) {
+                            isResolved = true;
+                            clearTimeout(timeout);
+                            const responseTime = Date.now() - probeStartTime;
+                            
+                            // 修复后的逻辑：根据响应时间和IP类型判断
+                            if (isPrivate && responseTime < 200) {
+                                resolve({
+                                    reachable: false,
+                                    method: 'image-error-network-unreachable',
+                                    error: '内网地址快速失败，判断为不可达',
+                                    responseTime,
+                                    details: `响应时间: ${responseTime}ms`
+                                });
+                            } else if (responseTime > 500) {
+                                resolve({
+                                    reachable: true,
+                                    method: 'image-error-reachable',
+                                    details: `服务可达但资源不存在 (${responseTime}ms)`,
+                                    responseTime
+                                });
+                            } else {
+                                resolve({
+                                    reachable: false,
+                                    method: 'image-error-uncertain',
+                                    error: `响应时间 ${responseTime}ms，判断为不可达`,
+                                    responseTime
+                                });
+                            }
+                        }
+                    };
+                    
+                    try {
+                        img.src = url + '/favicon.ico';
+                    } catch (error) {
+                        if (!isResolved) {
+                            isResolved = true;
+                            clearTimeout(timeout);
+                            resolve({
+                                reachable: false,
+                                method: 'image-exception',
+                                error: error.message,
+                                responseTime: Date.now() - probeStartTime
+                            });
+                        }
+                    }
+                });
+                
+                return {
+                    ...result,
+                    totalTime: Date.now() - startTime,
+                    url: url,
+                    isPrivateIP: isPrivate
+                };
+                
+            } catch (error) {
+                return {
+                    reachable: false,
+                    method: 'exception',
+                    error: error.message,
+                    totalTime: Date.now() - startTime,
+                    url: url
+                };
+            }
+        };
+        
+        window.testSingle = async function(url, resultId) {
+            const resultDiv = document.getElementById(resultId);
+            const button = event.target;
+            
+            button.disabled = true;
+            button.textContent = '检测中...';
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result loading';
+            resultDiv.innerHTML = '🔄 正在检测...';
+            
+            try {
+                const result = await testNetworkDetection(url);
+                
+                let className = 'result ';
+                let icon = '';
+                
+                if (result.reachable) {
+                    className += 'success';
+                    icon = '✅';
+                } else {
+                    className += 'unreachable';
+                    icon = '❌';
+                }
+                
+                resultDiv.className = className;
+                resultDiv.innerHTML = `
+                    ${icon} <strong>检测结果:</strong> ${result.reachable ? '可达' : '不可达'}<br>
+                    <strong>方法:</strong> ${result.method}<br>
+                    <strong>响应时间:</strong> ${result.responseTime || 0}ms<br>
+                    <strong>总耗时:</strong> ${result.totalTime}ms<br>
+                    <strong>是否内网IP:</strong> ${result.isPrivateIP ? '是' : '否'}<br>
+                    ${result.details ? `<strong>详情:</strong> ${result.details}<br>` : ''}
+                    ${result.error ? `<strong>错误:</strong> ${result.error}<br>` : ''}
+                    <div class="debug-info">调试信息: ${JSON.stringify(result, null, 2)}</div>
+                `;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ <strong>检测异常:</strong> ${error.message}`;
+            }
+            
+            button.disabled = false;
+            button.textContent = '重新测试';
+        };
+        
+        window.testAll = async function() {
+            const urls = [
+                'http://10.0.1.77:18080',
+                'http://192.168.99.99:8080',
+                'http://nonexistent-domain-12345.com',
+                'https://www.baidu.com',
+                'http://localhost:5173'
+            ];
+            
+            const resultIds = [
+                'unreachable-internal-1',
+                'unreachable-internal-2',
+                'unreachable-external',
+                'reachable-external',
+                'reachable-local'
+            ];
+            
+            for (let i = 0; i < urls.length; i++) {
+                await new Promise(resolve => setTimeout(resolve, 500)); // 间隔500ms
+                const button = document.querySelector(`button[onclick*="${resultIds[i]}"]`);
+                if (button) {
+                    button.click();
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // 等待2秒
+                }
+            }
+        };
+        
+        window.clearResults = function() {
+            const results = document.querySelectorAll('.result');
+            results.forEach(result => {
+                result.style.display = 'none';
+                result.innerHTML = '';
+            });
+            
+            const buttons = document.querySelectorAll('button[onclick*="testSingle"]');
+            buttons.forEach(button => {
+                button.disabled = false;
+                button.textContent = '测试此地址';
+            });
+        };
+    </script>
+</body>
+</html>
