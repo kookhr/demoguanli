@@ -135,34 +135,37 @@ const checkImageProbe = async (url, timeout = 3000) => {
           const urlObj = new URL(url);
           const isPrivate = isPrivateIP(urlObj.hostname);
 
-          // 对于内网IP，快速失败通常表示网络不可达
-          if (isPrivate && responseTime < 200) {
+          // 对于内网IP，只有极快失败才可能表示网络不可达
+          // 调整阈值为50ms，避免误判真正可达的内网服务
+          if (isPrivate && responseTime < 50) {
             resolve({
               reachable: false,
-              method: 'image-error-network-unreachable',
-              error: '内网地址快速失败，可能不存在',
+              method: 'image-error-very-fast-fail',
+              error: '内网地址极快失败，可能不存在',
               responseTime,
-              details: `响应时间: ${responseTime}ms，判断为网络不可达`
+              details: `响应时间: ${responseTime}ms，需要进一步验证`
             });
             return;
           }
 
-          // 对于外网或响应时间较长的情况，可能是服务可达但资源不存在
-          if (responseTime > 500) {
+          // 对于其他情况，采用保守策略：倾向于判断为可达
+          // 这样可以避免误杀真正可达的服务
+          if (responseTime > 100) {
             resolve({
               reachable: true,
-              method: 'image-error-reachable',
+              method: 'image-error-likely-reachable',
               details: `服务可达但资源不存在 (响应时间: ${responseTime}ms)`,
               responseTime
             });
           } else {
-            // 中等响应时间，需要更谨慎判断
+            // 对于50-100ms的响应时间，采用保守策略判断为可达
+            // 避免误判真正可达的内网服务
             resolve({
-              reachable: false,
-              method: 'image-error-uncertain',
-              error: `响应时间 ${responseTime}ms，无法确定可达性`,
+              reachable: true,
+              method: 'image-error-conservative-reachable',
+              details: `保守判断为可达 (响应时间: ${responseTime}ms)`,
               responseTime,
-              details: '建议使用其他方法验证'
+              warning: '响应时间较短，但采用保守策略判断为可达'
             });
           }
         } catch (parseError) {
@@ -342,16 +345,17 @@ const checkNetworkReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeo
       };
     }
 
-    // 对于内网IP的快速失败，更可能是网络不可达
+    // 对于内网IP的极快失败，可能是网络不可达
+    // 调整阈值为30ms，避免误判真正可达的内网服务
     try {
       const urlObj = new URL(url);
-      if (isPrivateIP(urlObj.hostname) && responseTime < 100) {
+      if (isPrivateIP(urlObj.hostname) && responseTime < 30) {
         return {
           reachable: false,
-          method: 'fetch-network-unreachable',
-          error: '内网地址快速失败，可能不存在',
+          method: 'fetch-very-fast-fail',
+          error: '内网地址极快失败，可能不存在',
           responseTime,
-          details: `响应时间: ${responseTime}ms`
+          details: `响应时间: ${responseTime}ms，建议进一步验证`
         };
       }
     } catch (parseError) {
@@ -370,57 +374,80 @@ const checkNetworkReachability = async (url, timeout = SIMPLE_CHECK_CONFIG.timeo
 
 
 /**
- * 双重验证机制 - 对可疑结果进行二次确认
+ * 智能验证机制 - 对可疑结果进行二次确认
+ * 现在更加保守，主要验证极快失败的情况
  */
 const verifyReachability = async (url, primaryResult, timeout = 2000) => {
-  debugLog('开始双重验证', { url, primaryResult });
+  debugLog('开始智能验证', { url, primaryResult });
 
   try {
     const urlObj = new URL(url);
     const isPrivate = isPrivateIP(urlObj.hostname);
 
-    // 只对内网IP的可疑"可达"结果进行验证
-    if (!isPrivate || !primaryResult.reachable) {
+    // 只对内网IP的极快失败进行验证，避免误判正常服务
+    if (!isPrivate || primaryResult.reachable ||
+        !primaryResult.method?.includes('very-fast-fail')) {
       return primaryResult;
     }
 
-    // 使用不同的探测路径进行验证
+    // 对极快失败进行多次验证，确保不是偶然的网络抖动
     const verifyUrls = [
       `${urlObj.protocol}//${urlObj.host}/`,
-      `${urlObj.protocol}//${urlObj.host}/ping`,
-      `${urlObj.protocol}//${urlObj.host}/health`
+      `${urlObj.protocol}//${urlObj.host}/favicon.ico`,
+      `${urlObj.protocol}//${urlObj.host}/ping`
     ];
 
-    let verificationPassed = false;
+    let fastFailCount = 0;
+    let totalAttempts = 0;
 
     for (const verifyUrl of verifyUrls) {
       try {
+        totalAttempts++;
         const result = await checkImageProbe(verifyUrl, timeout);
-        if (result.reachable && result.responseTime > 100) {
-          verificationPassed = true;
-          break;
+
+        // 如果任何一次验证成功或响应时间正常，判断为可达
+        if (result.reachable || result.responseTime > 50) {
+          debugLog('验证发现服务可达，修正结果', { url, verifyUrl, result });
+          return {
+            reachable: true,
+            method: 'verification-corrected-reachable',
+            details: `验证发现服务可达: ${verifyUrl}`,
+            responseTime: result.responseTime,
+            originalResult: primaryResult,
+            corrected: true
+          };
+        }
+
+        if (result.responseTime < 50) {
+          fastFailCount++;
         }
       } catch (error) {
-        continue;
+        totalAttempts++;
+        fastFailCount++;
       }
     }
 
-    if (!verificationPassed) {
-      debugLog('双重验证失败，修正结果为不可达', { url, primaryResult });
+    // 只有所有验证都极快失败才判断为真正不可达
+    if (fastFailCount === totalAttempts && totalAttempts >= 2) {
+      debugLog('多次验证确认不可达', { url, fastFailCount, totalAttempts });
       return {
         reachable: false,
-        method: 'verification-failed',
-        error: '双重验证失败，判断为不可达',
-        details: `原始结果: ${primaryResult.method}，验证失败`,
+        method: 'multi-verification-unreachable',
+        error: '多次验证确认不可达',
+        details: `${totalAttempts}次验证均快速失败`,
         originalResult: primaryResult
       };
     }
 
-    debugLog('双重验证通过', { url, primaryResult });
+    // 如果验证结果不确定，采用保守策略判断为可达
+    debugLog('验证结果不确定，采用保守策略', { url, primaryResult, fastFailCount, totalAttempts });
     return {
-      ...primaryResult,
-      verified: true,
-      details: `${primaryResult.details || ''} (已验证)`
+      reachable: true,
+      method: 'verification-conservative-reachable',
+      details: '验证结果不确定，采用保守策略判断为可达',
+      responseTime: primaryResult.responseTime,
+      originalResult: primaryResult,
+      warning: '验证结果不确定，可能存在网络抖动'
     };
 
   } catch (error) {
