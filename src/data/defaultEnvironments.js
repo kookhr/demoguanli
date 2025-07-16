@@ -54,5 +54,18 @@ export const environments = [
     services: [
       { name: '测试服务', url: 'http://10.0.1.77:18080', port: 18080 }
     ]
+  },
+  {
+    id: 'test-user-reachable',
+    name: '用户可达地址测试',
+    type: '测试环境',
+    network: 'internal',
+    url: 'http://10.0.12.158:18080',
+    version: 'v1.0.0-test',
+    description: '用户反馈的可达内网地址，用于验证修复效果',
+    tags: ['测试', '内网', '可达', '用户反馈'],
+    services: [
+      { name: '用户服务', url: 'http://10.0.12.158:18080', port: 18080 }
+    ]
   }
 ];
